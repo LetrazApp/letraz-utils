@@ -1,0 +1,11 @@
+meta {
+  name: Status Check
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{host}}/status
+  body: none
+  auth: inherit
+}
