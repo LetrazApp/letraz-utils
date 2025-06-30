@@ -22,7 +22,7 @@ This service is part of the Letraz ecosystem and provides:
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/LetrazApp/letraz-scrapper.git
 cd letraz-scrapper
 ```
 
