@@ -32,7 +32,7 @@ func SetupRoutes(e *echo.Echo, cfg *config.Config) {
 	// API v1 routes
 	v1 := e.Group("/api/v1")
 	{
-		v1.POST("/scrape", handlers.ScrapeHandler)
+		v1.POST("/scrape", handlers.ScrapeHandler(cfg))
 	}
 
 	// Root route
@@ -43,4 +43,4 @@ func SetupRoutes(e *echo.Echo, cfg *config.Config) {
 			"status":  "running",
 		})
 	})
-} 
+}
