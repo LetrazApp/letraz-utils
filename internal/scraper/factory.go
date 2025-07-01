@@ -4,18 +4,21 @@ import (
 	"fmt"
 
 	"letraz-scrapper/internal/config"
+	"letraz-scrapper/internal/llm"
 	"letraz-scrapper/internal/scraper/engines/headed"
 )
 
 // DefaultScraperFactory implements ScraperFactory
 type DefaultScraperFactory struct {
-	config *config.Config
+	config     *config.Config
+	llmManager *llm.Manager
 }
 
 // NewScraperFactory creates a new scraper factory
-func NewScraperFactory(cfg *config.Config) ScraperFactory {
+func NewScraperFactory(cfg *config.Config, llmManager *llm.Manager) ScraperFactory {
 	return &DefaultScraperFactory{
-		config: cfg,
+		config:     cfg,
+		llmManager: llmManager,
 	}
 }
 
@@ -23,7 +26,7 @@ func NewScraperFactory(cfg *config.Config) ScraperFactory {
 func (f *DefaultScraperFactory) CreateScraper(engine string) (Scraper, error) {
 	switch engine {
 	case "headed", "auto":
-		return headed.NewRodScraper(f.config), nil
+		return headed.NewRodScraper(f.config, f.llmManager), nil
 	case "raw":
 		// TODO: Implement raw scraper
 		return nil, fmt.Errorf("raw scraper not yet implemented")

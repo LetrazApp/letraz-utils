@@ -74,29 +74,57 @@ func ScrapeHandler(cfg *config.Config, poolManager *workers.PoolManager) echo.Ha
 			})
 		}
 
-		job := result.Job
-
 		// Determine engine used (from options or default)
 		engine := "headed"
 		if req.Options != nil && req.Options.Engine != "" {
 			engine = req.Options.Engine
 		}
 
-		// Prepare response
-		response := models.ScrapeResponse{
-			Success:        true,
-			Job:            job,
-			ProcessingTime: time.Since(startTime),
-			Engine:         engine,
-			RequestID:      requestID,
-		}
+		// Prepare response based on which processing mode was used
+		var response models.ScrapeResponse
+		if result.UsedLLM && result.Job != nil {
+			// New LLM-processed job
+			response = models.ScrapeResponse{
+				Success:        true,
+				Job:            result.Job,
+				ProcessingTime: time.Since(startTime),
+				Engine:         engine + "_llm",
+				RequestID:      requestID,
+			}
 
-		logger.WithFields(map[string]interface{}{
-			"processing_time": time.Since(startTime),
-			"job_title":       job.Title,
-			"company":         job.Company,
-			"engine":          engine,
-		}).Info("Scrape request completed successfully")
+			logger.WithFields(map[string]interface{}{
+				"processing_time": time.Since(startTime),
+				"job_title":       result.Job.Title,
+				"company":         result.Job.CompanyName,
+				"engine":          engine + "_llm",
+				"used_llm":        true,
+			}).Info("Scrape request completed successfully with LLM processing")
+		} else if result.JobPosting != nil {
+			// Legacy job posting
+			response = models.ScrapeResponse{
+				Success:        true,
+				JobPosting:     result.JobPosting,
+				ProcessingTime: time.Since(startTime),
+				Engine:         engine + "_legacy",
+				RequestID:      requestID,
+			}
+
+			logger.WithFields(map[string]interface{}{
+				"processing_time": time.Since(startTime),
+				"job_title":       result.JobPosting.Title,
+				"company":         result.JobPosting.Company,
+				"engine":          engine + "_legacy",
+				"used_llm":        false,
+			}).Info("Scrape request completed successfully with legacy processing")
+		} else {
+			// This shouldn't happen, but handle it gracefully
+			return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+				Error:     "processing_error",
+				Message:   "Job processing completed but no data was returned",
+				RequestID: requestID,
+				Timestamp: time.Now(),
+			})
+		}
 
 		return c.JSON(http.StatusOK, response)
 	}

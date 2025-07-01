@@ -1,15 +1,15 @@
 package main
 
 import (
-	"context"
 	"fmt"
-	"net/http"
+	"log"
 	"os"
 	"os/signal"
-	"time"
+	"syscall"
 
 	"letraz-scrapper/internal/api/routes"
 	"letraz-scrapper/internal/config"
+	"letraz-scrapper/internal/llm"
 	"letraz-scrapper/internal/scraper/workers"
 	"letraz-scrapper/pkg/utils"
 
@@ -20,73 +20,62 @@ func main() {
 	// Load configuration
 	cfg, err := config.LoadConfig("configs/config.yaml")
 	if err != nil {
-		fmt.Printf("Failed to load configuration: %v\n", err)
-		os.Exit(1)
+		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
 	// Initialize logger
-	utils.InitLogger(cfg.Logging.Level, cfg.Logging.Format)
 	logger := utils.GetLogger()
+	logger.Info("Starting Letraz Job Scraper")
 
-	logger.Info("Starting Letraz Job Scraper service")
-
-	// Initialize worker pool manager
-	poolManager := workers.NewPoolManager(cfg)
-	err = poolManager.Initialize()
-	if err != nil {
-		logger.WithError(err).Fatal("Failed to initialize worker pool")
+	// Initialize LLM manager
+	llmManager := llm.NewManager(cfg)
+	if err := llmManager.Start(); err != nil {
+		logger.WithError(err).Fatal("Failed to start LLM manager")
 	}
-	logger.Info("Worker pool initialized successfully")
+	defer llmManager.Stop()
 
-	// Create Echo instance
+	// Initialize worker pool
+	poolManager := workers.NewPoolManager(cfg, llmManager)
+	if err := poolManager.Initialize(); err != nil {
+		logger.WithError(err).Fatal("Failed to start worker pool")
+	}
+	defer poolManager.Shutdown()
+
+	// Initialize Echo
 	e := echo.New()
 
-	// Disable Echo's banner
-	e.HideBanner = true
-
-	// Setup routes with worker pool manager
+	// Setup routes
 	routes.SetupRoutes(e, cfg, poolManager)
 
-	// Start server in a goroutine
+	// Graceful shutdown
 	go func() {
-		address := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
-		logger.WithField("address", address).Info("Starting HTTP server")
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+		<-sigChan
 
-		// Configure server timeouts
-		s := &http.Server{
-			Addr:         address,
-			ReadTimeout:  cfg.Server.ReadTimeout,
-			WriteTimeout: cfg.Server.WriteTimeout,
-			IdleTimeout:  cfg.Server.IdleTimeout,
+		logger.Info("Shutting down server...")
+
+		// Stop worker pool
+		if err := poolManager.Shutdown(); err != nil {
+			logger.WithError(err).Error("Error stopping worker pool")
 		}
 
-		if err := e.StartServer(s); err != nil && err != http.ErrServerClosed {
-			logger.WithError(err).Fatal("Failed to start server")
+		// Stop LLM manager
+		if err := llmManager.Stop(); err != nil {
+			logger.WithError(err).Error("Error stopping LLM manager")
+		}
+
+		// Shutdown Echo
+		if err := e.Shutdown(nil); err != nil {
+			logger.WithError(err).Error("Error shutting down server")
 		}
 	}()
 
-	// Wait for interrupt signal to gracefully shutdown the server
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt)
-	<-quit
+	// Start server
+	address := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
+	logger.WithField("address", address).Info("Server starting")
 
-	logger.Info("Shutting down server...")
-
-	// Graceful shutdown with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	// Shutdown worker pool first
-	logger.Info("Shutting down worker pool...")
-	if err := poolManager.Shutdown(); err != nil {
-		logger.WithError(err).Error("Error shutting down worker pool")
+	if err := e.Start(address); err != nil {
+		logger.WithError(err).Fatal("Server failed to start")
 	}
-
-	// Shutdown HTTP server
-	if err := e.Shutdown(ctx); err != nil {
-		logger.WithError(err).Error("Server forced to shutdown")
-		os.Exit(1)
-	}
-
-	logger.Info("Server shutdown complete")
 }
