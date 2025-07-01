@@ -9,6 +9,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/sirupsen/logrus"
 	"letraz-scrapper/internal/config"
+	"letraz-scrapper/internal/llm"
 	"letraz-scrapper/pkg/models"
 	"letraz-scrapper/pkg/utils"
 )
@@ -17,6 +18,7 @@ import (
 type RodScraper struct {
 	config         *config.Config
 	browserManager *BrowserManager
+	llmManager     *llm.Manager
 	logger         *logrus.Logger
 }
 
@@ -31,22 +33,23 @@ type ScrapingResult struct {
 }
 
 // NewRodScraper creates a new Rod scraper instance
-func NewRodScraper(cfg *config.Config) *RodScraper {
+func NewRodScraper(cfg *config.Config, llmManager *llm.Manager) *RodScraper {
 	return &RodScraper{
 		config:         cfg,
 		browserManager: NewBrowserManager(cfg),
+		llmManager:     llmManager,
 		logger:         utils.GetLogger(),
 	}
 }
 
-// ScrapeJob scrapes a job posting from the given URL
-func (rs *RodScraper) ScrapeJob(ctx context.Context, url string, options *models.ScrapeOptions) (*models.JobPosting, error) {
+// ScrapeJob scrapes a job posting from the given URL using LLM processing
+func (rs *RodScraper) ScrapeJob(ctx context.Context, url string, options *models.ScrapeOptions) (*models.Job, error) {
 	startTime := time.Now()
 
 	rs.logger.WithFields(logrus.Fields{
 		"url":    url,
-		"engine": "rod",
-	}).Info("Starting job scrape with Rod engine")
+		"engine": "rod_llm",
+	}).Info("Starting job scrape with Rod engine and LLM processing")
 
 	// Get browser instance
 	browser, err := rs.browserManager.GetBrowser(ctx)
@@ -76,7 +79,63 @@ func (rs *RodScraper) ScrapeJob(ctx context.Context, url string, options *models
 		return nil, fmt.Errorf("failed to get page HTML: %w", err)
 	}
 
-	// Extract job information from HTML
+	// Use LLM to extract job information from HTML
+	job, err := rs.llmManager.ExtractJobData(ctx, html, url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract job information using LLM: %w", err)
+	}
+
+	processingTime := time.Since(startTime)
+
+	rs.logger.WithFields(logrus.Fields{
+		"url":             url,
+		"job_title":       job.Title,
+		"company":         job.CompanyName,
+		"processing_time": processingTime,
+		"engine":          "rod_llm",
+	}).Info("Job scraping completed successfully with LLM processing")
+
+	return job, nil
+}
+
+// ScrapeJobLegacy scrapes a job posting using legacy HTML parsing (for backward compatibility)
+func (rs *RodScraper) ScrapeJobLegacy(ctx context.Context, url string, options *models.ScrapeOptions) (*models.JobPosting, error) {
+	startTime := time.Now()
+
+	rs.logger.WithFields(logrus.Fields{
+		"url":    url,
+		"engine": "rod_legacy",
+	}).Info("Starting job scrape with Rod engine (legacy mode)")
+
+	// Get browser instance
+	browser, err := rs.browserManager.GetBrowser(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get browser instance: %w", err)
+	}
+	defer browser.Release()
+
+	// Set timeout from options or config
+	timeout := rs.config.Scraper.RequestTimeout
+	if options != nil && options.Timeout > 0 {
+		timeout = options.Timeout
+	}
+
+	// Navigate to the URL
+	err = browser.Navigate(ctx, url, timeout)
+	if err != nil {
+		return nil, fmt.Errorf("failed to navigate to URL: %w", err)
+	}
+
+	// Wait for page to be fully loaded
+	time.Sleep(2 * time.Second)
+
+	// Get page HTML
+	html, err := browser.GetPageHTML()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get page HTML: %w", err)
+	}
+
+	// Extract job information from HTML using legacy method
 	jobPosting, err := rs.extractJobFromHTML(html, url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract job information: %w", err)
@@ -85,14 +144,14 @@ func (rs *RodScraper) ScrapeJob(ctx context.Context, url string, options *models
 	processingTime := time.Since(startTime)
 	jobPosting.ProcessedAt = time.Now()
 	jobPosting.Metadata["processing_time"] = processingTime.String()
-	jobPosting.Metadata["engine"] = "rod"
+	jobPosting.Metadata["engine"] = "rod_legacy"
 
 	rs.logger.WithFields(logrus.Fields{
 		"url":             url,
 		"job_title":       jobPosting.Title,
 		"company":         jobPosting.Company,
 		"processing_time": processingTime,
-	}).Info("Job scraping completed successfully")
+	}).Info("Job scraping completed successfully (legacy mode)")
 
 	return jobPosting, nil
 }

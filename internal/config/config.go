@@ -4,6 +4,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/joho/godotenv"
 	"gopkg.in/yaml.v3"
 )
 
@@ -26,9 +27,9 @@ type Config struct {
 	} `yaml:"workers"`
 
 	LLM struct {
-		Provider    string        `yaml:"provider" default:"openai"`
+		Provider    string        `yaml:"provider" default:"claude"`
 		APIKey      string        `yaml:"api_key"`
-		Model       string        `yaml:"model" default:"gpt-3.5-turbo"`
+		Model       string        `yaml:"model" default:"claude-3-haiku-20240307"`
 		MaxTokens   int           `yaml:"max_tokens" default:"4096"`
 		Temperature float32       `yaml:"temperature" default:"0.1"`
 		Timeout     time.Duration `yaml:"timeout" default:"30s"`
@@ -52,6 +53,9 @@ type Config struct {
 
 // LoadConfig loads configuration from file and environment variables
 func LoadConfig(configPath string) (*Config, error) {
+	// Load .env file if it exists (ignore errors if file doesn't exist)
+	_ = godotenv.Load()
+
 	config := &Config{}
 
 	// Set defaults
@@ -67,8 +71,7 @@ func LoadConfig(configPath string) (*Config, error) {
 	config.Workers.Timeout = 30 * time.Second
 	config.Workers.MaxRetries = 3
 
-	config.LLM.Provider = "openai"
-	config.LLM.Model = "gpt-3.5-turbo"
+	config.LLM.Provider = "claude"
 	config.LLM.MaxTokens = 4096
 	config.LLM.Temperature = 0.1
 	config.LLM.Timeout = 30 * time.Second

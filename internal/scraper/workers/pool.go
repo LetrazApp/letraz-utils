@@ -16,10 +16,12 @@ import (
 
 // JobResult represents the result of a scraping job
 type JobResult struct {
-	Job       *models.JobPosting
-	Error     error
-	RequestID string
-	Duration  time.Duration
+	Job        *models.Job        // New Job structure with LLM processing
+	JobPosting *models.JobPosting // Legacy JobPosting for backward compatibility
+	Error      error
+	RequestID  string
+	Duration   time.Duration
+	UsedLLM    bool // Flag to indicate if LLM was used
 }
 
 // ScrapeJob represents a job to be processed by workers
@@ -334,33 +336,94 @@ func (w *Worker) scrapeJob(job ScrapeJob) JobResult {
 			time.Sleep(backoffDelay)
 		}
 
-		// Perform the scraping operation
-		jobPosting, err := scraper.ScrapeJob(job.Context, job.URL, job.Options)
-		if err != nil {
-			lastErr = err
+		// Determine if we should use LLM processing based on options
+		useLLM := true // Default to LLM processing
+		if job.Options != nil && job.Options.LLMProvider == "disabled" {
+			useLLM = false
+		}
+
+		if useLLM {
+			// Perform the scraping operation with LLM processing
+			jobData, err := scraper.ScrapeJob(job.Context, job.URL, job.Options)
+			if err != nil {
+				w.logger.WithFields(logrus.Fields{
+					"job_id":    job.ID,
+					"worker_id": w.ID,
+					"attempt":   attempt + 1,
+					"error":     err.Error(),
+					"mode":      "llm",
+				}).Debug("Scraping attempt failed (LLM mode) - trying legacy fallback")
+
+				// Try legacy fallback when LLM fails
+				jobPosting, legacyErr := scraper.ScrapeJobLegacy(job.Context, job.URL, job.Options)
+				if legacyErr != nil {
+					lastErr = fmt.Errorf("both LLM and legacy scraping failed - LLM: %v, Legacy: %v", err, legacyErr)
+					w.Pool.rateLimiter.RecordFailure(domain, lastErr)
+					continue
+				}
+
+				// Success with legacy fallback
+				result.JobPosting = jobPosting
+				result.UsedLLM = false
+				w.Pool.rateLimiter.RecordSuccess(domain)
+
+				w.logger.WithFields(logrus.Fields{
+					"job_id":    job.ID,
+					"worker_id": w.ID,
+					"job_title": jobPosting.Title,
+					"company":   jobPosting.Company,
+					"attempt":   attempt + 1,
+					"mode":      "legacy_fallback",
+				}).Info("Scraping job completed with legacy fallback after LLM failure")
+
+				return result
+			}
+
+			// Success with LLM
+			result.Job = jobData
+			result.UsedLLM = true
+			w.Pool.rateLimiter.RecordSuccess(domain)
+
 			w.logger.WithFields(logrus.Fields{
 				"job_id":    job.ID,
 				"worker_id": w.ID,
+				"job_title": jobData.Title,
+				"company":   jobData.CompanyName,
 				"attempt":   attempt + 1,
-				"error":     err.Error(),
-			}).Debug("Scraping attempt failed")
+				"mode":      "llm",
+			}).Debug("Scraping job completed successfully (LLM mode)")
+		} else {
+			// Perform the scraping operation with legacy processing
+			jobPosting, err := scraper.ScrapeJobLegacy(job.Context, job.URL, job.Options)
+			if err != nil {
+				lastErr = err
+				w.logger.WithFields(logrus.Fields{
+					"job_id":    job.ID,
+					"worker_id": w.ID,
+					"attempt":   attempt + 1,
+					"error":     err.Error(),
+					"mode":      "legacy",
+				}).Debug("Scraping attempt failed (legacy mode)")
 
-			// Record failure for rate limiting
-			w.Pool.rateLimiter.RecordFailure(domain, err)
-			continue
+				// Record failure for rate limiting
+				w.Pool.rateLimiter.RecordFailure(domain, err)
+				continue
+			}
+
+			// Success with legacy processing
+			result.JobPosting = jobPosting
+			result.UsedLLM = false
+			w.Pool.rateLimiter.RecordSuccess(domain)
+
+			w.logger.WithFields(logrus.Fields{
+				"job_id":    job.ID,
+				"worker_id": w.ID,
+				"job_title": jobPosting.Title,
+				"company":   jobPosting.Company,
+				"attempt":   attempt + 1,
+				"mode":      "legacy",
+			}).Debug("Scraping job completed successfully (legacy mode)")
 		}
-
-		// Success
-		result.Job = jobPosting
-		w.Pool.rateLimiter.RecordSuccess(domain)
-
-		w.logger.WithFields(logrus.Fields{
-			"job_id":    job.ID,
-			"worker_id": w.ID,
-			"job_title": jobPosting.Title,
-			"company":   jobPosting.Company,
-			"attempt":   attempt + 1,
-		}).Debug("Scraping job completed successfully")
 
 		return result
 	}

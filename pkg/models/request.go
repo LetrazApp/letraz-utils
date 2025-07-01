@@ -12,7 +12,7 @@ type ScrapeRequest struct {
 type ScrapeOptions struct {
 	Engine      string        `json:"engine,omitempty"`       // "headed", "raw", "auto"
 	Timeout     time.Duration `json:"timeout,omitempty"`      // Request timeout
-	LLMProvider string        `json:"llm_provider,omitempty"` // "openai", "claude", "local"
+	LLMProvider string        `json:"llm_provider,omitempty"` // "claude", "disabled" (for legacy mode)
 	UserAgent   string        `json:"user_agent,omitempty"`   // Custom user agent
 	Proxy       string        `json:"proxy,omitempty"`        // Proxy configuration
-} 
+}

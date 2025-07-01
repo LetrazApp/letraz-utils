@@ -2,10 +2,11 @@ package models
 
 import "time"
 
-// ScrapeResponse represents the response from a scraping operation
+// ScrapeResponse represents the response from a scrape request
 type ScrapeResponse struct {
 	Success        bool          `json:"success"`
-	Job            *JobPosting   `json:"job,omitempty"`
+	Job            *Job          `json:"job,omitempty"`         // New job structure
+	JobPosting     *JobPosting   `json:"job_posting,omitempty"` // Legacy structure for backward compatibility
 	Error          string        `json:"error,omitempty"`
 	ProcessingTime time.Duration `json:"processing_time"`
 	Engine         string        `json:"engine_used"`
@@ -23,8 +24,8 @@ type HealthResponse struct {
 
 // ErrorResponse represents an error response
 type ErrorResponse struct {
-	Error     string `json:"error"`
-	Message   string `json:"message"`
-	RequestID string `json:"request_id"`
+	Error     string    `json:"error"`
+	Message   string    `json:"message"`
+	RequestID string    `json:"request_id"`
 	Timestamp time.Time `json:"timestamp"`
-} 
+}

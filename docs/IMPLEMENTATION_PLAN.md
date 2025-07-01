@@ -320,8 +320,7 @@ GET /status             # Service status
 - Performance monitoring
 
 ### Phase 4: LLM Integration (Week 4)
-- [ ] OpenAI API integration
-- [ ] Claude API integration (optional)
+- [ ] Claude API integration
 - [ ] Prompt engineering for job extraction
 - [ ] Response parsing and validation
 - [ ] Cost optimization strategies

@@ -13,9 +13,8 @@ workers:
   max_retries: 3
 
 llm:
-  provider: "openai"
+  provider: "claude"
   api_key: ""  # Set via environment variable LLM_API_KEY
-  model: "gpt-3.5-turbo"
   max_tokens: 4096
   temperature: 0.1
   timeout: "30s"

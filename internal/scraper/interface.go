@@ -6,15 +6,18 @@ import (
 	"letraz-scrapper/pkg/models"
 )
 
-// Scraper defines the interface for all scraping engines
+// Scraper defines the interface for job scraping engines
 type Scraper interface {
-	// ScrapeJob scrapes a job posting from the given URL
-	ScrapeJob(ctx context.Context, url string, options *models.ScrapeOptions) (*models.JobPosting, error)
+	// ScrapeJob scrapes a job posting from the given URL using LLM processing
+	ScrapeJob(ctx context.Context, url string, options *models.ScrapeOptions) (*models.Job, error)
+
+	// ScrapeJobLegacy scrapes a job posting using legacy HTML parsing (for backward compatibility)
+	ScrapeJobLegacy(ctx context.Context, url string, options *models.ScrapeOptions) (*models.JobPosting, error)
 
 	// Cleanup releases any resources used by the scraper
 	Cleanup()
 
-	// IsHealthy returns true if the scraper is healthy and ready to process jobs
+	// IsHealthy checks if the scraper is healthy and ready to process requests
 	IsHealthy() bool
 }
 
