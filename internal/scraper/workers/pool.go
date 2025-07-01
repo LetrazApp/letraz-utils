@@ -180,6 +180,7 @@ func (wp *WorkerPool) SubmitJob(ctx context.Context, url string, options *models
 	// Submit job to queue
 	select {
 	case wp.jobQueue <- job:
+		fmt.Printf("Starting job")
 		wp.logger.WithFields(logrus.Fields{
 			"job_id": job.ID,
 			"url":    url,

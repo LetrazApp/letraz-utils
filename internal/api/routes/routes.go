@@ -4,13 +4,14 @@ import (
 	"letraz-scrapper/internal/api/handlers"
 	"letraz-scrapper/internal/api/middleware"
 	"letraz-scrapper/internal/config"
+	"letraz-scrapper/internal/scraper/workers"
 
 	"github.com/labstack/echo/v4"
 	echomiddleware "github.com/labstack/echo/v4/middleware"
 )
 
 // SetupRoutes configures all API routes
-func SetupRoutes(e *echo.Echo, cfg *config.Config) {
+func SetupRoutes(e *echo.Echo, cfg *config.Config, poolManager *workers.PoolManager) {
 	// Global middleware
 	e.Use(echomiddleware.Logger())
 	e.Use(echomiddleware.Recover())
@@ -24,6 +25,7 @@ func SetupRoutes(e *echo.Echo, cfg *config.Config) {
 		health.GET("", handlers.HealthHandler)
 		health.GET("/ready", handlers.ReadinessHandler)
 		health.GET("/live", handlers.LivenessHandler)
+		health.GET("/workers", handlers.WorkerHealthHandler(poolManager))
 	}
 
 	// Status route
@@ -32,7 +34,20 @@ func SetupRoutes(e *echo.Echo, cfg *config.Config) {
 	// API v1 routes
 	v1 := e.Group("/api/v1")
 	{
-		v1.POST("/scrape", handlers.ScrapeHandler(cfg))
+		v1.POST("/scrape", handlers.ScrapeHandler(cfg, poolManager))
+
+		// Worker monitoring routes
+		workers := v1.Group("/workers")
+		{
+			workers.GET("/stats", handlers.WorkerStatsHandler(poolManager))
+			workers.GET("/status", handlers.DetailedWorkerStatusHandler(poolManager))
+		}
+
+		// Domain-specific routes
+		domains := v1.Group("/domains")
+		{
+			domains.GET("/:domain/stats", handlers.DomainStatsHandler(poolManager))
+		}
 	}
 
 	// Root route
