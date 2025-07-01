@@ -10,6 +10,7 @@ import (
 
 	"letraz-scrapper/internal/api/routes"
 	"letraz-scrapper/internal/config"
+	"letraz-scrapper/internal/scraper/workers"
 	"letraz-scrapper/pkg/utils"
 
 	"github.com/labstack/echo/v4"
@@ -29,14 +30,22 @@ func main() {
 
 	logger.Info("Starting Letraz Job Scraper service")
 
+	// Initialize worker pool manager
+	poolManager := workers.NewPoolManager(cfg)
+	err = poolManager.Initialize()
+	if err != nil {
+		logger.WithError(err).Fatal("Failed to initialize worker pool")
+	}
+	logger.Info("Worker pool initialized successfully")
+
 	// Create Echo instance
 	e := echo.New()
 
 	// Disable Echo's banner
 	e.HideBanner = true
 
-	// Setup routes
-	routes.SetupRoutes(e, cfg)
+	// Setup routes with worker pool manager
+	routes.SetupRoutes(e, cfg, poolManager)
 
 	// Start server in a goroutine
 	go func() {
@@ -67,6 +76,13 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
+	// Shutdown worker pool first
+	logger.Info("Shutting down worker pool...")
+	if err := poolManager.Shutdown(); err != nil {
+		logger.WithError(err).Error("Error shutting down worker pool")
+	}
+
+	// Shutdown HTTP server
 	if err := e.Shutdown(ctx); err != nil {
 		logger.WithError(err).Error("Server forced to shutdown")
 		os.Exit(1)
