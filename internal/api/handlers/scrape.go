@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"letraz-scrapper/internal/config"
-	"letraz-scrapper/internal/scraper/workers"
+	"letraz-scrapper/internal/scraper/engines/headed"
 	"letraz-scrapper/pkg/models"
 	"letraz-scrapper/pkg/utils"
 
@@ -16,8 +16,8 @@ import (
 
 var validate = validator.New()
 
-// ScrapeHandler handles job scraping requests using the worker pool
-func ScrapeHandler(cfg *config.Config, poolManager *workers.PoolManager) echo.HandlerFunc {
+// ScrapeHandler handles job scraping requests
+func ScrapeHandler(cfg *config.Config) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		startTime := time.Now()
 		requestID := utils.GenerateRequestID()
@@ -50,36 +50,42 @@ func ScrapeHandler(cfg *config.Config, poolManager *workers.PoolManager) echo.Ha
 
 		logger.WithField("url", req.URL).Info("Processing scrape request")
 
-		// Submit job to worker pool
-		ctx := c.Request().Context()
-		result, err := poolManager.SubmitJob(ctx, req.URL, req.Options)
-		if err != nil {
-			logger.WithError(err).Error("Failed to submit job to worker pool")
-			return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-				Error:     "job_submission_failed",
-				Message:   fmt.Sprintf("Failed to submit scraping job: %v", err),
-				RequestID: requestID,
-				Timestamp: time.Now(),
-			})
-		}
-
-		// Check if the job was successful
-		if result.Error != nil {
-			logger.WithError(result.Error).Error("Scraping job failed")
-			return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-				Error:     "scraping_failed",
-				Message:   fmt.Sprintf("Failed to scrape job posting: %v", result.Error),
-				RequestID: requestID,
-				Timestamp: time.Now(),
-			})
-		}
-
-		job := result.Job
-
-		// Determine engine used (from options or default)
-		engine := "headed"
+		// Determine which engine to use
+		engine := "headed" // Default to headed engine
 		if req.Options != nil && req.Options.Engine != "" {
 			engine = req.Options.Engine
+		}
+
+		// Create scraper based on engine type
+		var job *models.JobPosting
+		var err error
+
+		ctx := c.Request().Context()
+
+		switch engine {
+		case "headed", "auto":
+			scraper := headed.NewRodScraper(cfg)
+			defer scraper.Cleanup()
+
+			job, err = scraper.ScrapeJob(ctx, req.URL, req.Options)
+			if err != nil {
+				logger.WithError(err).Error("Rod scraper failed")
+				return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+					Error:     "scraping_failed",
+					Message:   fmt.Sprintf("Failed to scrape job posting: %v", err),
+					RequestID: requestID,
+					Timestamp: time.Now(),
+				})
+			}
+
+		default:
+			logger.WithField("engine", engine).Error("Unsupported scraping engine")
+			return c.JSON(http.StatusBadRequest, models.ErrorResponse{
+				Error:     "unsupported_engine",
+				Message:   fmt.Sprintf("Unsupported scraping engine: %s", engine),
+				RequestID: requestID,
+				Timestamp: time.Now(),
+			})
 		}
 
 		// Prepare response
