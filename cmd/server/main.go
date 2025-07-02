@@ -35,10 +35,15 @@ func main() {
 	defer llmManager.Stop()
 
 	// Initialize worker pool
+	logger.Debug("DEBUG: About to initialize worker pool")
 	poolManager := workers.NewPoolManager(cfg, llmManager)
+	logger.Debug("DEBUG: PoolManager created")
+
 	if err := poolManager.Initialize(); err != nil {
 		logger.WithError(err).Fatal("Failed to start worker pool")
 	}
+	logger.Debug("DEBUG: PoolManager initialized successfully")
+
 	defer poolManager.Shutdown()
 
 	// Initialize Echo

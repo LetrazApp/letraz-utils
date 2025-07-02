@@ -41,12 +41,14 @@ func (d *Dispatcher) Start() {
 	}
 
 	d.logger.Info("Starting job dispatcher")
+	d.logger.Debug("DEBUG: About to start dispatch goroutine")
 
 	// Start job dispatching
 	go d.dispatch()
 
 	d.running = true
 	d.logger.WithField("workers", len(d.workers)).Info("Job dispatcher started")
+	d.logger.Debug("DEBUG: Dispatcher Start method completed")
 }
 
 // Stop stops the dispatcher
@@ -71,13 +73,17 @@ func (d *Dispatcher) Stop() {
 func (d *Dispatcher) dispatch() {
 	workerIndex := 0
 
+	d.logger.Info("🚀 DISPATCHER: dispatch loop started")
+
 	for {
 		select {
 		case job := <-d.jobQueue:
 			d.logger.WithFields(logrus.Fields{
 				"job_id": job.ID,
 				"url":    job.URL,
-			}).Debug("Received job for dispatch")
+			}).Info("🎯 DISPATCHER: Received job for dispatch")
+
+			d.logger.WithField("job_id", job.ID).Info("🔄 DISPATCHER: About to assign job to worker")
 
 			// Simple round-robin assignment
 			// This ensures each job is assigned to exactly one worker
@@ -86,21 +92,30 @@ func (d *Dispatcher) dispatch() {
 				worker := d.workers[workerIndex]
 				workerIndex = (workerIndex + 1) % len(d.workers)
 
+				d.logger.WithFields(logrus.Fields{
+					"job_id":    job.ID,
+					"worker_id": worker.ID,
+				}).Info("🎲 DISPATCHER: Trying to assign job to worker")
+
 				select {
 				case worker.JobChan <- job:
 					d.logger.WithFields(logrus.Fields{
 						"job_id":    job.ID,
 						"worker_id": worker.ID,
-					}).Debug("Job assigned to worker")
+					}).Info("✅ DISPATCHER: Job assigned to worker successfully")
 					break assignLoop
 				default:
 					// Worker is busy, try next one
+					d.logger.WithFields(logrus.Fields{
+						"job_id":    job.ID,
+						"worker_id": worker.ID,
+					}).Info("⏳ DISPATCHER: Worker busy, trying next worker")
 					continue
 				}
 			}
 
 		case <-d.quit:
-			d.logger.Info("Job dispatcher stopping")
+			d.logger.Info("🛑 DISPATCHER: Job dispatcher stopping")
 			return
 		}
 	}
