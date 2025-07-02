@@ -66,6 +66,10 @@ func (f *FirecrawlScraper) ScrapeJob(ctx context.Context, url string, options *m
 	// Process the content with LLM to extract job information
 	job, err := f.llmManager.ExtractJobData(ctx, content, url)
 	if err != nil {
+		// Don't wrap CustomError types so they can be properly handled upstream
+		if _, ok := err.(*utils.CustomError); ok {
+			return nil, err
+		}
 		return nil, fmt.Errorf("failed to parse job from content: %w", err)
 	}
 
