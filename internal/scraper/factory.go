@@ -6,7 +6,7 @@ import (
 	"letraz-scrapper/internal/config"
 	"letraz-scrapper/internal/llm"
 	"letraz-scrapper/internal/scraper/engines/firecrawl"
-	
+	"letraz-scrapper/internal/scraper/engines/headed"
 )
 
 // DefaultScraperFactory implements ScraperFactory
