@@ -10,6 +10,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"letraz-scrapper/internal/config"
 	"letraz-scrapper/internal/llm"
+	"letraz-scrapper/internal/scraper/captcha"
 	"letraz-scrapper/pkg/models"
 	"letraz-scrapper/pkg/utils"
 )
@@ -19,6 +20,7 @@ type RodScraper struct {
 	config         *config.Config
 	browserManager *BrowserManager
 	llmManager     *llm.Manager
+	captchaSolver  captcha.CaptchaSolver
 	logger         *logrus.Logger
 }
 
@@ -38,6 +40,7 @@ func NewRodScraper(cfg *config.Config, llmManager *llm.Manager) *RodScraper {
 		config:         cfg,
 		browserManager: NewBrowserManager(cfg),
 		llmManager:     llmManager,
+		captchaSolver:  captcha.NewTwoCaptchaSolver(cfg),
 		logger:         utils.GetLogger(),
 	}
 }
@@ -73,11 +76,206 @@ func (rs *RodScraper) ScrapeJob(ctx context.Context, url string, options *models
 	// Wait for page to be fully loaded
 	time.Sleep(2 * time.Second)
 
-	// Get page HTML
-	html, err := browser.GetPageHTML()
+	// Get initial page HTML to check for captcha
+	initialHTML, err := browser.GetPageHTML()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get page HTML: %w", err)
+		return nil, fmt.Errorf("failed to get initial page HTML: %w", err)
 	}
+
+	// Check for captcha and solve if present
+	hasCaptcha, siteKey, err := captcha.DetectCaptcha(initialHTML)
+	if err != nil {
+		rs.logger.WithField("url", url).Debug("Error detecting captcha, continuing with scraping")
+	} else if hasCaptcha {
+		rs.logger.WithFields(logrus.Fields{
+			"url":      url,
+			"site_key": siteKey,
+		}).Info("Captcha detected, attempting to solve")
+
+		if strings.HasPrefix(siteKey, "turnstile:") {
+			// Handle Cloudflare Turnstile
+			actualSiteKey := strings.TrimPrefix(siteKey, "turnstile:")
+			rs.logger.WithFields(logrus.Fields{
+				"url":      url,
+				"site_key": actualSiteKey,
+			}).Info("Cloudflare Turnstile detected, solving with 2CAPTCHA")
+
+			solution, solveErr := rs.captchaSolver.SolveTurnstile(ctx, actualSiteKey, url)
+			if solveErr != nil {
+				rs.logger.WithFields(logrus.Fields{
+					"url":      url,
+					"site_key": actualSiteKey,
+					"error":    solveErr.Error(),
+				}).Error("Failed to solve Cloudflare Turnstile")
+				return nil, fmt.Errorf("failed to solve Cloudflare Turnstile: %w", solveErr)
+			} else {
+				// Inject the Turnstile solution into the page
+				injectErr := browser.InjectTurnstileSolution(solution)
+				if injectErr != nil {
+					rs.logger.WithFields(logrus.Fields{
+						"url":   url,
+						"error": injectErr.Error(),
+					}).Warn("Failed to inject Turnstile solution")
+				} else {
+					rs.logger.WithField("url", url).Info("Turnstile solved and injected successfully")
+
+					// Wait for page to reload after solution submission
+					time.Sleep(3 * time.Second)
+
+					// Get the new page content
+					newHTML, newHTMLErr := browser.GetPageHTML()
+					if newHTMLErr == nil {
+						initialHTML = newHTML
+					}
+				}
+			}
+		} else if siteKey == "cloudflare" {
+			// Generic Cloudflare challenge - try to extract actual site key first
+			rs.logger.WithField("url", url).Info("Generic Cloudflare challenge detected, trying to extract actual site key")
+
+			// Check if 2CAPTCHA service is available
+			if rs.captchaSolver == nil || !rs.captchaSolver.IsHealthy() {
+				rs.logger.WithFields(logrus.Fields{
+					"url":            url,
+					"captcha_solver": rs.captchaSolver != nil,
+					"solver_healthy": rs.captchaSolver != nil && rs.captchaSolver.IsHealthy(),
+				}).Error("2CAPTCHA service not available for Cloudflare challenge")
+				return nil, fmt.Errorf("Cloudflare captcha detected but 2CAPTCHA service is not available for URL: %s", url)
+			}
+
+			rs.logger.WithField("url", url).Info("2CAPTCHA service is healthy, attempting Cloudflare bypass")
+
+			// Try to extract actual Turnstile site key from the page
+			actualSiteKey := extractTurnstileSiteKeyFromHTML(initialHTML)
+			if actualSiteKey == "" {
+				rs.logger.WithFields(logrus.Fields{
+					"url":         url,
+					"html_length": len(initialHTML),
+					"html_sample": initialHTML[:min(500, len(initialHTML))], // Log first 500 chars for debugging
+				}).Info("No Turnstile site key found initially, simulating human behavior to trigger challenge progression")
+
+				// Simulate human behavior to help Cloudflare challenge progress
+				if err := browser.SimulateHumanBehavior(); err != nil {
+					rs.logger.WithFields(logrus.Fields{
+						"url":   url,
+						"error": err.Error(),
+					}).Warn("Failed to simulate human behavior")
+				}
+
+				// Wait additional time for Cloudflare iframe to be loaded after human simulation
+				time.Sleep(5 * time.Second)
+
+				// Get updated HTML content after iframe loads
+				updatedHTML, htmlErr := browser.GetPageHTML()
+				if htmlErr == nil {
+					actualSiteKey = extractTurnstileSiteKeyFromHTML(updatedHTML)
+					if actualSiteKey != "" {
+						rs.logger.WithFields(logrus.Fields{
+							"url":         url,
+							"site_key":    actualSiteKey,
+							"html_length": len(updatedHTML),
+						}).Info("Found Turnstile site key after waiting for iframe")
+						initialHTML = updatedHTML // Update for later use
+					} else {
+						rs.logger.WithFields(logrus.Fields{
+							"url":         url,
+							"html_length": len(updatedHTML),
+							"html_sample": updatedHTML[:min(500, len(updatedHTML))],
+						}).Warn("Still no Turnstile site key found after waiting")
+					}
+				}
+
+				if actualSiteKey == "" {
+					return nil, fmt.Errorf("Cloudflare Turnstile challenge detected but no site key found for URL: %s", url)
+				}
+			}
+
+			rs.logger.WithFields(logrus.Fields{
+				"url":      url,
+				"site_key": actualSiteKey,
+			}).Info("Found Turnstile site key, attempting 2CAPTCHA solving")
+
+			// Try 2CAPTCHA Turnstile solving with the actual site key
+			solution, solveErr := rs.captchaSolver.SolveTurnstile(ctx, actualSiteKey, url)
+			if solveErr != nil {
+				rs.logger.WithFields(logrus.Fields{
+					"url":      url,
+					"site_key": actualSiteKey,
+					"error":    solveErr.Error(),
+				}).Error("2CAPTCHA Turnstile solving failed")
+				return nil, fmt.Errorf("failed to solve Cloudflare Turnstile challenge for URL: %s - %w", url, solveErr)
+			}
+
+			rs.logger.WithFields(logrus.Fields{
+				"url":      url,
+				"site_key": actualSiteKey,
+			}).Info("2CAPTCHA Turnstile solved successfully")
+
+			// Inject the solution
+			injectErr := browser.InjectTurnstileSolution(solution)
+			if injectErr != nil {
+				rs.logger.WithFields(logrus.Fields{
+					"url":   url,
+					"error": injectErr.Error(),
+				}).Error("Failed to inject Turnstile solution")
+				return nil, fmt.Errorf("failed to inject Turnstile solution for URL: %s - %w", url, injectErr)
+			}
+
+			rs.logger.WithField("url", url).Info("Turnstile solution injected successfully")
+
+			// Wait for page to reload after solution submission
+			time.Sleep(5 * time.Second)
+
+			// Get the new page content
+			newHTML, newHTMLErr := browser.GetPageHTML()
+			if newHTMLErr == nil && captcha.IsCloudflareResolved(newHTML) {
+				rs.logger.WithField("url", url).Info("Cloudflare challenge resolved via 2CAPTCHA")
+				initialHTML = newHTML
+			} else {
+				rs.logger.WithField("url", url).Error("Turnstile solution injection failed to resolve challenge")
+				return nil, fmt.Errorf("Cloudflare challenge still not resolved after 2CAPTCHA solution injection for URL: %s", url)
+			}
+		} else if siteKey != "" && rs.captchaSolver != nil {
+			// Handle reCAPTCHA using 2CAPTCHA
+			rs.logger.WithFields(logrus.Fields{
+				"url":      url,
+				"site_key": siteKey,
+			}).Info("reCAPTCHA detected, solving with 2CAPTCHA")
+
+			solution, solveErr := rs.captchaSolver.SolveRecaptcha(ctx, siteKey, url)
+			if solveErr != nil {
+				rs.logger.WithFields(logrus.Fields{
+					"url":      url,
+					"site_key": siteKey,
+					"error":    solveErr.Error(),
+				}).Error("Failed to solve reCAPTCHA")
+				return nil, fmt.Errorf("failed to solve reCAPTCHA: %w", solveErr)
+			} else {
+				// Inject the reCAPTCHA solution into the page
+				injectErr := browser.InjectCaptchaSolution(solution)
+				if injectErr != nil {
+					rs.logger.WithFields(logrus.Fields{
+						"url":   url,
+						"error": injectErr.Error(),
+					}).Warn("Failed to inject reCAPTCHA solution")
+				} else {
+					rs.logger.WithField("url", url).Info("reCAPTCHA solved and injected successfully")
+
+					// Wait for page to reload after captcha submission
+					time.Sleep(3 * time.Second)
+
+					// Get the new page content
+					newHTML, newHTMLErr := browser.GetPageHTML()
+					if newHTMLErr == nil {
+						initialHTML = newHTML
+					}
+				}
+			}
+		}
+	}
+
+	// Use the HTML (either original or post-captcha)
+	html := initialHTML
 
 	// Use LLM to extract job information from HTML
 	job, err := rs.llmManager.ExtractJobData(ctx, html, url)
@@ -595,4 +793,52 @@ func (rs *RodScraper) Cleanup() {
 // IsHealthy checks if the scraper is healthy
 func (rs *RodScraper) IsHealthy() bool {
 	return rs.browserManager.IsHealthy()
+}
+
+// extractTurnstileSiteKeyFromHTML extracts the Cloudflare Turnstile site key from HTML content
+func extractTurnstileSiteKeyFromHTML(html string) string {
+	// Look for Turnstile data-sitekey attribute in various patterns
+	patterns := []string{
+		// Traditional data-sitekey patterns
+		`data-sitekey="([^"]+)"[^>]*(?:turnstile|cf-turnstile)`,
+		`(?:turnstile|cf-turnstile)[^>]*data-sitekey="([^"]+)"`,
+		`<div[^>]*class="[^"]*cf-turnstile[^"]*"[^>]*data-sitekey="([^"]+)"`,
+		`<div[^>]*data-sitekey="([^"]+)"[^>]*class="[^"]*cf-turnstile[^"]*"`,
+		`window\.turnstile.*?sitekey['"]\s*:\s*['"]([^'"]+)['"]`,
+		`turnstile\.render\([^)]*['"]([0-9a-zA-Z_-]{20,})['"]`,
+		`cf-turnstile[^>]*data-sitekey=['"]([^'"]+)['"]`,
+
+		// Iframe-based Cloudflare challenge patterns
+		`<iframe[^>]*src="[^"]*challenges\.cloudflare\.com[^"]*/(0x[0-9a-zA-Z_-]+)/[^"]*"`,
+		`src="[^"]*challenges\.cloudflare\.com[^"]*/(0x[0-9a-zA-Z_-]+)/[^"]*"`,
+		`challenges\.cloudflare\.com[^"]*/(0x[0-9a-zA-Z_-]+)/`,
+		`challenges\.cloudflare\.com[^"]*rcv[^"]*/(0x[0-9a-zA-Z_-]+)/`,
+		`https://challenges\.cloudflare\.com/[^"]*/(0x[0-9a-zA-Z_-]+)/[^"]*`,
+		`cloudflare\.com[^"]*/(0x[0-9a-zA-Z_-]+)/`,
+		`"(0x[0-9a-zA-Z_-]+)"[^"]*cloudflare`,
+		`cloudflare[^"]*"(0x[0-9a-zA-Z_-]+)"`,
+		// Specific pattern for the iframe structure seen in the screenshot
+		`challenges\.cloudflare\.com/cdn-cgi/challenge-platform/[^"]*/(0x[0-9a-zA-Z_-]+)/`,
+		// More general pattern for any 0x key in cloudflare context
+		`challenges\.cloudflare\.com[^"]*?(0x[0-9a-zA-Z_-]{20,})[^"]*`,
+	}
+
+	for _, pattern := range patterns {
+		if matches := utils.FindRegexMatch(html, pattern); len(matches) > 1 {
+			siteKey := strings.TrimSpace(matches[1])
+			if siteKey != "" && len(siteKey) > 10 { // Basic validation
+				return siteKey
+			}
+		}
+	}
+
+	return ""
+}
+
+// min returns the minimum of two integers
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }

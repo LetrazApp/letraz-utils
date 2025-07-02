@@ -303,7 +303,7 @@ func (w *Worker) scrapeJob(job ScrapeJob) JobResult {
 	}
 
 	// Determine the scraping engine
-	engine := "headed" // Default engine
+	engine := "firecrawl" // Default engine
 	if job.Options != nil && job.Options.Engine != "" {
 		engine = job.Options.Engine
 	}
