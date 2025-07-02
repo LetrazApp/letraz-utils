@@ -3,6 +3,8 @@ package workers
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -346,37 +348,54 @@ func (w *Worker) scrapeJob(job ScrapeJob) JobResult {
 			// Perform the scraping operation with LLM processing
 			jobData, err := scraper.ScrapeJob(job.Context, job.URL, job.Options)
 			if err != nil {
+				// Return LLM errors directly to the client - no fallback
+				result.Error = err
+				result.UsedLLM = true
+
+				// For "not job posting" errors, this is actually a successful determination
+				if customErr, ok := err.(*utils.CustomError); ok && customErr.Code == http.StatusUnprocessableEntity {
+					w.Pool.rateLimiter.RecordSuccess(domain)
+					w.logger.WithFields(logrus.Fields{
+						"job_id":    job.ID,
+						"worker_id": w.ID,
+						"attempt":   attempt + 1,
+						"mode":      "llm",
+						"reason":    "not_job_posting",
+					}).Info("LLM successfully determined content is not a job posting")
+
+					// Don't retry "not job posting" errors - return immediately
+					return result
+				}
+
+				// Check if this is a non-retryable error (API auth, missing key, etc.)
+				if isNonRetryableError(err) {
+					w.Pool.rateLimiter.RecordFailure(domain, err)
+					w.logger.WithFields(logrus.Fields{
+						"job_id":    job.ID,
+						"worker_id": w.ID,
+						"attempt":   attempt + 1,
+						"error":     err.Error(),
+						"mode":      "llm",
+						"reason":    "non_retryable_error",
+					}).Error("LLM processing failed with non-retryable error")
+
+					// Return immediately for non-retryable errors
+					return result
+				}
+
+				// For retryable errors, record failure and continue retry loop
+				lastErr = err
+				w.Pool.rateLimiter.RecordFailure(domain, err)
 				w.logger.WithFields(logrus.Fields{
 					"job_id":    job.ID,
 					"worker_id": w.ID,
 					"attempt":   attempt + 1,
 					"error":     err.Error(),
 					"mode":      "llm",
-				}).Debug("Scraping attempt failed (LLM mode) - trying legacy fallback")
+				}).Debug("LLM processing failed, will retry")
 
-				// Try legacy fallback when LLM fails
-				jobPosting, legacyErr := scraper.ScrapeJobLegacy(job.Context, job.URL, job.Options)
-				if legacyErr != nil {
-					lastErr = fmt.Errorf("both LLM and legacy scraping failed - LLM: %v, Legacy: %v", err, legacyErr)
-					w.Pool.rateLimiter.RecordFailure(domain, lastErr)
-					continue
-				}
-
-				// Success with legacy fallback
-				result.JobPosting = jobPosting
-				result.UsedLLM = false
-				w.Pool.rateLimiter.RecordSuccess(domain)
-
-				w.logger.WithFields(logrus.Fields{
-					"job_id":    job.ID,
-					"worker_id": w.ID,
-					"job_title": jobPosting.Title,
-					"company":   jobPosting.Company,
-					"attempt":   attempt + 1,
-					"mode":      "legacy_fallback",
-				}).Info("Scraping job completed with legacy fallback after LLM failure")
-
-				return result
+				// Continue to retry for technical failures
+				continue
 			}
 
 			// Success with LLM
@@ -392,6 +411,8 @@ func (w *Worker) scrapeJob(job ScrapeJob) JobResult {
 				"attempt":   attempt + 1,
 				"mode":      "llm",
 			}).Debug("Scraping job completed successfully (LLM mode)")
+
+			return result
 		} else {
 			// Perform the scraping operation with legacy processing
 			jobPosting, err := scraper.ScrapeJobLegacy(job.Context, job.URL, job.Options)
@@ -436,4 +457,52 @@ func (w *Worker) scrapeJob(job ScrapeJob) JobResult {
 // extractDomain extracts domain from URL for rate limiting
 func extractDomain(url string) string {
 	return extractDomainFromURL(url)
+}
+
+// isNonRetryableError determines if an error should not be retried
+func isNonRetryableError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	errStr := strings.ToLower(err.Error())
+
+	// Content validation errors
+	if strings.Contains(errStr, "content is not a job posting") ||
+		strings.Contains(errStr, "not a job posting") ||
+		strings.Contains(errStr, "low confidence") {
+		return true
+	}
+
+	// API authentication and authorization errors
+	if strings.Contains(errStr, "api key") ||
+		strings.Contains(errStr, "authentication") ||
+		strings.Contains(errStr, "unauthorized") ||
+		strings.Contains(errStr, "forbidden") ||
+		strings.Contains(errStr, "invalid api key") ||
+		strings.Contains(errStr, "permission denied") {
+		return true
+	}
+
+	// Rate limiting errors that indicate we should stop for now
+	if strings.Contains(errStr, "rate limit exceeded") ||
+		strings.Contains(errStr, "quota exceeded") ||
+		strings.Contains(errStr, "too many requests") {
+		return true
+	}
+
+	// Malformed request errors
+	if strings.Contains(errStr, "bad request") ||
+		strings.Contains(errStr, "invalid request") ||
+		strings.Contains(errStr, "malformed") {
+		return true
+	}
+
+	// Service completely unavailable
+	if strings.Contains(errStr, "service unavailable") ||
+		strings.Contains(errStr, "not available") {
+		return true
+	}
+
+	return false
 }
