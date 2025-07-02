@@ -10,7 +10,7 @@ type ScrapeRequest struct {
 
 // ScrapeOptions provides additional configuration for scraping requests
 type ScrapeOptions struct {
-	Engine      string        `json:"engine,omitempty"`       // "headed", "raw", "auto"
+	Engine      string        `json:"engine,omitempty"`       // "firecrawl", "headed", "raw", "auto"
 	Timeout     time.Duration `json:"timeout,omitempty"`      // Request timeout
 	LLMProvider string        `json:"llm_provider,omitempty"` // "claude", "disabled" (for legacy mode)
 	UserAgent   string        `json:"user_agent,omitempty"`   // Custom user agent

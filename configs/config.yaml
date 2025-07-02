@@ -26,8 +26,21 @@ scraper:
   request_timeout: "30s"
   headless_mode: true
   stealth_mode: true
+  captcha:
+    provider: "2captcha"
+    api_key: ""  # Set via environment variable CAPTCHA_API_KEY
+    timeout: "120s"
+    enable_auto_solve: true
+
+firecrawl:
+  api_key: ""  # Set via environment variable FIRECRAWL_API_KEY
+  api_url: "https://api.firecrawl.dev"
+  version: "v1"
+  timeout: "60s"
+  max_retries: 3
+  formats: ["markdown"]  # Default formats: markdown, html, rawHtml, links, screenshot
 
 logging:
-  level: "warn"  # Reduced from "info" to "warn" for production use
+  level: "debug"  # Changed from "warn" to "debug" for troubleshooting captcha issues
   format: "json"
   output: "stdout" 

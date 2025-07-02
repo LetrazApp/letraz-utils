@@ -5,7 +5,8 @@ import (
 
 	"letraz-scrapper/internal/config"
 	"letraz-scrapper/internal/llm"
-	"letraz-scrapper/internal/scraper/engines/headed"
+	"letraz-scrapper/internal/scraper/engines/firecrawl"
+	
 )
 
 // DefaultScraperFactory implements ScraperFactory
@@ -25,6 +26,8 @@ func NewScraperFactory(cfg *config.Config, llmManager *llm.Manager) ScraperFacto
 // CreateScraper creates a new scraper instance for the given engine
 func (f *DefaultScraperFactory) CreateScraper(engine string) (Scraper, error) {
 	switch engine {
+	case "firecrawl":
+		return firecrawl.NewFirecrawlScraper(f.config, f.llmManager), nil
 	case "headed", "auto":
 		return headed.NewRodScraper(f.config, f.llmManager), nil
 	case "raw":
@@ -37,5 +40,5 @@ func (f *DefaultScraperFactory) CreateScraper(engine string) (Scraper, error) {
 
 // GetSupportedEngines returns a list of supported engine types
 func (f *DefaultScraperFactory) GetSupportedEngines() []string {
-	return []string{"headed", "auto"}
+	return []string{"firecrawl", "headed", "auto"}
 }
