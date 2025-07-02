@@ -74,3 +74,12 @@ func NewNotJobPostingError(detail string) *CustomError {
 		Detail:  detail,
 	}
 }
+
+// NewCaptchaDetectedError returns an error when a captcha is detected and should trigger fallback
+func NewCaptchaDetectedError(detail string) *CustomError {
+	return &CustomError{
+		Code:    http.StatusTemporaryRedirect, // 307 - indicates should retry with different method
+		Message: "Captcha detected - fallback required",
+		Detail:  detail,
+	}
+}

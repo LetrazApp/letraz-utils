@@ -87,7 +87,7 @@ func ScrapeHandler(cfg *config.Config, poolManager *workers.PoolManager) echo.Ha
 		}
 
 		// Determine engine used (from options or default)
-		engine := "firecrawl"
+		engine := "hybrid"
 		if req.Options != nil && req.Options.Engine != "" {
 			engine = req.Options.Engine
 		}

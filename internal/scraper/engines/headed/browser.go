@@ -43,32 +43,7 @@ func NewBrowserManager(cfg *config.Config) *BrowserManager {
 		Headless(cfg.Scraper.HeadlessMode).
 		NoSandbox(true).
 		Set("disable-blink-features", "AutomationControlled").
-		Set("disable-web-security").
-		Set("disable-features", "VizDisplayCompositor,TranslateUI").
-		Set("disable-background-timer-throttling").
-		Set("disable-backgrounding-occluded-windows").
-		Set("disable-renderer-backgrounding").
-		Set("disable-field-trial-config").
-		Set("disable-ipc-flooding-protection").
-		Set("disable-dev-shm-usage").
-		Set("enable-features", "NetworkService,NetworkServiceLogging").
-		Set("ignore-certificate-errors").
-		Set("ignore-ssl-errors").
-		Set("ignore-certificate-errors-spki-list").
-		Set("ignore-certificate-errors-ssl-invalid-cert").
-		Set("disable-extensions").
-		Set("disable-plugins").
-		Set("disable-plugins-discovery").
-		Set("disable-preconnect").
-		Set("disable-sync").
-		Set("hide-scrollbars").
-		Set("mute-audio").
-		Set("no-first-run").
-		Set("no-default-browser-check").
-		Set("no-zygote").
-		Set("single-process").
-		Set("disable-gpu").
-		Set("disable-software-rasterizer")
+		Set("disable-web-security")
 
 	if cfg.Scraper.UserAgent != "" {
 		l = l.Set("user-agent", cfg.Scraper.UserAgent)
