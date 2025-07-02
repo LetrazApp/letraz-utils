@@ -195,12 +195,9 @@ func (wp *WorkerPool) SubmitJob(ctx context.Context, url string, options *models
 			"job_id": job.ID,
 			"url":    url,
 		}).Info("Job submitted to queue")
-		wp.logger.WithField("job_id", job.ID).Info("✅ SUBMIT: Job successfully added to jobQueue channel")
 	case <-time.After(5 * time.Second):
 		return nil, fmt.Errorf("job queue is full, request timed out")
 	}
-
-	wp.logger.WithField("job_id", job.ID).Info("⏳ SUBMIT: About to wait for result from job.ResultChan")
 
 	// Wait for result with timeout
 	timeout := wp.config.Workers.Timeout
@@ -208,20 +205,12 @@ func (wp *WorkerPool) SubmitJob(ctx context.Context, url string, options *models
 		timeout = options.Timeout
 	}
 
-	wp.logger.WithFields(logrus.Fields{
-		"job_id":  job.ID,
-		"timeout": timeout,
-	}).Info("🕐 SUBMIT: Starting result wait with timeout")
-
 	select {
 	case result := <-job.ResultChan:
-		wp.logger.WithField("job_id", job.ID).Info("🎉 SUBMIT: Received result from job.ResultChan")
 		return &result, nil
 	case <-time.After(timeout):
-		wp.logger.WithField("job_id", job.ID).Info("⏰ SUBMIT: Timeout occurred waiting for result")
 		return nil, fmt.Errorf("job processing timed out after %v", timeout)
 	case <-ctx.Done():
-		wp.logger.WithField("job_id", job.ID).Info("❌ SUBMIT: Context cancelled while waiting for result")
 		return nil, ctx.Err()
 	}
 }
@@ -249,17 +238,10 @@ func (wp *WorkerPool) GetStats() PoolStats {
 // Start starts the worker goroutine
 func (w *Worker) Start() {
 	w.logger.Info("Worker started")
-	w.logger.WithField("worker_id", w.ID).Info("🔄 WORKER: Worker entering main loop")
 
 	for {
-		w.logger.WithField("worker_id", w.ID).Info("⏳ WORKER: Worker waiting for job or quit signal")
-
 		select {
 		case job := <-w.JobChan:
-			w.logger.WithFields(logrus.Fields{
-				"worker_id": w.ID,
-				"job_id":    job.ID,
-			}).Info("🎯 WORKER: Worker received job from channel")
 			w.processJob(job)
 		case <-w.QuitChan:
 			w.logger.Info("Worker stopping")
@@ -277,26 +259,13 @@ func (w *Worker) Stop() {
 func (w *Worker) processJob(job ScrapeJob) {
 	startTime := time.Now()
 
-	w.logger.WithFields(logrus.Fields{
-		"job_id":    job.ID,
-		"worker_id": w.ID,
-		"url":       job.URL,
-	}).Info("🔄 WORKER: Processing job")
-
 	// Update stats
 	w.Pool.stats.mu.Lock()
 	w.Pool.stats.JobsProcessed++
 	w.Pool.stats.mu.Unlock()
 
-	w.logger.WithField("job_id", job.ID).Info("🎬 WORKER: About to call scrapeJob")
-
 	// Process the job using the scraper
 	result := w.scrapeJob(job)
-
-	w.logger.WithFields(logrus.Fields{
-		"job_id":  job.ID,
-		"success": result.Error == nil,
-	}).Info("🎭 WORKER: scrapeJob completed")
 
 	// Update processing time stats
 	processingTime := time.Since(startTime)
@@ -311,25 +280,15 @@ func (w *Worker) processJob(job ScrapeJob) {
 	}
 	w.Pool.stats.mu.Unlock()
 
-	w.logger.WithField("job_id", job.ID).Info("📊 WORKER: About to send result to channel")
-
 	// Send result back (non-blocking with reasonable timeout)
 	select {
 	case job.ResultChan <- result:
-		w.logger.WithFields(logrus.Fields{
-			"job_id":          job.ID,
-			"worker_id":       w.ID,
-			"processing_time": processingTime,
-			"success":         result.Error == nil,
-		}).Info("🎉 WORKER: Job completed and result sent successfully")
 	case <-time.After(5 * time.Second):
 		w.logger.WithFields(logrus.Fields{
 			"job_id":    job.ID,
 			"worker_id": w.ID,
-		}).Error("⏰ WORKER: Result channel timeout - failed to send result back to client")
+		}).Error("WORKER: Result channel timeout - failed to send result back to client")
 	}
-
-	w.logger.WithField("job_id", job.ID).Info("🏁 WORKER: processJob method finished")
 }
 
 // scrapeJob performs the actual scraping work
@@ -381,13 +340,9 @@ func (w *Worker) scrapeJob(job ScrapeJob) JobResult {
 		}
 
 		if useLLM {
-			w.logger.WithField("job_id", job.ID).Info("🧠 WORKER: About to call scraper.ScrapeJob (LLM mode)")
 			// Perform the scraping operation with LLM processing
 			jobData, err := scraper.ScrapeJob(job.Context, job.URL, job.Options)
-			w.logger.WithFields(logrus.Fields{
-				"job_id":  job.ID,
-				"success": err == nil,
-			}).Info("🧠 WORKER: scraper.ScrapeJob completed (LLM mode)")
+
 			if err != nil {
 				// Return LLM errors directly to the client - no fallback
 				result.Error = err
@@ -405,7 +360,6 @@ func (w *Worker) scrapeJob(job ScrapeJob) JobResult {
 					}).Info("LLM successfully determined content is not a job posting")
 
 					// Don't retry "not job posting" errors - return immediately
-					w.logger.WithField("job_id", job.ID).Info("🚫 WORKER: Returning result (not job posting)")
 					return result
 				}
 
@@ -422,7 +376,6 @@ func (w *Worker) scrapeJob(job ScrapeJob) JobResult {
 					}).Error("LLM processing failed with non-retryable error")
 
 					// Return immediately for non-retryable errors
-					w.logger.WithField("job_id", job.ID).Info("❌ WORKER: Returning result (non-retryable error)")
 					return result
 				}
 
@@ -442,21 +395,10 @@ func (w *Worker) scrapeJob(job ScrapeJob) JobResult {
 			}
 
 			// Success with LLM
-			w.logger.WithField("job_id", job.ID).Info("✨ WORKER: LLM scraping successful, preparing result")
 			result.Job = jobData
 			result.UsedLLM = true
 			w.Pool.rateLimiter.RecordSuccess(domain)
 
-			w.logger.WithFields(logrus.Fields{
-				"job_id":    job.ID,
-				"worker_id": w.ID,
-				"job_title": jobData.Title,
-				"company":   jobData.CompanyName,
-				"attempt":   attempt + 1,
-				"mode":      "llm",
-			}).Info("✅ WORKER: Scraping job completed successfully (LLM mode)")
-
-			w.logger.WithField("job_id", job.ID).Info("🔚 WORKER: About to return result from scrapeJob")
 			return result
 		} else {
 			// Perform the scraping operation with legacy processing
