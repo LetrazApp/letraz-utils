@@ -45,18 +45,25 @@ func (pm *PoolManager) Initialize() error {
 	}
 
 	pm.logger.Info("Initializing worker pool")
+	pm.logger.Debug("DEBUG: PoolManager.Initialize() started")
 
 	// Create the worker pool
+	pm.logger.Debug("DEBUG: About to create worker pool")
 	pm.pool = NewWorkerPool(pm.config, pm.scraperFactory)
+	pm.logger.Debug("DEBUG: Worker pool created successfully")
 
 	// Start the worker pool
+	pm.logger.Debug("DEBUG: About to start worker pool")
 	err := pm.pool.Start()
 	if err != nil {
+		pm.logger.WithError(err).Error("DEBUG: Worker pool start failed")
 		return fmt.Errorf("failed to start worker pool: %w", err)
 	}
+	pm.logger.Debug("DEBUG: Worker pool start returned successfully")
 
 	pm.initialized = true
 	pm.logger.Info("Worker pool initialized successfully")
+	pm.logger.Debug("DEBUG: PoolManager.Initialize() completed")
 	return nil
 }
 
