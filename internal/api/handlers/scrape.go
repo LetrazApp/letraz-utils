@@ -66,6 +66,18 @@ func ScrapeHandler(cfg *config.Config, poolManager *workers.PoolManager) echo.Ha
 		// Check if the job was successful
 		if result.Error != nil {
 			logger.WithError(result.Error).Error("Scraping job failed")
+
+			// Check if this is a "not job posting" error
+			if customErr, ok := result.Error.(*utils.CustomError); ok && customErr.Code == http.StatusUnprocessableEntity {
+				return c.JSON(customErr.Code, models.ErrorResponse{
+					Error:     "not_job_posting",
+					Message:   customErr.Message,
+					RequestID: requestID,
+					Timestamp: time.Now(),
+				})
+			}
+
+			// For all other errors, return internal server error
 			return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
 				Error:     "scraping_failed",
 				Message:   fmt.Sprintf("Failed to scrape job posting: %v", result.Error),

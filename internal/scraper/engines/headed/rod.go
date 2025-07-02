@@ -82,6 +82,10 @@ func (rs *RodScraper) ScrapeJob(ctx context.Context, url string, options *models
 	// Use LLM to extract job information from HTML
 	job, err := rs.llmManager.ExtractJobData(ctx, html, url)
 	if err != nil {
+		// Don't wrap CustomError types so they can be properly handled upstream
+		if _, ok := err.(*utils.CustomError); ok {
+			return nil, err
+		}
 		return nil, fmt.Errorf("failed to extract job information using LLM: %w", err)
 	}
 

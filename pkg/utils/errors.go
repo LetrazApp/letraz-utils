@@ -64,4 +64,13 @@ func NewLLMError(detail string) *CustomError {
 		Message: "LLM processing failed",
 		Detail:  detail,
 	}
-} 
+}
+
+// NewNotJobPostingError returns an error when the URL doesn't contain a job posting
+func NewNotJobPostingError(detail string) *CustomError {
+	return &CustomError{
+		Code:    http.StatusUnprocessableEntity,
+		Message: "Content is not a job posting",
+		Detail:  detail,
+	}
+}

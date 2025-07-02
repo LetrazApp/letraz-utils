@@ -79,12 +79,33 @@ func (cp *ClaudeProvider) ExtractJobData(ctx context.Context, html, url string) 
 	})
 
 	if err != nil {
+		cp.logger.WithFields(logrus.Fields{
+			"url":      url,
+			"provider": "claude",
+			"error":    err.Error(),
+		}).Error("Claude API call failed")
 		return nil, fmt.Errorf("failed to call Claude API: %w", err)
 	}
+
+	cp.logger.WithFields(logrus.Fields{
+		"url":      url,
+		"provider": "claude",
+	}).Debug("Claude API call successful, parsing response")
 
 	// Parse the response
 	job, err := cp.parseClaudeResponse(response, url)
 	if err != nil {
+		cp.logger.WithFields(logrus.Fields{
+			"url":      url,
+			"provider": "claude",
+			"error":    err.Error(),
+		}).Error("Failed to parse Claude response")
+
+		// Don't wrap CustomError types so they can be properly handled upstream
+		if _, ok := err.(*utils.CustomError); ok {
+			return nil, err
+		}
+
 		return nil, fmt.Errorf("failed to parse Claude response: %w", err)
 	}
 
@@ -102,14 +123,18 @@ func (cp *ClaudeProvider) ExtractJobData(ctx context.Context, html, url string) 
 
 // buildJobExtractionPrompt creates the prompt for Claude to extract job data
 func (cp *ClaudeProvider) buildJobExtractionPrompt(content, url string) string {
-	return fmt.Sprintf(`You are a job posting analyzer. Extract structured job information from the provided content and return it as a JSON object.
+	return fmt.Sprintf(`You are a job posting analyzer. Analyze the provided content to determine if it contains a job posting, and if so, extract structured job information.
 
-The content below is from a job posting webpage. Please extract the following information and return it as a valid JSON object with exactly these fields:
+The content below is from a webpage. Please first determine if this is actually a job posting, then extract information accordingly.
+
+Return a JSON object with exactly these fields:
 
 {
-  "title": "string - The job title",
+  "is_job_posting": boolean - true if this content contains a job posting, false otherwise,
+  "confidence": number - confidence score from 0.0 to 1.0 (only if is_job_posting is true),
+  "title": "string - The job title (empty if not a job posting)",
   "job_url": "string - The URL of the job posting (%s)",
-  "company_name": "string - The company name",
+  "company_name": "string - The company name (empty if not a job posting)",
   "location": "string - The job location (city, state, country, or 'Remote')",
   "salary": {
     "currency": "string - Salary as displayed (e.g., '$80,000 - $100,000 per year')",
@@ -119,19 +144,34 @@ The content below is from a job posting webpage. Please extract the following in
   "requirements": ["array of strings - Required qualifications, skills, experience"],
   "description": "string - Brief job description or summary (2-3 sentences max)",
   "responsibilities": ["array of strings - Key job responsibilities and duties"],
-  "benefits": ["array of strings - Employee benefits, perks, compensation details"]
+  "benefits": ["array of strings - Employee benefits, perks, compensation details"],
+  "reason": "string - Brief explanation if not a job posting (e.g., 'This appears to be a company homepage', 'This is a news article')"
 }
 
-IMPORTANT RULES:
-1. Return ONLY valid JSON, no additional text or explanation
-2. If information is not found, use empty string "" for strings, empty array [] for arrays, and 0 for numbers
-3. For salary: extract any monetary values mentioned (annual, hourly, etc.)
-4. Keep descriptions concise but informative
-5. Extract responsibilities and requirements separately
-6. Include the provided URL as job_url
-7. If the content doesn't appear to be a job posting, return a JSON with empty/null values but maintain the structure
+IMPORTANT CLASSIFICATION RULES:
+1. A job posting should contain:
+   - A specific job title/position
+   - Job responsibilities or description
+   - Company information
+   - Usually requirements or qualifications
+   
+2. NOT job postings include:
+   - Company homepages or about pages
+   - News articles or blog posts
+   - Product pages or marketing content
+   - Search results or listing pages
+   - Error pages or redirects
+   - General career pages without specific positions
 
-JOB POSTING CONTENT:
+EXTRACTION RULES:
+- Return ONLY valid JSON, no additional text or explanation
+- If is_job_posting is false, fill title, company_name, and other job fields with empty strings/arrays
+- If is_job_posting is true, extract all available information
+- For salary: extract any monetary values mentioned (annual, hourly, etc.)
+- Keep descriptions concise but informative
+- Set confidence to at least 0.7 for clear job postings, lower for ambiguous content
+
+CONTENT TO ANALYZE:
 %s`, url, content)
 }
 
@@ -167,10 +207,51 @@ func (cp *ClaudeProvider) parseClaudeResponse(response *anthropic.Message, url s
 
 	cp.logger.WithField("response_text", responseText).Debug("Claude response received")
 
-	// Parse JSON response
-	var job models.Job
-	if err := json.Unmarshal([]byte(responseText), &job); err != nil {
+	// Parse JSON response with validation fields
+	var rawResponse struct {
+		IsJobPosting     bool          `json:"is_job_posting"`
+		Confidence       float64       `json:"confidence"`
+		Title            string        `json:"title"`
+		JobURL           string        `json:"job_url"`
+		CompanyName      string        `json:"company_name"`
+		Location         string        `json:"location"`
+		Salary           models.Salary `json:"salary"`
+		Requirements     []string      `json:"requirements"`
+		Description      string        `json:"description"`
+		Responsibilities []string      `json:"responsibilities"`
+		Benefits         []string      `json:"benefits"`
+		Reason           string        `json:"reason"`
+	}
+
+	if err := json.Unmarshal([]byte(responseText), &rawResponse); err != nil {
 		return nil, fmt.Errorf("failed to parse JSON response from Claude: %w, response: %s", err, responseText)
+	}
+
+	// Check if the content is actually a job posting
+	if !rawResponse.IsJobPosting {
+		reason := rawResponse.Reason
+		if reason == "" {
+			reason = "The provided URL does not contain a job posting"
+		}
+		return nil, utils.NewNotJobPostingError(fmt.Sprintf("URL '%s' is not a job posting: %s", url, reason))
+	}
+
+	// Check confidence level for job postings
+	if rawResponse.Confidence < 0.7 {
+		return nil, utils.NewNotJobPostingError(fmt.Sprintf("Low confidence (%.2f) that URL '%s' contains a valid job posting", rawResponse.Confidence, url))
+	}
+
+	// Create job object from validated response
+	job := &models.Job{
+		Title:            rawResponse.Title,
+		JobURL:           rawResponse.JobURL,
+		CompanyName:      rawResponse.CompanyName,
+		Location:         rawResponse.Location,
+		Salary:           rawResponse.Salary,
+		Requirements:     rawResponse.Requirements,
+		Description:      rawResponse.Description,
+		Responsibilities: rawResponse.Responsibilities,
+		Benefits:         rawResponse.Benefits,
 	}
 
 	// Ensure job_url is set correctly
@@ -178,15 +259,22 @@ func (cp *ClaudeProvider) parseClaudeResponse(response *anthropic.Message, url s
 		job.JobURL = url
 	}
 
-	// Validate required fields
+	// Validate required fields for confirmed job postings
 	if job.Title == "" {
-		job.Title = "Title Not Found"
+		return nil, utils.NewNotJobPostingError(fmt.Sprintf("No job title found in URL '%s' - content may not be a valid job posting", url))
 	}
 	if job.CompanyName == "" {
-		job.CompanyName = "Company Not Found"
+		return nil, utils.NewNotJobPostingError(fmt.Sprintf("No company name found in URL '%s' - content may not be a valid job posting", url))
 	}
 
-	return &job, nil
+	cp.logger.WithFields(logrus.Fields{
+		"url":        url,
+		"title":      job.Title,
+		"company":    job.CompanyName,
+		"confidence": rawResponse.Confidence,
+	}).Info("Successfully validated and extracted job posting")
+
+	return job, nil
 }
 
 // IsHealthy checks if the Claude provider is healthy and available
