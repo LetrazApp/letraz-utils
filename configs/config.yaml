@@ -29,6 +29,6 @@ scraper:
   stealth_mode: true
 
 logging:
-  level: "info"
+  level: "warn"  # Reduced from "info" to "warn" for production use
   format: "json"
   output: "stdout" 

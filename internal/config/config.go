@@ -18,11 +18,11 @@ type Config struct {
 	} `yaml:"server"`
 
 	Workers struct {
-		PoolSize     int           `yaml:"pool_size" default:"10"`
-		QueueSize    int           `yaml:"queue_size" default:"100"`
-		RateLimit    int           `yaml:"rate_limit" default:"60"` // requests per minute
-		Timeout      time.Duration `yaml:"timeout" default:"30s"`
-		MaxRetries   int           `yaml:"max_retries" default:"3"`
+		PoolSize   int           `yaml:"pool_size" default:"10"`
+		QueueSize  int           `yaml:"queue_size" default:"100"`
+		RateLimit  int           `yaml:"rate_limit" default:"60"` // requests per minute
+		Timeout    time.Duration `yaml:"timeout" default:"30s"`
+		MaxRetries int           `yaml:"max_retries" default:"3"`
 	} `yaml:"workers"`
 
 	LLM struct {
@@ -79,7 +79,7 @@ func LoadConfig(configPath string) (*Config, error) {
 	config.Scraper.StealthMode = true
 	config.Scraper.UserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
-	config.Logging.Level = "info"
+	config.Logging.Level = "warn"
 	config.Logging.Format = "json"
 	config.Logging.Output = "stdout"
 
@@ -129,4 +129,4 @@ func (c *Config) loadFromEnv() {
 	if logFormat := os.Getenv("LOG_FORMAT"); logFormat != "" {
 		c.Logging.Format = logFormat
 	}
-} 
+}
