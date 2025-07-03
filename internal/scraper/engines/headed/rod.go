@@ -9,6 +9,8 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/sirupsen/logrus"
 	"letraz-scrapper/internal/config"
+	"letraz-scrapper/internal/llm"
+	"letraz-scrapper/internal/scraper/captcha"
 	"letraz-scrapper/pkg/models"
 	"letraz-scrapper/pkg/utils"
 )
@@ -17,6 +19,8 @@ import (
 type RodScraper struct {
 	config         *config.Config
 	browserManager *BrowserManager
+	llmManager     *llm.Manager
+	captchaSolver  captcha.CaptchaSolver
 	logger         *logrus.Logger
 }
 
@@ -31,22 +35,101 @@ type ScrapingResult struct {
 }
 
 // NewRodScraper creates a new Rod scraper instance
-func NewRodScraper(cfg *config.Config) *RodScraper {
+func NewRodScraper(cfg *config.Config, llmManager *llm.Manager) *RodScraper {
 	return &RodScraper{
 		config:         cfg,
 		browserManager: NewBrowserManager(cfg),
+		llmManager:     llmManager,
+		captchaSolver:  captcha.NewTwoCaptchaSolver(cfg),
 		logger:         utils.GetLogger(),
 	}
 }
 
-// ScrapeJob scrapes a job posting from the given URL
-func (rs *RodScraper) ScrapeJob(ctx context.Context, url string, options *models.ScrapeOptions) (*models.JobPosting, error) {
+// ScrapeJob scrapes a job posting from the given URL using LLM processing
+func (rs *RodScraper) ScrapeJob(ctx context.Context, url string, options *models.ScrapeOptions) (*models.Job, error) {
 	startTime := time.Now()
 
 	rs.logger.WithFields(logrus.Fields{
 		"url":    url,
-		"engine": "rod",
-	}).Info("Starting job scrape with Rod engine")
+		"engine": "rod_llm",
+	}).Info("Starting job scrape with Rod engine and LLM processing")
+
+	// Get browser instance
+	browser, err := rs.browserManager.GetBrowser(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get browser instance: %w", err)
+	}
+	defer browser.Release()
+
+	// Set timeout from options or config
+	timeout := rs.config.Scraper.RequestTimeout
+	if options != nil && options.Timeout > 0 {
+		timeout = options.Timeout
+	}
+
+	// Navigate to the URL
+	err = browser.Navigate(ctx, url, timeout)
+	if err != nil {
+		return nil, fmt.Errorf("failed to navigate to URL: %w", err)
+	}
+
+	// Wait for page to be fully loaded
+	time.Sleep(2 * time.Second)
+
+	// Get initial page HTML to check for captcha
+	initialHTML, err := browser.GetPageHTML()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get initial page HTML: %w", err)
+	}
+
+	// Check for captcha - if detected, return error for hybrid fallback
+	hasCaptcha, siteKey, err := captcha.DetectCaptcha(initialHTML)
+	if err != nil {
+		rs.logger.WithField("url", url).Debug("Error detecting captcha, continuing with scraping")
+	} else if hasCaptcha {
+		rs.logger.WithFields(logrus.Fields{
+			"url":      url,
+			"site_key": siteKey,
+		}).Info("Captcha detected, triggering fallback to Firecrawl")
+
+		// Return captcha error to trigger fallback instead of solving
+		return nil, utils.NewCaptchaDetectedError(fmt.Sprintf("Captcha detected (type: %s) for URL: %s", siteKey, url))
+	}
+
+	// Use the HTML (either original or post-captcha)
+	html := initialHTML
+
+	// Use LLM to extract job information from HTML
+	job, err := rs.llmManager.ExtractJobData(ctx, html, url)
+	if err != nil {
+		// Don't wrap CustomError types so they can be properly handled upstream
+		if _, ok := err.(*utils.CustomError); ok {
+			return nil, err
+		}
+		return nil, fmt.Errorf("failed to extract job information using LLM: %w", err)
+	}
+
+	processingTime := time.Since(startTime)
+
+	rs.logger.WithFields(logrus.Fields{
+		"url":             url,
+		"job_title":       job.Title,
+		"company":         job.CompanyName,
+		"processing_time": processingTime,
+		"engine":          "rod_llm",
+	}).Info("Job scraping completed successfully with LLM processing")
+
+	return job, nil
+}
+
+// ScrapeJobLegacy scrapes a job posting using legacy HTML parsing (for backward compatibility)
+func (rs *RodScraper) ScrapeJobLegacy(ctx context.Context, url string, options *models.ScrapeOptions) (*models.JobPosting, error) {
+	startTime := time.Now()
+
+	rs.logger.WithFields(logrus.Fields{
+		"url":    url,
+		"engine": "rod_legacy",
+	}).Info("Starting job scrape with Rod engine (legacy mode)")
 
 	// Get browser instance
 	browser, err := rs.browserManager.GetBrowser(ctx)
@@ -76,7 +159,7 @@ func (rs *RodScraper) ScrapeJob(ctx context.Context, url string, options *models
 		return nil, fmt.Errorf("failed to get page HTML: %w", err)
 	}
 
-	// Extract job information from HTML
+	// Extract job information from HTML using legacy method
 	jobPosting, err := rs.extractJobFromHTML(html, url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract job information: %w", err)
@@ -85,14 +168,14 @@ func (rs *RodScraper) ScrapeJob(ctx context.Context, url string, options *models
 	processingTime := time.Since(startTime)
 	jobPosting.ProcessedAt = time.Now()
 	jobPosting.Metadata["processing_time"] = processingTime.String()
-	jobPosting.Metadata["engine"] = "rod"
+	jobPosting.Metadata["engine"] = "rod_legacy"
 
 	rs.logger.WithFields(logrus.Fields{
 		"url":             url,
 		"job_title":       jobPosting.Title,
 		"company":         jobPosting.Company,
 		"processing_time": processingTime,
-	}).Info("Job scraping completed successfully")
+	}).Info("Job scraping completed successfully (legacy mode)")
 
 	return jobPosting, nil
 }
@@ -532,4 +615,52 @@ func (rs *RodScraper) Cleanup() {
 // IsHealthy checks if the scraper is healthy
 func (rs *RodScraper) IsHealthy() bool {
 	return rs.browserManager.IsHealthy()
+}
+
+// extractTurnstileSiteKeyFromHTML extracts the Cloudflare Turnstile site key from HTML content
+func extractTurnstileSiteKeyFromHTML(html string) string {
+	// Look for Turnstile data-sitekey attribute in various patterns
+	patterns := []string{
+		// Traditional data-sitekey patterns
+		`data-sitekey="([^"]+)"[^>]*(?:turnstile|cf-turnstile)`,
+		`(?:turnstile|cf-turnstile)[^>]*data-sitekey="([^"]+)"`,
+		`<div[^>]*class="[^"]*cf-turnstile[^"]*"[^>]*data-sitekey="([^"]+)"`,
+		`<div[^>]*data-sitekey="([^"]+)"[^>]*class="[^"]*cf-turnstile[^"]*"`,
+		`window\.turnstile.*?sitekey['"]\s*:\s*['"]([^'"]+)['"]`,
+		`turnstile\.render\([^)]*['"]([0-9a-zA-Z_-]{20,})['"]`,
+		`cf-turnstile[^>]*data-sitekey=['"]([^'"]+)['"]`,
+
+		// Iframe-based Cloudflare challenge patterns
+		`<iframe[^>]*src="[^"]*challenges\.cloudflare\.com[^"]*/(0x[0-9a-zA-Z_-]+)/[^"]*"`,
+		`src="[^"]*challenges\.cloudflare\.com[^"]*/(0x[0-9a-zA-Z_-]+)/[^"]*"`,
+		`challenges\.cloudflare\.com[^"]*/(0x[0-9a-zA-Z_-]+)/`,
+		`challenges\.cloudflare\.com[^"]*rcv[^"]*/(0x[0-9a-zA-Z_-]+)/`,
+		`https://challenges\.cloudflare\.com/[^"]*/(0x[0-9a-zA-Z_-]+)/[^"]*`,
+		`cloudflare\.com[^"]*/(0x[0-9a-zA-Z_-]+)/`,
+		`"(0x[0-9a-zA-Z_-]+)"[^"]*cloudflare`,
+		`cloudflare[^"]*"(0x[0-9a-zA-Z_-]+)"`,
+		// Specific pattern for the iframe structure seen in the screenshot
+		`challenges\.cloudflare\.com/cdn-cgi/challenge-platform/[^"]*/(0x[0-9a-zA-Z_-]+)/`,
+		// More general pattern for any 0x key in cloudflare context
+		`challenges\.cloudflare\.com[^"]*?(0x[0-9a-zA-Z_-]{20,})[^"]*`,
+	}
+
+	for _, pattern := range patterns {
+		if matches := utils.FindRegexMatch(html, pattern); len(matches) > 1 {
+			siteKey := strings.TrimSpace(matches[1])
+			if siteKey != "" && len(siteKey) > 10 { // Basic validation
+				return siteKey
+			}
+		}
+	}
+
+	return ""
+}
+
+// min returns the minimum of two integers
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }

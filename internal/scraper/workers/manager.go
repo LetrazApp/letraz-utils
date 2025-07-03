@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"letraz-scrapper/internal/config"
+	"letraz-scrapper/internal/llm"
 	"letraz-scrapper/internal/scraper"
 	"letraz-scrapper/pkg/models"
 	"letraz-scrapper/pkg/utils"
@@ -18,16 +19,18 @@ type PoolManager struct {
 	config         *config.Config
 	pool           *WorkerPool
 	scraperFactory scraper.ScraperFactory
+	llmManager     *llm.Manager
 	logger         *logrus.Logger
 	mu             sync.RWMutex
 	initialized    bool
 }
 
 // NewPoolManager creates a new worker pool manager
-func NewPoolManager(cfg *config.Config) *PoolManager {
+func NewPoolManager(cfg *config.Config, llmManager *llm.Manager) *PoolManager {
 	return &PoolManager{
 		config:         cfg,
-		scraperFactory: scraper.NewScraperFactory(cfg),
+		scraperFactory: scraper.NewScraperFactory(cfg, llmManager),
+		llmManager:     llmManager,
 		logger:         utils.GetLogger().WithField("component", "pool_manager").Logger,
 	}
 }
@@ -42,18 +45,25 @@ func (pm *PoolManager) Initialize() error {
 	}
 
 	pm.logger.Info("Initializing worker pool")
+	pm.logger.Debug("DEBUG: PoolManager.Initialize() started")
 
 	// Create the worker pool
+	pm.logger.Debug("DEBUG: About to create worker pool")
 	pm.pool = NewWorkerPool(pm.config, pm.scraperFactory)
+	pm.logger.Debug("DEBUG: Worker pool created successfully")
 
 	// Start the worker pool
+	pm.logger.Debug("DEBUG: About to start worker pool")
 	err := pm.pool.Start()
 	if err != nil {
+		pm.logger.WithError(err).Error("DEBUG: Worker pool start failed")
 		return fmt.Errorf("failed to start worker pool: %w", err)
 	}
+	pm.logger.Debug("DEBUG: Worker pool start returned successfully")
 
 	pm.initialized = true
 	pm.logger.Info("Worker pool initialized successfully")
+	pm.logger.Debug("DEBUG: PoolManager.Initialize() completed")
 	return nil
 }
 

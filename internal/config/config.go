@@ -4,6 +4,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/joho/godotenv"
 	"gopkg.in/yaml.v3"
 )
 
@@ -26,9 +27,9 @@ type Config struct {
 	} `yaml:"workers"`
 
 	LLM struct {
-		Provider    string        `yaml:"provider" default:"openai"`
+		Provider    string        `yaml:"provider" default:"claude"`
 		APIKey      string        `yaml:"api_key"`
-		Model       string        `yaml:"model" default:"gpt-3.5-turbo"`
+		Model       string        `yaml:"model" default:"claude-3-haiku-20240307"`
 		MaxTokens   int           `yaml:"max_tokens" default:"4096"`
 		Temperature float32       `yaml:"temperature" default:"0.1"`
 		Timeout     time.Duration `yaml:"timeout" default:"30s"`
@@ -41,7 +42,22 @@ type Config struct {
 		RequestTimeout time.Duration `yaml:"request_timeout" default:"30s"`
 		HeadlessMode   bool          `yaml:"headless_mode" default:"true"`
 		StealthMode    bool          `yaml:"stealth_mode" default:"true"`
+		Captcha        struct {
+			Provider        string        `yaml:"provider" default:"2captcha"`
+			APIKey          string        `yaml:"api_key"`
+			Timeout         time.Duration `yaml:"timeout" default:"120s"`
+			EnableAutoSolve bool          `yaml:"enable_auto_solve" default:"true"`
+		} `yaml:"captcha"`
 	} `yaml:"scraper"`
+
+	Firecrawl struct {
+		APIKey     string        `yaml:"api_key"`
+		APIURL     string        `yaml:"api_url" default:"https://api.firecrawl.dev"`
+		Version    string        `yaml:"version" default:"v1"`
+		Timeout    time.Duration `yaml:"timeout" default:"60s"`
+		MaxRetries int           `yaml:"max_retries" default:"3"`
+		Formats    []string      `yaml:"formats" default:"markdown"`
+	} `yaml:"firecrawl"`
 
 	Logging struct {
 		Level  string `yaml:"level" default:"info"`
@@ -52,6 +68,9 @@ type Config struct {
 
 // LoadConfig loads configuration from file and environment variables
 func LoadConfig(configPath string) (*Config, error) {
+	// Load .env file if it exists (ignore errors if file doesn't exist)
+	_ = godotenv.Load()
+
 	config := &Config{}
 
 	// Set defaults
@@ -67,8 +86,7 @@ func LoadConfig(configPath string) (*Config, error) {
 	config.Workers.Timeout = 30 * time.Second
 	config.Workers.MaxRetries = 3
 
-	config.LLM.Provider = "openai"
-	config.LLM.Model = "gpt-3.5-turbo"
+	config.LLM.Provider = "claude"
 	config.LLM.MaxTokens = 4096
 	config.LLM.Temperature = 0.1
 	config.LLM.Timeout = 30 * time.Second
@@ -78,6 +96,14 @@ func LoadConfig(configPath string) (*Config, error) {
 	config.Scraper.HeadlessMode = true
 	config.Scraper.StealthMode = true
 	config.Scraper.UserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
+	config.Scraper.Captcha.Provider = "2captcha"
+	config.Scraper.Captcha.Timeout = 120 * time.Second
+	config.Scraper.Captcha.EnableAutoSolve = true
+
+	config.Firecrawl.MaxRetries = 3
+	config.Firecrawl.Timeout = 60 * time.Second
+	config.Firecrawl.Formats = []string{"markdown"}
 
 	config.Logging.Level = "warn"
 	config.Logging.Format = "json"
@@ -128,5 +154,26 @@ func (c *Config) loadFromEnv() {
 
 	if logFormat := os.Getenv("LOG_FORMAT"); logFormat != "" {
 		c.Logging.Format = logFormat
+	}
+
+	if captchaAPIKey := os.Getenv("CAPTCHA_API_KEY"); captchaAPIKey != "" {
+		c.Scraper.Captcha.APIKey = captchaAPIKey
+	}
+
+	// Also support 2CAPTCHA_API_KEY for compatibility
+	if captchaAPIKey := os.Getenv("2CAPTCHA_API_KEY"); captchaAPIKey != "" {
+		c.Scraper.Captcha.APIKey = captchaAPIKey
+	}
+
+	if firecrawlAPIKey := os.Getenv("FIRECRAWL_API_KEY"); firecrawlAPIKey != "" {
+		c.Firecrawl.APIKey = firecrawlAPIKey
+	}
+
+	if firecrawlAPIURL := os.Getenv("FIRECRAWL_API_URL"); firecrawlAPIURL != "" {
+		c.Firecrawl.APIURL = firecrawlAPIURL
+	}
+
+	if firecrawlVersion := os.Getenv("FIRECRAWL_VERSION"); firecrawlVersion != "" {
+		c.Firecrawl.Version = firecrawlVersion
 	}
 }

@@ -64,4 +64,22 @@ func NewLLMError(detail string) *CustomError {
 		Message: "LLM processing failed",
 		Detail:  detail,
 	}
-} 
+}
+
+// NewNotJobPostingError returns an error when the URL doesn't contain a job posting
+func NewNotJobPostingError(detail string) *CustomError {
+	return &CustomError{
+		Code:    http.StatusUnprocessableEntity,
+		Message: "Content is not a job posting",
+		Detail:  detail,
+	}
+}
+
+// NewCaptchaDetectedError returns an error when a captcha is detected and should trigger fallback
+func NewCaptchaDetectedError(detail string) *CustomError {
+	return &CustomError{
+		Code:    http.StatusTemporaryRedirect, // 307 - indicates should retry with different method
+		Message: "Captcha detected - fallback required",
+		Detail:  detail,
+	}
+}

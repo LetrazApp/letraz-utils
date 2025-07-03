@@ -3,6 +3,8 @@ package workers
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -16,10 +18,12 @@ import (
 
 // JobResult represents the result of a scraping job
 type JobResult struct {
-	Job       *models.JobPosting
-	Error     error
-	RequestID string
-	Duration  time.Duration
+	Job        *models.Job        // New Job structure with LLM processing
+	JobPosting *models.JobPosting // Legacy JobPosting for backward compatibility
+	Error      error
+	RequestID  string
+	Duration   time.Duration
+	UsedLLM    bool // Flag to indicate if LLM was used
 }
 
 // ScrapeJob represents a job to be processed by workers
@@ -109,17 +113,24 @@ func (wp *WorkerPool) Start() error {
 	}
 
 	wp.logger.Info("Starting worker pool")
+	wp.logger.WithField("worker_count", len(wp.workers)).Debug("DEBUG: About to start workers")
 
 	// Start dispatcher
 	wp.dispatcher.Start()
+	wp.logger.Debug("DEBUG: Dispatcher started")
 
-	// Start all workers
-	for _, worker := range wp.workers {
+	// Start workers
+	for i, worker := range wp.workers {
 		go worker.Start()
+		wp.logger.WithFields(logrus.Fields{
+			"worker_id": worker.ID,
+			"index":     i,
+		}).Debug("DEBUG: Worker started")
 	}
 
 	wp.running = true
 	wp.logger.WithField("workers", len(wp.workers)).Info("Worker pool started successfully")
+	wp.logger.Debug("DEBUG: Worker pool start completed")
 	return nil
 }
 
@@ -248,12 +259,6 @@ func (w *Worker) Stop() {
 func (w *Worker) processJob(job ScrapeJob) {
 	startTime := time.Now()
 
-	w.logger.WithFields(logrus.Fields{
-		"job_id":    job.ID,
-		"worker_id": w.ID,
-		"url":       job.URL,
-	}).Debug("Processing job")
-
 	// Update stats
 	w.Pool.stats.mu.Lock()
 	w.Pool.stats.JobsProcessed++
@@ -275,20 +280,14 @@ func (w *Worker) processJob(job ScrapeJob) {
 	}
 	w.Pool.stats.mu.Unlock()
 
-	// Send result back (non-blocking)
+	// Send result back (non-blocking with reasonable timeout)
 	select {
 	case job.ResultChan <- result:
-		w.logger.WithFields(logrus.Fields{
-			"job_id":          job.ID,
-			"worker_id":       w.ID,
-			"processing_time": processingTime,
-			"success":         result.Error == nil,
-		}).Info("Job completed")
-	case <-time.After(100 * time.Millisecond):
+	case <-time.After(5 * time.Second):
 		w.logger.WithFields(logrus.Fields{
 			"job_id":    job.ID,
 			"worker_id": w.ID,
-		}).Debug("Result channel timeout - client may have disconnected")
+		}).Error("WORKER: Result channel timeout - failed to send result back to client")
 	}
 }
 
@@ -299,7 +298,7 @@ func (w *Worker) scrapeJob(job ScrapeJob) JobResult {
 	}
 
 	// Determine the scraping engine
-	engine := "headed" // Default engine
+	engine := "hybrid" // Default engine
 	if job.Options != nil && job.Options.Engine != "" {
 		engine = job.Options.Engine
 	}
@@ -334,33 +333,105 @@ func (w *Worker) scrapeJob(job ScrapeJob) JobResult {
 			time.Sleep(backoffDelay)
 		}
 
-		// Perform the scraping operation
-		jobPosting, err := scraper.ScrapeJob(job.Context, job.URL, job.Options)
-		if err != nil {
-			lastErr = err
+		// Determine if we should use LLM processing based on options
+		useLLM := true // Default to LLM processing
+		if job.Options != nil && job.Options.LLMProvider == "disabled" {
+			useLLM = false
+		}
+
+		if useLLM {
+			// Perform the scraping operation with LLM processing
+			jobData, err := scraper.ScrapeJob(job.Context, job.URL, job.Options)
+
+			if err != nil {
+				// Return LLM errors directly to the client - no fallback
+				result.Error = err
+				result.UsedLLM = true
+
+				// For "not job posting" errors, this is actually a successful determination
+				if customErr, ok := err.(*utils.CustomError); ok && customErr.Code == http.StatusUnprocessableEntity {
+					w.Pool.rateLimiter.RecordSuccess(domain)
+					w.logger.WithFields(logrus.Fields{
+						"job_id":    job.ID,
+						"worker_id": w.ID,
+						"attempt":   attempt + 1,
+						"mode":      "llm",
+						"reason":    "not_job_posting",
+					}).Info("LLM successfully determined content is not a job posting")
+
+					// Don't retry "not job posting" errors - return immediately
+					return result
+				}
+
+				// Check if this is a non-retryable error (API auth, missing key, etc.)
+				if isNonRetryableError(err) {
+					w.Pool.rateLimiter.RecordFailure(domain, err)
+					w.logger.WithFields(logrus.Fields{
+						"job_id":    job.ID,
+						"worker_id": w.ID,
+						"attempt":   attempt + 1,
+						"error":     err.Error(),
+						"mode":      "llm",
+						"reason":    "non_retryable_error",
+					}).Error("LLM processing failed with non-retryable error")
+
+					// Return immediately for non-retryable errors
+					return result
+				}
+
+				// For retryable errors, record failure and continue retry loop
+				lastErr = err
+				w.Pool.rateLimiter.RecordFailure(domain, err)
+				w.logger.WithFields(logrus.Fields{
+					"job_id":    job.ID,
+					"worker_id": w.ID,
+					"attempt":   attempt + 1,
+					"error":     err.Error(),
+					"mode":      "llm",
+				}).Debug("LLM processing failed, will retry")
+
+				// Continue to retry for technical failures
+				continue
+			}
+
+			// Success with LLM
+			result.Job = jobData
+			result.UsedLLM = true
+			w.Pool.rateLimiter.RecordSuccess(domain)
+
+			return result
+		} else {
+			// Perform the scraping operation with legacy processing
+			jobPosting, err := scraper.ScrapeJobLegacy(job.Context, job.URL, job.Options)
+			if err != nil {
+				lastErr = err
+				w.logger.WithFields(logrus.Fields{
+					"job_id":    job.ID,
+					"worker_id": w.ID,
+					"attempt":   attempt + 1,
+					"error":     err.Error(),
+					"mode":      "legacy",
+				}).Debug("Scraping attempt failed (legacy mode)")
+
+				// Record failure for rate limiting
+				w.Pool.rateLimiter.RecordFailure(domain, err)
+				continue
+			}
+
+			// Success with legacy processing
+			result.JobPosting = jobPosting
+			result.UsedLLM = false
+			w.Pool.rateLimiter.RecordSuccess(domain)
+
 			w.logger.WithFields(logrus.Fields{
 				"job_id":    job.ID,
 				"worker_id": w.ID,
+				"job_title": jobPosting.Title,
+				"company":   jobPosting.Company,
 				"attempt":   attempt + 1,
-				"error":     err.Error(),
-			}).Debug("Scraping attempt failed")
-
-			// Record failure for rate limiting
-			w.Pool.rateLimiter.RecordFailure(domain, err)
-			continue
+				"mode":      "legacy",
+			}).Debug("Scraping job completed successfully (legacy mode)")
 		}
-
-		// Success
-		result.Job = jobPosting
-		w.Pool.rateLimiter.RecordSuccess(domain)
-
-		w.logger.WithFields(logrus.Fields{
-			"job_id":    job.ID,
-			"worker_id": w.ID,
-			"job_title": jobPosting.Title,
-			"company":   jobPosting.Company,
-			"attempt":   attempt + 1,
-		}).Debug("Scraping job completed successfully")
 
 		return result
 	}
@@ -373,4 +444,52 @@ func (w *Worker) scrapeJob(job ScrapeJob) JobResult {
 // extractDomain extracts domain from URL for rate limiting
 func extractDomain(url string) string {
 	return extractDomainFromURL(url)
+}
+
+// isNonRetryableError determines if an error should not be retried
+func isNonRetryableError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	errStr := strings.ToLower(err.Error())
+
+	// Content validation errors
+	if strings.Contains(errStr, "content is not a job posting") ||
+		strings.Contains(errStr, "not a job posting") ||
+		strings.Contains(errStr, "low confidence") {
+		return true
+	}
+
+	// API authentication and authorization errors
+	if strings.Contains(errStr, "api key") ||
+		strings.Contains(errStr, "authentication") ||
+		strings.Contains(errStr, "unauthorized") ||
+		strings.Contains(errStr, "forbidden") ||
+		strings.Contains(errStr, "invalid api key") ||
+		strings.Contains(errStr, "permission denied") {
+		return true
+	}
+
+	// Rate limiting errors that indicate we should stop for now
+	if strings.Contains(errStr, "rate limit exceeded") ||
+		strings.Contains(errStr, "quota exceeded") ||
+		strings.Contains(errStr, "too many requests") {
+		return true
+	}
+
+	// Malformed request errors
+	if strings.Contains(errStr, "bad request") ||
+		strings.Contains(errStr, "invalid request") ||
+		strings.Contains(errStr, "malformed") {
+		return true
+	}
+
+	// Service completely unavailable
+	if strings.Contains(errStr, "service unavailable") ||
+		strings.Contains(errStr, "not available") {
+		return true
+	}
+
+	return false
 }
