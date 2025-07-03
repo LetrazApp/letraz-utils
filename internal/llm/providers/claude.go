@@ -137,7 +137,7 @@ Return a JSON object with exactly these fields:
   "company_name": "string - The company name (empty if not a job posting)",
   "location": "string - The job location (city, state, country, or 'Remote')",
   "salary": {
-    "currency": "string - Salary as displayed (e.g., '$80,000 - $100,000 per year')",
+    "currency": "string - The currency salary is being mentioned in (e.g., 'USD' or 'INR')",
     "max": number - Maximum salary as integer (0 if not specified),
     "min": number - Minimum salary as integer (0 if not specified)
   },
