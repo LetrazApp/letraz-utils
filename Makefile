@@ -108,3 +108,34 @@ docker-build: ## Build Docker image
 docker-run: ## Run Docker container
 	@echo "$(YELLOW)🐳 Running Docker container...$(NC)"
 	@docker run -p 8080:8080 --env-file .env $(BINARY_NAME):latest
+
+docker-run-prod: ## Run Docker container in production mode
+	@echo "$(YELLOW)🐳 Running Docker container in production mode...$(NC)"
+	@docker run -d \
+		--name letraz-scrapper-prod \
+		--env-file .env \
+		-p 8080:8080 \
+		--memory=2g \
+		--restart unless-stopped \
+		--log-driver json-file \
+		--log-opt max-size=10m \
+		--log-opt max-file=3 \
+		$(BINARY_NAME):latest
+
+docker-stop: ## Stop Docker container
+	@echo "$(YELLOW)🛑 Stopping Docker container...$(NC)"
+	@docker stop letraz-scrapper-prod || true
+	@docker rm letraz-scrapper-prod || true
+
+docker-logs: ## View Docker container logs
+	@echo "$(YELLOW)📋 Viewing Docker container logs...$(NC)"
+	@docker logs -f letraz-scrapper-prod
+
+docker-shell: ## Open shell in Docker container
+	@echo "$(YELLOW)🐚 Opening shell in Docker container...$(NC)"
+	@docker exec -it letraz-scrapper-prod /bin/sh
+
+docker-clean: ## Clean Docker images and containers
+	@echo "$(YELLOW)🧹 Cleaning Docker images and containers...$(NC)"
+	@docker system prune -f
+	@docker image prune -f
