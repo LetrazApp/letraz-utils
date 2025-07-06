@@ -55,4 +55,4 @@ configs/config.local.yaml
 # Runtime files (not tracked in git)
 captcha-domains.txt
 data/
-logs/ 
+logs/
