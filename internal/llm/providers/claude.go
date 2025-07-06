@@ -112,8 +112,6 @@ func (cp *ClaudeProvider) ExtractJobData(ctx context.Context, html, url string) 
 	processingTime := time.Since(startTime)
 	cp.logger.WithFields(logrus.Fields{
 		"url":             url,
-		"job_title":       job.Title,
-		"company":         job.CompanyName,
 		"processing_time": processingTime,
 		"provider":        "claude",
 	}).Info("Job data extraction completed successfully")
@@ -267,12 +265,7 @@ func (cp *ClaudeProvider) parseClaudeResponse(response *anthropic.Message, url s
 		return nil, utils.NewNotJobPostingError(fmt.Sprintf("No company name found in URL '%s' - content may not be a valid job posting", url))
 	}
 
-	cp.logger.WithFields(logrus.Fields{
-		"url":        url,
-		"title":      job.Title,
-		"company":    job.CompanyName,
-		"confidence": rawResponse.Confidence,
-	}).Info("Successfully validated and extracted job posting")
+	cp.logger.Info("Successfully validated and extracted job posting")
 
 	return job, nil
 }

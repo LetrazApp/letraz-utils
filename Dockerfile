@@ -44,7 +44,7 @@ COPY --from=builder /app/bin/letraz-scrapper /app/letraz-scrapper
 COPY --from=builder /app/configs/ /app/configs/
 
 # Create necessary directories
-RUN mkdir -p /app/tmp && \
+RUN mkdir -p /app/tmp /app/data && \
     chown -R scrapper:scrapper /app
 
 # Switch to non-root user

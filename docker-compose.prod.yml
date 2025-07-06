@@ -47,6 +47,9 @@ services:
       # Browser Configuration
       - CHROME_BIN=/usr/bin/chromium-browser
       - CHROME_PATH=/usr/bin/chromium-browser
+      
+      # Data Directory for persistent files
+      - DATA_DIR=/app/data
     
     deploy:
       resources:
@@ -70,10 +73,11 @@ services:
         max-size: "10m"
         max-file: "3"
         
-    # Optional: Mount volumes for persistent data
-    # volumes:
-    #   - ./logs:/app/logs
-    #   - ./tmp:/app/tmp
+    # Mount volumes for persistent data
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./tmp:/app/tmp
 
 networks:
   default:

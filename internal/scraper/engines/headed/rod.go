@@ -113,8 +113,6 @@ func (rs *RodScraper) ScrapeJob(ctx context.Context, url string, options *models
 
 	rs.logger.WithFields(logrus.Fields{
 		"url":             url,
-		"job_title":       job.Title,
-		"company":         job.CompanyName,
 		"processing_time": processingTime,
 		"engine":          "rod_llm",
 	}).Info("Job scraping completed successfully with LLM processing")

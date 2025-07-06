@@ -111,6 +111,7 @@ docker-run: ## Run Docker container
 
 docker-run-prod: ## Run Docker container in production mode
 	@echo "$(YELLOW)🐳 Running Docker container in production mode...$(NC)"
+	@mkdir -p data logs tmp
 	@docker run -d \
 		--name letraz-scrapper-prod \
 		--env-file .env \
@@ -120,6 +121,9 @@ docker-run-prod: ## Run Docker container in production mode
 		--log-driver json-file \
 		--log-opt max-size=10m \
 		--log-opt max-file=3 \
+		-v $(PWD)/data:/app/data \
+		-v $(PWD)/logs:/app/logs \
+		-v $(PWD)/tmp:/app/tmp \
 		$(BINARY_NAME):latest
 
 docker-stop: ## Stop Docker container

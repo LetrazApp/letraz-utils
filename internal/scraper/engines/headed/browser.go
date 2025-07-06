@@ -3,6 +3,7 @@ package headed
 import (
 	"context"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -38,12 +39,20 @@ type BrowserInstance struct {
 func NewBrowserManager(cfg *config.Config) *BrowserManager {
 	logger := utils.GetLogger()
 
-	// Setup launcher with enhanced stealth mode
+	// Setup launcher with enhanced stealth mode and system browser
 	l := launcher.New().
 		Headless(cfg.Scraper.HeadlessMode).
 		NoSandbox(true).
 		Set("disable-blink-features", "AutomationControlled").
 		Set("disable-web-security")
+
+	// Use system-installed Chrome/Chromium instead of downloading
+	if chromePath := getSystemChromePath(); chromePath != "" {
+		l = l.Bin(chromePath)
+		logger.WithField("chrome_path", chromePath).Info("Using system Chrome browser")
+	} else {
+		logger.Warn("System Chrome not found, Rod will download browser")
+	}
 
 	if cfg.Scraper.UserAgent != "" {
 		l = l.Set("user-agent", cfg.Scraper.UserAgent)
@@ -549,4 +558,40 @@ func (bi *BrowserInstance) SimulateHumanBehavior() error {
 
 	bi.manager.logger.Debug("Enhanced human behavior simulation completed")
 	return nil
+}
+
+// getSystemChromePath finds the system-installed Chrome/Chromium browser
+func getSystemChromePath() string {
+	// First check environment variables (Docker container configuration)
+	if chromeBin := os.Getenv("CHROME_BIN"); chromeBin != "" {
+		if _, err := os.Stat(chromeBin); err == nil {
+			return chromeBin
+		}
+	}
+
+	if chromePath := os.Getenv("CHROME_PATH"); chromePath != "" {
+		if _, err := os.Stat(chromePath); err == nil {
+			return chromePath
+		}
+	}
+
+	// Check common Chrome/Chromium paths
+	commonPaths := []string{
+		"/usr/bin/chromium-browser",                                        // Alpine Linux (Docker)
+		"/usr/bin/chromium",                                                // Some Linux distros
+		"/usr/bin/google-chrome",                                           // Google Chrome on Linux
+		"/usr/bin/google-chrome-stable",                                    // Google Chrome stable
+		"/opt/google/chrome/chrome",                                        // Alternative Chrome path
+		"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",     // macOS
+		"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",       // Windows
+		"C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe", // Windows 32-bit
+	}
+
+	for _, path := range commonPaths {
+		if _, err := os.Stat(path); err == nil {
+			return path
+		}
+	}
+
+	return ""
 }
