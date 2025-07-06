@@ -117,9 +117,9 @@ letraz-scrapper/
 ├── go.mod
 ├── go.sum
 ├── Dockerfile
-├── docker-compose.yml
+├── DEPLOYMENT.md
 ├── .gitignore
-├── .env.example
+├── env.example
 └── README.md
 ```
 
