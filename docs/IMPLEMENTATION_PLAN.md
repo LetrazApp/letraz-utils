@@ -52,7 +52,7 @@ The Letraz Job Scraper is a Go-based microservice designed to scrape job posting
 ## Project Structure
 
 ```
-letraz-scrapper/
+letraz-utils/
 ├── cmd/
 │   └── server/
 │       └── main.go                 # Application entry point
@@ -126,7 +126,7 @@ letraz-scrapper/
 ## Core Dependencies
 
 ```go
-module letraz-scrapper
+module letraz-utils
 
 go 1.21
 

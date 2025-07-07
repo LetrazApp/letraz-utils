@@ -8,8 +8,8 @@ import (
 
 	"github.com/2captcha/2captcha-go"
 	"github.com/sirupsen/logrus"
-	"letraz-scrapper/internal/config"
-	"letraz-scrapper/pkg/utils"
+	"letraz-utils/internal/config"
+	"letraz-utils/pkg/utils"
 )
 
 // CaptchaSolver interface for different captcha solving services

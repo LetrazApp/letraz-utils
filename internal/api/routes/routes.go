@@ -1,10 +1,10 @@
 package routes
 
 import (
-	"letraz-scrapper/internal/api/handlers"
-	"letraz-scrapper/internal/api/middleware"
-	"letraz-scrapper/internal/config"
-	"letraz-scrapper/internal/scraper/workers"
+	"letraz-utils/internal/api/handlers"
+	"letraz-utils/internal/api/middleware"
+	"letraz-utils/internal/config"
+	"letraz-utils/internal/scraper/workers"
 
 	"github.com/labstack/echo/v4"
 	echomiddleware "github.com/labstack/echo/v4/middleware"

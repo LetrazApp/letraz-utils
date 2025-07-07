@@ -7,12 +7,12 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"letraz-scrapper/internal/config"
-	"letraz-scrapper/internal/llm"
-	"letraz-scrapper/internal/scraper/engines/firecrawl"
-	"letraz-scrapper/internal/scraper/engines/headed"
-	"letraz-scrapper/pkg/models"
-	"letraz-scrapper/pkg/utils"
+	"letraz-utils/internal/config"
+	"letraz-utils/internal/llm"
+	"letraz-utils/internal/scraper/engines/firecrawl"
+	"letraz-utils/internal/scraper/engines/headed"
+	"letraz-utils/pkg/models"
+	"letraz-utils/pkg/utils"
 )
 
 // HybridScraper implements a hybrid approach: try Rod scraper first, fallback to Firecrawl if a captcha is detected

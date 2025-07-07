@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# CI/CD Setup Validation Script for Letraz-Scrapper
+# CI/CD Setup Validation Script for Letraz-Utils
 # This script validates that all required components for the CI/CD pipeline are properly configured
 
 # Colors for output
@@ -38,7 +38,7 @@ log_error() {
 # Header
 echo -e "${BLUE}"
 echo "=========================================="
-echo " Letraz-Scrapper CI/CD Setup Validation"
+echo " Letraz-Utils CI/CD Setup Validation"
 echo "=========================================="
 echo -e "${NC}"
 

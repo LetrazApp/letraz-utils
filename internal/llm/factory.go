@@ -3,8 +3,8 @@ package llm
 import (
 	"fmt"
 
-	"letraz-scrapper/internal/config"
-	"letraz-scrapper/internal/llm/providers"
+	"letraz-utils/internal/config"
+	"letraz-utils/internal/llm/providers"
 )
 
 // LLMFactory creates LLM provider instances

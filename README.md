@@ -1,200 +1,285 @@
-# Letraz Job Scraper
+# Letraz Utils
 
-A high-performance Go-based microservice for scraping job postings from various job boards with built-in rate limiting, circuit breaker patterns, and concurrent processing.
+A high-performance Go-based utility service for web scraping and content extraction with built-in AI processing, rate limiting, and concurrent processing capabilities.
 
-## Features
+## 🚀 Features
 
-- **Concurrent Processing**: Goroutine-based worker pool for handling multiple scraping requests
-- **Rate Limiting**: Per-domain rate limiting to prevent overwhelming target websites
-- **Circuit Breaker**: Automatic failure detection and recovery for improved reliability
-- **Multiple Engines**: Support for both headed (browser-based) and raw HTTP scraping
-- **Real-time Monitoring**: Comprehensive statistics and health monitoring APIs
-- **Configurable**: YAML-based configuration with environment variable overrides
+- **🔄 Concurrent Processing**: Goroutine-based worker pool for handling multiple requests simultaneously
+- **⚡ Rate Limiting**: Intelligent per-domain rate limiting to prevent overwhelming target websites
+- **🛡️ Circuit Breaker**: Automatic failure detection and recovery for improved reliability
+- **🧠 AI-Powered**: LLM integration for intelligent content extraction and processing
+- **🌐 Multiple Engines**: Support for browser-based, API-based, and hybrid scraping approaches
+- **📊 Real-time Monitoring**: Comprehensive statistics and health monitoring APIs
+- **⚙️ Highly Configurable**: YAML-based configuration with environment variable overrides
+- **🐳 Container Ready**: Docker support with multi-platform builds
 
-## Architecture
+## 📋 Table of Contents
 
-- **Worker Pool**: Configurable number of worker goroutines processing jobs from a queue
-- **Rate Limiter**: Domain-specific rate limiting with circuit breaker pattern
-- **Job Queue**: In-memory job queue with configurable capacity
-- **Scraper Factory**: Plugin-based scraper creation supporting multiple engines
-- **API Layer**: RESTful APIs for job submission and monitoring
+- [Quick Start](#quick-start)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Development](#development)
+- [License](#license)
 
-## API Endpoints
-
-### Core Endpoints
-
-#### Scrape Job
-```http
-POST /api/v1/scrape
-Content-Type: application/json
-
-{
-    "url": "https://example.com/job/123",
-    "options": {
-        "engine": "headed",
-        "timeout": "30s"
-    }
-}
-```
-
-### Health & Monitoring
-
-#### Service Health
-```http
-GET /health                 # Basic health check
-GET /health/ready          # Readiness probe
-GET /health/live           # Liveness probe
-GET /health/workers        # Worker pool health
-```
-
-#### Worker Pool Monitoring
-```http
-GET /api/v1/workers/stats          # Basic worker statistics
-GET /api/v1/workers/status         # Detailed worker status
-GET /api/v1/domains/{domain}/stats # Domain-specific rate limiting stats
-```
-
-### Response Examples
-
-#### Successful Scrape Response
-```json
-{
-    "success": true,
-    "job": {
-        "id": "uuid-here",
-        "title": "Software Engineer",
-        "company": "Tech Corp",
-        "location": "San Francisco, CA",
-        "remote": false,
-        "description": "Job description...",
-        "requirements": ["requirement1", "requirement2"],
-        "skills": ["skill1", "skill2"],
-        "salary": {
-            "min": 120000,
-            "max": 150000,
-            "currency": "USD",
-            "period": "yearly"
-        },
-        "application_url": "https://example.com/job/123",
-        "processed_at": "2024-01-15T10:30:00Z"
-    },
-    "processing_time": "5.2s",
-    "engine": "headed",
-    "request_id": "req-uuid-here"
-}
-```
-
-#### Worker Statistics Response
-```json
-{
-    "success": true,
-    "stats": {
-        "initialized": true,
-        "worker_count": 10,
-        "queue_capacity": 100,
-        "pool_stats": {
-            "jobs_queued": 150,
-            "jobs_processed": 145,
-            "jobs_successful": 140,
-            "jobs_failed": 5,
-            "average_processing_time": "3.2s"
-        },
-        "rate_limiter_stats": {
-            "example.com": {
-                "requests": 25,
-                "failures": 2,
-                "circuit_state": "closed",
-                "last_seen": "2024-01-15T10:29:00Z"
-            }
-        }
-    }
-}
-```
-
-## Configuration
-
-### Worker Pool Configuration
-```yaml
-workers:
-  pool_size: 10           # Number of worker goroutines
-  queue_size: 100         # Job queue capacity
-  rate_limit: 60          # Requests per minute per domain
-  timeout: "30s"          # Job processing timeout
-  max_retries: 3          # Maximum retry attempts per job
-```
-
-### Rate Limiting & Circuit Breaker
-- **Rate Limiting**: Configurable requests per minute per domain
-- **Circuit Breaker**: Opens after 5 consecutive failures, closes after 30 seconds
-- **Automatic Cleanup**: Unused limiters are cleaned up every 5 minutes
-
-## Installation & Usage
+## 🚀 Quick Start
 
 ### Prerequisites
-- Go 1.21 or higher
-- Chrome/Chromium browser (for headed scraping)
 
-### Build & Run
+- Go 1.23 or higher
+- Docker (optional, for containerized deployment)
+- Chrome/Chromium browser (for browser-based scraping)
+
+### 1. Clone the Repository
+
 ```bash
-# Build the application
-go build -o bin/server cmd/server/main.go
-
-# Run with default configuration
-./bin/server
-
-# Run with custom configuration
-CONFIG_PATH=configs/production.yaml ./bin/server
+git clone https://github.com/letrazapp/letraz-utils.git
+cd letraz-utils
 ```
 
-### Docker
+### 2. Install Dependencies
+
 ```bash
-# Build Docker image
-docker build -t letraz-scrapper .
+go mod download
+```
+
+### 3. Configure Environment
+
+```bash
+# Copy environment template
+cp env.example .env
+
+# Edit .env with your API keys
+nano .env
+```
+
+### 4. Run the Service
+
+```bash
+# Development mode
+make dev
+
+# Or build and run
+make build
+make run
+```
+
+### 5. Test the API
+
+```bash
+# Health check
+curl http://localhost:8080/health
+
+# Test scraping
+curl -X POST http://localhost:8080/api/v1/scrape \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com", "options": {"engine": "firecrawl"}}'
+```
+
+## 🛠️ Installation
+
+### From Source
+
+```bash
+# Clone repository
+git clone https://github.com/letrazapp/letraz-utils.git
+cd letraz-utils
+
+# Install dependencies
+go mod download
+
+# Build binary
+go build -o bin/letraz-utils cmd/server/main.go
+
+# Run
+./bin/letraz-utils
+```
+
+### Using Docker
+
+```bash
+# Build image
+docker build -t letraz-utils .
 
 # Run container
-docker run -p 8080:8080 letraz-scrapper
+docker run -p 8080:8080 --env-file .env letraz-utils
 ```
+
+### Using Docker Compose
+
+```yaml
+version: '3.8'
+services:
+  letraz-utils:
+    build: .
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+```
+
+## ⚙️ Configuration
+
+The service can be configured via YAML files and environment variables.
 
 ### Environment Variables
-```bash
-export PORT=8080
-export HOST=0.0.0.0
-export LLM_API_KEY=your-openai-api-key
-export LOG_LEVEL=info
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PORT` | Server port | `8080` |
+| `HOST` | Server host | `0.0.0.0` |
+| `LLM_API_KEY` | Claude API key | Required |
+| `FIRECRAWL_API_KEY` | Firecrawl API key | Optional |
+| `CAPTCHA_API_KEY` | 2captcha API key | Optional |
+| `LOG_LEVEL` | Log level (debug, info, warn, error) | `info` |
+| `WORKER_POOL_SIZE` | Number of worker goroutines | `10` |
+| `WORKER_RATE_LIMIT` | Requests per minute | `60` |
+
+### Configuration File
+
+Create `configs/config.yaml`:
+
+```yaml
+server:
+  port: 8080
+  host: "0.0.0.0"
+
+workers:
+  pool_size: 10
+  queue_size: 100
+  rate_limit: 60
+
+llm:
+  provider: "claude"
+  model: "claude-3-haiku-20240307"
+  max_tokens: 4096
+
+scraper:
+  headless_mode: true
+  stealth_mode: true
+  request_timeout: "30s"
 ```
 
-## Development Status
+## 🔧 Development
 
-- ✅ **Phase 1**: Foundation (Project structure, API framework, health checks)
-- ✅ **Phase 2**: Core Scraping Engine (Rod-based browser automation)
-- ✅ **Phase 3**: Worker Pool & Rate Limiting (Concurrent processing, rate limiting, circuit breaker)
-- 🚧 **Phase 4**: LLM Integration (In Progress)
-- 📋 **Phase 5**: Raw HTTP Engine (Planned)
-- 📋 **Phase 6**: Post-Processing Pipeline (Planned)
+### Prerequisites
 
-## Performance
+- Go 1.23+
+- Make
+- Docker (optional)
 
-- **Throughput**: 100+ requests per minute (configurable)
-- **Concurrency**: Configurable worker pool (default: 10 workers)
-- **Memory**: < 1GB under normal load
-- **Response Time**: < 30 seconds for complex pages (configurable timeout)
+### Setup Development Environment
 
-## Monitoring
+```bash
+# Clone repository
+git clone https://github.com/letrazapp/letraz-utils.git
+cd letraz-utils
 
-The service provides comprehensive monitoring through:
-- **Health Checks**: Standard health check endpoints for container orchestration
-- **Worker Statistics**: Real-time worker pool and job processing metrics
-- **Rate Limiting Stats**: Per-domain rate limiting and circuit breaker status
-- **Request Tracing**: Request ID tracking for debugging and monitoring
+# Install development tools
+make install
 
-## Contributing
+# Run development server with hot reload
+make dev
+```
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+### Available Make Commands
 
-## License
+```bash
+make help          # Show all available commands
+make dev           # Start development server
+make build         # Build binary
+make test          # Run tests
+make test-coverage # Run tests with coverage
+make lint          # Run linter
+make fmt           # Format code
+make docker-build  # Build Docker image
+```
 
-This project is licensed under the MIT License - see the LICENSE file for details. 
+### Testing
+
+```bash
+# Run all tests
+make test
+
+# Run tests with coverage
+make test-coverage
+
+# Run specific test
+go test -v ./internal/scraper/...
+```
+
+### Code Quality
+
+```bash
+# Format code
+make fmt
+
+# Run linter
+make lint
+
+# Check for security issues
+gosec ./...
+```
+
+## 🐳 Docker Deployment
+
+### Build Multi-Platform Image
+
+```bash
+# Setup buildx (one-time)
+make docker-setup-buildx
+
+# Build and push
+make docker-push
+```
+
+### Production Deployment
+
+```bash
+# Create environment file
+cp env.example .env
+# Edit .env with production values
+
+# Run container
+docker run -d \
+  --name letraz-utils \
+  --env-file .env \
+  -p 8080:8080 \
+  --restart unless-stopped \
+  -v $(pwd)/data:/app/data \
+  -v $(pwd)/logs:/app/logs \
+  ghcr.io/letrazapp/letraz-utils:latest
+```
+
+## 📈 Monitoring
+
+### Metrics
+
+The service exposes various metrics:
+
+- Worker pool statistics
+- Request processing times
+- Error rates
+- Rate limiting status
+- Health check status
+
+### Logging
+
+Structured JSON logging with configurable levels:
+
+```json
+{
+  "timestamp": "2024-01-15T10:30:00Z",
+  "level": "info",
+  "msg": "Processing scrape request",
+  "url": "https://example.com",
+  "engine": "firecrawl",
+  "duration": "2.3s"
+}
+```
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

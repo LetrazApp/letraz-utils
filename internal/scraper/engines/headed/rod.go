@@ -8,11 +8,11 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/sirupsen/logrus"
-	"letraz-scrapper/internal/config"
-	"letraz-scrapper/internal/llm"
-	"letraz-scrapper/internal/scraper/captcha"
-	"letraz-scrapper/pkg/models"
-	"letraz-scrapper/pkg/utils"
+	"letraz-utils/internal/config"
+	"letraz-utils/internal/llm"
+	"letraz-utils/internal/scraper/captcha"
+	"letraz-utils/pkg/models"
+	"letraz-utils/pkg/utils"
 )
 
 // RodScraper implements job scraping using Rod browser automation

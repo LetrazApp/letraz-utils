@@ -17,7 +17,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o bin/letraz-scrapper cmd/server/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o bin/letraz-utils cmd/server/main.go
 
 # Production stage
 FROM alpine:latest
@@ -31,24 +31,24 @@ RUN apk add --no-cache \
     && rm -rf /var/cache/apk/*
 
 # Create non-root user
-RUN addgroup -g 1001 -S scrapper && \
-    adduser -u 1001 -S scrapper -G scrapper
+RUN addgroup -g 1001 -S utilsuser && \
+    adduser -u 1001 -S utilsuser -G utilsuser
 
 # Set working directory
 WORKDIR /app
 
 # Copy binary from builder
-COPY --from=builder /app/bin/letraz-scrapper /app/letraz-scrapper
+COPY --from=builder /app/bin/letraz-utils /app/letraz-utils
 
 # Copy configuration files
 COPY --from=builder /app/configs/ /app/configs/
 
 # Create necessary directories
 RUN mkdir -p /app/tmp /app/data && \
-    chown -R scrapper:scrapper /app
+    chown -R utilsuser:utilsuser /app
 
 # Switch to non-root user
-USER scrapper
+USER utilsuser
 
 # Set environment variables for Chrome
 ENV CHROME_BIN=/usr/bin/chromium-browser
@@ -62,4 +62,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 EXPOSE 8080
 
 # Run the application
-CMD ["./letraz-scrapper"] 
+CMD ["./letraz-utils"] 

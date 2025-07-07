@@ -7,11 +7,11 @@ import (
 	"os/signal"
 	"syscall"
 
-	"letraz-scrapper/internal/api/routes"
-	"letraz-scrapper/internal/config"
-	"letraz-scrapper/internal/llm"
-	"letraz-scrapper/internal/scraper/workers"
-	"letraz-scrapper/pkg/utils"
+	"letraz-utils/internal/api/routes"
+	"letraz-utils/internal/config"
+	"letraz-utils/internal/llm"
+	"letraz-utils/internal/scraper/workers"
+	"letraz-utils/pkg/utils"
 
 	"github.com/labstack/echo/v4"
 )

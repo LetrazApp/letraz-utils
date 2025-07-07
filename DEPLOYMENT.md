@@ -1,10 +1,10 @@
-# Letraz Scraper - Production Deployment
+# Letraz Utils - Production Deployment
 
 ## Building After Code Updates
 
 ### 1. Build Docker Image
 ```bash
-docker build -t letraz-scrapper:latest .
+docker build -t letraz-utils:latest .
 ```
 
 ### 2. Push to GitHub Container Registry (Multi-Platform)
@@ -15,7 +15,7 @@ echo $GITHUB_TOKEN | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-std
 # Build and push multi-platform image (supports both ARM64 and AMD64)
 docker buildx create --name multiplatform --driver docker-container --bootstrap
 docker buildx use multiplatform
-docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/letrazapp/letraz-scrapper:latest -t ghcr.io/letrazapp/letraz-scrapper:v1.0.0 --push .
+docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/letrazapp/letraz-utils:latest -t ghcr.io/letrazapp/letraz-utils:v1.0.0 --push .
 ```
 
 **Note**: Multi-platform builds ensure your image works on both Apple Silicon (M1/M2) and Intel/AMD servers.
@@ -31,7 +31,7 @@ echo $GITHUB_TOKEN | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-std
 
 ### 2. Pull Docker Image
 ```bash
-docker pull ghcr.io/letrazapp/letraz-scrapper:latest
+docker pull ghcr.io/letrazapp/letraz-utils:latest
 ```
 
 ### 3. Create Environment File
@@ -56,14 +56,14 @@ mkdir -p data logs tmp
 ### 5. Run Container
 ```bash
 docker run -d \
-  --name letraz-scrapper \
+  --name letraz-utils \
   --env-file .env \
   -p 8080:8080 \
   --restart unless-stopped \
   -v $(pwd)/data:/app/data \
   -v $(pwd)/logs:/app/logs \
   -v $(pwd)/tmp:/app/tmp \
-  ghcr.io/letrazapp/letraz-scrapper:latest
+  ghcr.io/letrazapp/letraz-utils:latest
 ```
 
 ## Health Check
@@ -74,14 +74,14 @@ curl http://localhost:8080/health
 ## Container Management
 ```bash
 # View logs
-docker logs -f letraz-scrapper
+docker logs -f letraz-utils
 
 # Stop container
-docker stop letraz-scrapper && docker rm letraz-scrapper
+docker stop letraz-utils && docker rm letraz-utils
 
 # Update deployment
-docker stop letraz-scrapper && docker rm letraz-scrapper
-docker pull ghcr.io/letrazapp/letraz-scrapper:latest
+docker stop letraz-utils && docker rm letraz-utils
+docker pull ghcr.io/letrazapp/letraz-utils:latest
 # Run container command again
 ```
 

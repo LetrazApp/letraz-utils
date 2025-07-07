@@ -3,11 +3,11 @@ package scraper
 import (
 	"fmt"
 
-	"letraz-scrapper/internal/config"
-	"letraz-scrapper/internal/llm"
-	"letraz-scrapper/internal/scraper/engines/firecrawl"
-	"letraz-scrapper/internal/scraper/engines/headed"
-	"letraz-scrapper/internal/scraper/engines/hybrid"
+	"letraz-utils/internal/config"
+	"letraz-utils/internal/llm"
+	"letraz-utils/internal/scraper/engines/firecrawl"
+	"letraz-utils/internal/scraper/engines/headed"
+	"letraz-utils/internal/scraper/engines/hybrid"
 )
 
 // DefaultScraperFactory implements ScraperFactory

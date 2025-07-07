@@ -12,8 +12,8 @@ import (
 	"github.com/go-rod/rod/lib/proto"
 	"github.com/go-rod/stealth"
 	"github.com/sirupsen/logrus"
-	"letraz-scrapper/internal/config"
-	"letraz-scrapper/pkg/utils"
+	"letraz-utils/internal/config"
+	"letraz-utils/pkg/utils"
 )
 
 // BrowserManager manages browser instances and pools

@@ -1,16 +1,16 @@
 #!/bin/bash
 
-# Production deployment script for letraz-scrapper
+# Production deployment script for letraz-utils
 # This script handles the safe deployment of the new Docker image with rollback capabilities
 
 set -e  # Exit on any error
 
 # Configuration
 DOCKER_TAG=${1:-"latest"}
-CONTAINER_NAME="letraz-scrapper"
-BACKUP_CONTAINER_NAME="letraz-scrapper-backup"
+CONTAINER_NAME="letraz-utils"
+BACKUP_CONTAINER_NAME="letraz-utils-backup"
 REGISTRY="ghcr.io/letrazapp"
-IMAGE_NAME="letraz-scrapper"
+IMAGE_NAME="letraz-utils"
 FULL_IMAGE_NAME="${REGISTRY}/${IMAGE_NAME}:${DOCKER_TAG}"
 HEALTH_CHECK_URL="http://localhost:8080/health"
 HEALTH_CHECK_TIMEOUT=60
@@ -208,7 +208,7 @@ show_status() {
 show_help() {
     echo "Usage: $0 [DOCKER_TAG]"
     echo ""
-    echo "Deploy letraz-scrapper with the specified Docker tag"
+    echo "Deploy letraz-utils with the specified Docker tag"
     echo ""
     echo "Parameters:"
     echo "  DOCKER_TAG    Docker image tag to deploy (default: latest)"
@@ -236,7 +236,7 @@ main() {
         exit 0
     fi
     
-    log "Starting letraz-scrapper deployment..."
+    log "Starting letraz-utils deployment..."
     log "Docker tag: ${DOCKER_TAG}"
     
     # Ensure we're in the correct directory

@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"time"
 
-	"letraz-scrapper/internal/config"
-	"letraz-scrapper/internal/scraper/workers"
-	"letraz-scrapper/pkg/models"
-	"letraz-scrapper/pkg/utils"
+	"letraz-utils/internal/config"
+	"letraz-utils/internal/scraper/workers"
+	"letraz-utils/pkg/models"
+	"letraz-utils/pkg/utils"
 
 	"github.com/go-playground/validator/v10"
 )

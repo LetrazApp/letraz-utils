@@ -17,7 +17,7 @@ common_env: &common_env
   environment:
     - GO_VERSION: "1.23"
     - DOCKER_REGISTRY: "ghcr.io/letrazapp"
-    - IMAGE_NAME: "letraz-scrapper"
+    - IMAGE_NAME: "letraz-utils"
 
 # Common Docker login step
 docker_login: &docker_login
@@ -116,7 +116,7 @@ jobs:
       - run:
           name: Send build failure notification
           command: |
-            MESSAGE="❌ AMD64 build failed for letraz-scrapper:<< parameters.docker-tag >>"
+            MESSAGE="❌ AMD64 build failed for letraz-utils:<< parameters.docker-tag >>"
             if [ -n "$WEBHOOK_URL" ]; then
               curl -X POST -H "Content-Type: application/json" \
                 -d "{\"text\": \"$MESSAGE\", \"tag\": \"<< parameters.docker-tag >>\", \"branch\": \"$CIRCLE_BRANCH\"}" \
@@ -157,7 +157,7 @@ jobs:
       - run:
           name: Send build failure notification
           command: |
-            MESSAGE="❌ ARM64 build failed for letraz-scrapper:<< parameters.docker-tag >>"
+            MESSAGE="❌ ARM64 build failed for letraz-utils:<< parameters.docker-tag >>"
             if [ -n "$WEBHOOK_URL" ]; then
               curl -X POST -H "Content-Type: application/json" \
                 -d "{\"text\": \"$MESSAGE\", \"tag\": \"<< parameters.docker-tag >>\", \"branch\": \"$CIRCLE_BRANCH\"}" \
@@ -248,7 +248,7 @@ jobs:
           command: |
             echo "Sending failure notification..."
             
-            MESSAGE="❌ Deployment failed for letraz-scrapper:<< parameters.docker-tag >>"
+            MESSAGE="❌ Deployment failed for letraz-utils:<< parameters.docker-tag >>"
             
             # Send notification via webhook (if configured)
             if [ -n "$WEBHOOK_URL" ]; then
@@ -277,10 +277,10 @@ jobs:
           command: |
             echo "Sending << parameters.status >> notification..."
             
-            if [ "<< parameters.status >>" = "success" ]; then
-              MESSAGE="✅ Deployment successful for letraz-scrapper:<< parameters.docker-tag >>"
-            else
-              MESSAGE="❌ Deployment failed for letraz-scrapper:<< parameters.docker-tag >>"
+                          if [ "<< parameters.status >>" = "success" ]; then
+                MESSAGE="✅ Deployment successful for letraz-utils:<< parameters.docker-tag >>"
+              else
+                MESSAGE="❌ Deployment failed for letraz-utils:<< parameters.docker-tag >>"
             fi
             
             # Send notification via webhook (if configured)
