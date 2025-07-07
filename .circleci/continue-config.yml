@@ -65,6 +65,10 @@ jobs:
       - image: cimg/base:2024.02
     <<: *common_env
     resource_class: large
+    parameters:
+      docker-tag:
+        type: string
+        default: "latest"
     steps:
       - checkout
       - setup_remote_docker:
@@ -93,6 +97,10 @@ jobs:
       image: ubuntu-2204:2024.01.1
     resource_class: arm.medium
     <<: *common_env
+    parameters:
+      docker-tag:
+        type: string
+        default: "latest"
     steps:
       - checkout
       - *docker_login
@@ -118,6 +126,10 @@ jobs:
     docker:
       - image: cimg/base:2024.02
     <<: *common_env
+    parameters:
+      docker-tag:
+        type: string
+        default: "latest"
     steps:
       - *docker_login
       - run:
@@ -146,6 +158,10 @@ jobs:
     docker:
       - image: cimg/base:2024.02
     <<: *common_env
+    parameters:
+      docker-tag:
+        type: string
+        default: "latest"
     steps:
       - checkout
       - add_ssh_keys:
@@ -191,6 +207,9 @@ jobs:
       status:
         type: string
         default: "success"
+      docker-tag:
+        type: string
+        default: "latest"
     steps:
       - run:
           name: Send notification
@@ -229,21 +248,25 @@ workflows:
       
       # Build both architectures in parallel
       - build-amd64:
+          docker-tag: << pipeline.parameters.docker-tag >>
           requires:
             - test
       
       - build-arm64:
+          docker-tag: << pipeline.parameters.docker-tag >>
           requires:
             - test
       
       # Create multi-platform manifest
       - create-manifest:
+          docker-tag: << pipeline.parameters.docker-tag >>
           requires:
             - build-amd64
             - build-arm64
       
       # Deploy to production
       - deploy:
+          docker-tag: << pipeline.parameters.docker-tag >>
           requires:
             - create-manifest
           context:
@@ -253,6 +276,7 @@ workflows:
       - notify:
           name: notify-success
           status: "success"
+          docker-tag: << pipeline.parameters.docker-tag >>
           requires:
             - deploy
       
@@ -260,6 +284,7 @@ workflows:
       - notify:
           name: notify-failure
           status: "failure"
+          docker-tag: << pipeline.parameters.docker-tag >>
           requires:
             - deploy
           when: on_fail 
