@@ -12,9 +12,17 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const (
-	CaptchaDomainsFile = "captcha-domains.txt"
+var (
+	// CaptchaDomainsFile path can be configured via environment variable
+	CaptchaDomainsFile = getConfiguredCaptchaDomainsFile()
 )
+
+func getConfiguredCaptchaDomainsFile() string {
+	if dataDir := os.Getenv("DATA_DIR"); dataDir != "" {
+		return fmt.Sprintf("%s/captcha-domains.txt", dataDir)
+	}
+	return "captcha-domains.txt"
+}
 
 // CaptchaDomainManager manages a list of domains known to have captcha protection
 type CaptchaDomainManager struct {

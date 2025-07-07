@@ -108,3 +108,83 @@ docker-build: ## Build Docker image
 docker-run: ## Run Docker container
 	@echo "$(YELLOW)🐳 Running Docker container...$(NC)"
 	@docker run -p 8080:8080 --env-file .env $(BINARY_NAME):latest
+
+docker-run-prod: ## Run Docker container in production mode
+	@echo "$(YELLOW)🐳 Running Docker container in production mode...$(NC)"
+	@mkdir -p data logs tmp
+	@docker run -d \
+		--name letraz-scrapper-prod \
+		--env-file .env \
+		-p 8080:8080 \
+		--memory=2g \
+		--restart unless-stopped \
+		--log-driver json-file \
+		--log-opt max-size=10m \
+		--log-opt max-file=3 \
+		-v $(PWD)/data:/app/data \
+		-v $(PWD)/logs:/app/logs \
+		-v $(PWD)/tmp:/app/tmp \
+		$(BINARY_NAME):latest
+
+docker-stop: ## Stop Docker container
+	@echo "$(YELLOW)🛑 Stopping Docker container...$(NC)"
+	@docker stop letraz-scrapper-prod || true
+	@docker rm letraz-scrapper-prod || true
+
+docker-logs: ## View Docker container logs
+	@echo "$(YELLOW)📋 Viewing Docker container logs...$(NC)"
+	@docker logs -f letraz-scrapper-prod
+
+docker-shell: ## Open shell in Docker container
+	@echo "$(YELLOW)🐚 Opening shell in Docker container...$(NC)"
+	@docker exec -it letraz-scrapper-prod /bin/sh
+
+docker-clean: ## Clean Docker images and containers
+	@echo "$(YELLOW)🧹 Cleaning Docker images and containers...$(NC)"
+	@docker system prune -f
+	@docker image prune -f
+
+# GitHub Container Registry commands
+docker-login: ## Login to GitHub Container Registry
+	@echo "$(YELLOW)🔐 Logging into GitHub Container Registry...$(NC)"
+	@echo "Make sure GITHUB_TOKEN and GITHUB_USERNAME environment variables are set"
+	@echo $$GITHUB_TOKEN | docker login ghcr.io -u $$GITHUB_USERNAME --password-stdin
+
+docker-setup-buildx: ## Setup Docker buildx for multi-platform builds (run once)
+	@echo "$(YELLOW)🛠️  Setting up Docker buildx for multi-platform builds...$(NC)"
+	@docker buildx create --name multiplatform --driver docker-container --bootstrap || true
+	@docker buildx use multiplatform
+	@echo "$(GREEN)✅ Docker buildx configured for multi-platform builds$(NC)"
+
+docker-push: ## Push Docker image to GitHub Container Registry (multi-platform)
+	@echo "$(YELLOW)📤 Building and pushing multi-platform image to GitHub Container Registry...$(NC)"
+	@docker buildx build \
+		--platform linux/amd64,linux/arm64 \
+		-t ghcr.io/letrazapp/$(BINARY_NAME):latest \
+		-t ghcr.io/letrazapp/$(BINARY_NAME):v1.0.0 \
+		--push .
+	@echo "$(GREEN)✅ Multi-platform images pushed to ghcr.io/letrazapp/$(BINARY_NAME)$(NC)"
+
+docker-pull: ## Pull Docker image from GitHub Container Registry
+	@echo "$(YELLOW)📥 Pulling from GitHub Container Registry...$(NC)"
+	@docker pull ghcr.io/letrazapp/$(BINARY_NAME):latest
+
+docker-deploy: build docker-setup-buildx docker-push ## Complete build and deploy workflow (multi-platform)
+	@echo "$(GREEN)✅ Complete multi-platform deployment workflow finished$(NC)"
+
+docker-run-registry: ## Run Docker container from registry image
+	@echo "$(YELLOW)🐳 Running Docker container from registry...$(NC)"
+	@mkdir -p data logs tmp
+	@docker run -d \
+		--name letraz-scrapper-registry \
+		--env-file .env \
+		-p 8080:8080 \
+		--memory=2g \
+		--restart unless-stopped \
+		--log-driver json-file \
+		--log-opt max-size=10m \
+		--log-opt max-file=3 \
+		-v $(PWD)/data:/app/data \
+		-v $(PWD)/logs:/app/logs \
+		-v $(PWD)/tmp:/app/tmp \
+		ghcr.io/letrazapp/$(BINARY_NAME):latest
