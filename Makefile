@@ -144,6 +144,11 @@ docker-clean: ## Clean Docker images and containers
 	@docker system prune -f
 	@docker image prune -f
 
+# CI/CD commands
+validate-cicd: ## Validate CI/CD setup configuration
+	@echo "$(YELLOW)🔍 Validating CI/CD setup...$(NC)"
+	@./scripts/validate-cicd-setup.sh
+
 # GitHub Container Registry commands
 docker-login: ## Login to GitHub Container Registry
 	@echo "$(YELLOW)🔐 Logging into GitHub Container Registry...$(NC)"

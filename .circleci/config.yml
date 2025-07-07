@@ -1,0 +1,59 @@
+setup: true
+
+version: 2.1
+
+orbs:
+  continuation: circleci/continuation@1.0.0
+
+# Parameters for dynamic configuration
+parameters:
+  run-build-deploy:
+    type: boolean
+    default: false
+  force-deploy:
+    type: boolean
+    default: false
+
+jobs:
+  setup:
+    docker:
+      - image: cimg/base:2024.02
+    steps:
+      - checkout
+      - run:
+          name: Check for changes
+          command: |
+            echo "Checking for changes in the repository..."
+            
+            # Check if we're on main branch or if force-deploy is true
+            if [ "$CIRCLE_BRANCH" = "main" ] || [ "<< pipeline.parameters.force-deploy >>" = "true" ]; then
+              echo "Building and deploying: main branch detected or force-deploy enabled"
+              echo 'export BUILD_DEPLOY="true"' >> $BASH_ENV
+            else
+              echo "Skipping build/deploy: not on main branch"
+              echo 'export BUILD_DEPLOY="false"' >> $BASH_ENV
+            fi
+            
+            # Generate unique tag for this build
+            if [ "$CIRCLE_BRANCH" = "main" ]; then
+              echo "export DOCKER_TAG=\$(echo \$CIRCLE_SHA1 | cut -c1-7)" >> $BASH_ENV
+            else
+              echo "export DOCKER_TAG=\$(echo \$CIRCLE_BRANCH-\$CIRCLE_SHA1 | cut -c1-20 | tr '/' '-')" >> $BASH_ENV
+            fi
+            
+            source $BASH_ENV
+            echo "BUILD_DEPLOY: $BUILD_DEPLOY"
+            echo "DOCKER_TAG: $DOCKER_TAG"
+            
+      - continuation/continue:
+          configuration_path: .circleci/continue-config.yml
+          parameters: |
+            {
+              "run-build-deploy": $BUILD_DEPLOY,
+              "docker-tag": "$DOCKER_TAG"
+            }
+
+workflows:
+  setup-workflow:
+    jobs:
+      - setup 
