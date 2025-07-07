@@ -25,7 +25,30 @@ docker_login: &docker_login
     name: Login to GitHub Container Registry
     command: |
       echo "Logging in to GitHub Container Registry..."
-      echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_USERNAME --password-stdin
+      
+      # Debug: Check if environment variables are set
+      if [ -z "$GITHUB_USERNAME" ]; then
+        echo "ERROR: GITHUB_USERNAME is not set"
+        exit 1
+      fi
+      
+      if [ -z "$GITHUB_TOKEN" ]; then
+        echo "ERROR: GITHUB_TOKEN is not set"
+        exit 1
+      fi
+      
+      echo "GitHub Username: $GITHUB_USERNAME"
+      echo "GitHub Token: [REDACTED - ${#GITHUB_TOKEN} characters]"
+      
+      # Perform login with explicit error handling
+      echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_USERNAME" --password-stdin
+      
+      if [ $? -eq 0 ]; then
+        echo "Successfully logged in to GitHub Container Registry"
+      else
+        echo "Failed to login to GitHub Container Registry"
+        exit 1
+      fi
 
 jobs:
   # Job to run tests and linting
@@ -289,11 +312,15 @@ workflows:
           docker-tag: << pipeline.parameters.docker-tag >>
           requires:
             - test
+          context:
+            - utils-prod
       
       - build-arm64:
           docker-tag: << pipeline.parameters.docker-tag >>
           requires:
             - test
+          context:
+            - utils-prod
       
       # Create multi-platform manifest
       - create-manifest:
@@ -301,6 +328,8 @@ workflows:
           requires:
             - build-amd64
             - build-arm64
+          context:
+            - utils-prod
       
       # Deploy to production
       - deploy:
