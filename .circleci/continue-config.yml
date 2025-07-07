@@ -162,11 +162,14 @@ jobs:
           command: |
             echo "Deploying to production server..."
             
-            # Copy deployment script to server
-            scp .circleci/deploy.sh $SSH_USER@$SSH_HOST:/tmp/deploy.sh
+            # Ensure app directory exists
+            ssh $SSH_USER@$SSH_HOST "mkdir -p ~/app"
             
-            # Execute deployment on server
-            ssh $SSH_USER@$SSH_HOST "bash /tmp/deploy.sh << parameters.docker-tag >>"
+            # Copy deployment script to app directory
+            scp .circleci/deploy.sh $SSH_USER@$SSH_HOST:~/app/deploy.sh
+            
+            # Make deployment script executable and run from app directory
+            ssh $SSH_USER@$SSH_HOST "cd ~/app && chmod +x deploy.sh && ./deploy.sh << parameters.docker-tag >>"
       - run:
           name: Verify deployment
           command: |
@@ -175,8 +178,8 @@ jobs:
             # Wait for service to be ready
             sleep 30
             
-            # Check health endpoint
-            ssh $SSH_USER@$SSH_HOST "curl -f http://localhost:8080/health || exit 1"
+            # Check health endpoint and deployment status
+            ssh $SSH_USER@$SSH_HOST "cd ~/app && curl -f http://localhost:8080/health && ./deploy.sh --status"
             
             echo "Deployment verified successfully"
 
@@ -252,7 +255,7 @@ workflows:
             branches:
               only: main
           context:
-            - production-deployment
+            - utils-prod
       
       # Send success notification
       - notify:

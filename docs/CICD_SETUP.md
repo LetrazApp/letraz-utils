@@ -124,8 +124,8 @@ sudo sh get-docker.sh
 sudo usermod -aG docker $USER
 
 # Create deployment directory
-mkdir -p ~/letraz-deployment
-cd ~/letraz-deployment
+mkdir -p ~/app
+cd ~/app
 
 # Create production .env file
 cp /path/to/your/env.example .env
@@ -204,8 +204,8 @@ SCRAPER_STEALTH_MODE=true
 
 ```bash
 # Create required directories
-mkdir -p ~/letraz-deployment/{data,logs,tmp}
-cd ~/letraz-deployment
+mkdir -p ~/app/{data,logs,tmp}
+cd ~/app
 
 # Verify structure
 ls -la
@@ -251,7 +251,7 @@ curl http://localhost:8080/health
 docker logs letraz-scrapper
 
 # Check deployment status
-./.circleci/deploy.sh --status
+./deploy.sh --status
 ```
 
 ## Step 6: Advanced Configuration
