@@ -213,47 +213,39 @@ jobs:
             echo "Notification sent: $MESSAGE"
 
 workflows:
-  # Main build and deploy workflow
+  # Test workflow (runs on all branches)
+  test-only:
+    when:
+      not: << pipeline.parameters.run-build-deploy >>
+    jobs:
+      - test
+
+  # Full build and deploy workflow (runs on main branch only)
   build-and-deploy:
     when: << pipeline.parameters.run-build-deploy >>
     jobs:
       # Test first
-      - test:
-          filters:
-            branches:
-              only: /.*/
+      - test
       
       # Build both architectures in parallel
       - build-amd64:
           requires:
             - test
-          filters:
-            branches:
-              only: main
       
       - build-arm64:
           requires:
             - test
-          filters:
-            branches:
-              only: main
       
       # Create multi-platform manifest
       - create-manifest:
           requires:
             - build-amd64
             - build-arm64
-          filters:
-            branches:
-              only: main
       
       # Deploy to production
       - deploy:
           requires:
             - create-manifest
-          filters:
-            branches:
-              only: main
           context:
             - utils-prod
       
@@ -263,9 +255,6 @@ workflows:
           status: "success"
           requires:
             - deploy
-          filters:
-            branches:
-              only: main
       
       # Send failure notification (runs on failure)
       - notify:
@@ -273,7 +262,4 @@ workflows:
           status: "failure"
           requires:
             - deploy
-          filters:
-            branches:
-              only: main
-          type: approval 
+          when: on_fail 
