@@ -90,6 +90,17 @@ jobs:
             echo "Pushing AMD64 Docker image..."
             docker push ${DOCKER_REGISTRY}/${IMAGE_NAME}:<< parameters.docker-tag >>-amd64
             docker push ${DOCKER_REGISTRY}/${IMAGE_NAME}:latest-amd64
+      - run:
+          name: Send build failure notification
+          command: |
+            MESSAGE="❌ AMD64 build failed for letraz-scrapper:<< parameters.docker-tag >>"
+            if [ -n "$WEBHOOK_URL" ]; then
+              curl -X POST -H "Content-Type: application/json" \
+                -d "{\"text\": \"$MESSAGE\", \"tag\": \"<< parameters.docker-tag >>\", \"branch\": \"$CIRCLE_BRANCH\"}" \
+                $WEBHOOK_URL
+            fi
+            echo "Build failure notification sent: $MESSAGE"
+          when: on_fail
 
   # Job to build ARM64 Docker image
   build-arm64:
@@ -120,6 +131,17 @@ jobs:
             echo "Pushing ARM64 Docker image..."
             docker push ${DOCKER_REGISTRY}/${IMAGE_NAME}:<< parameters.docker-tag >>-arm64
             docker push ${DOCKER_REGISTRY}/${IMAGE_NAME}:latest-arm64
+      - run:
+          name: Send build failure notification
+          command: |
+            MESSAGE="❌ ARM64 build failed for letraz-scrapper:<< parameters.docker-tag >>"
+            if [ -n "$WEBHOOK_URL" ]; then
+              curl -X POST -H "Content-Type: application/json" \
+                -d "{\"text\": \"$MESSAGE\", \"tag\": \"<< parameters.docker-tag >>\", \"branch\": \"$CIRCLE_BRANCH\"}" \
+                $WEBHOOK_URL
+            fi
+            echo "Build failure notification sent: $MESSAGE"
+          when: on_fail
 
   # Job to create and push multi-platform manifest
   create-manifest:
@@ -198,6 +220,22 @@ jobs:
             ssh $SSH_USER@$SSH_HOST "cd ~/app && curl -f http://localhost:8080/health && ./deploy.sh --status"
             
             echo "Deployment verified successfully"
+      - run:
+          name: Send failure notification
+          command: |
+            echo "Sending failure notification..."
+            
+            MESSAGE="❌ Deployment failed for letraz-scrapper:<< parameters.docker-tag >>"
+            
+            # Send notification via webhook (if configured)
+            if [ -n "$WEBHOOK_URL" ]; then
+              curl -X POST -H "Content-Type: application/json" \
+                -d "{\"text\": \"$MESSAGE\", \"tag\": \"<< parameters.docker-tag >>\", \"branch\": \"$CIRCLE_BRANCH\"}" \
+                $WEBHOOK_URL
+            fi
+            
+            echo "Failure notification sent: $MESSAGE"
+          when: on_fail
 
   # Job to send notifications
   notify:
@@ -278,13 +316,4 @@ workflows:
           status: "success"
           docker-tag: << pipeline.parameters.docker-tag >>
           requires:
-            - deploy
-      
-      # Send failure notification (runs on failure)
-      - notify:
-          name: notify-failure
-          status: "failure"
-          docker-tag: << pipeline.parameters.docker-tag >>
-          requires:
-            - deploy
-          when: on_fail 
+            - deploy 
