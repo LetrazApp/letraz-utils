@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	"github.com/sirupsen/logrus"
-	"letraz-scrapper/pkg/utils"
+	"letraz-utils/pkg/utils"
 )
 
 // Dispatcher manages job distribution to workers

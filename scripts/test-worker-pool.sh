@@ -5,7 +5,7 @@
 
 BASE_URL=${1:-"http://localhost:8080"}
 
-echo "🚀 Testing Letraz Job Scraper Worker Pool"
+echo "🚀 Testing Letraz Utils Worker Pool"
 echo "Base URL: $BASE_URL"
 echo "========================================="
 

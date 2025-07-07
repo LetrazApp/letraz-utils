@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"letraz-scrapper/internal/config"
-	"letraz-scrapper/pkg/utils"
+	"letraz-utils/internal/config"
+	"letraz-utils/pkg/utils"
 
 	"github.com/sirupsen/logrus"
 	"golang.org/x/time/rate"

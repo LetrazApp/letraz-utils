@@ -1,6 +1,6 @@
-# CI/CD Pipeline Setup Guide for Letraz-Scrapper
+# CI/CD Pipeline Setup Guide for Letraz-Utils
 
-This guide walks you through setting up a complete CI/CD pipeline for the letraz-scrapper application using CircleCI.
+This guide walks you through setting up a complete CI/CD pipeline for the letraz-utils application using CircleCI.
 
 ## Overview
 
@@ -69,7 +69,7 @@ The CI/CD pipeline provides:
 ### 1.1 Connect Repository to CircleCI
 
 1. Log in to [CircleCI](https://app.circleci.com/)
-2. Click "Set Up Project" for your `letraz-scrapper` repository
+2. Click "Set Up Project" for your `letraz-utils` repository
 3. Choose "Fast" setup to use existing config files
 4. CircleCI will automatically detect the `.circleci/config.yml` file
 
@@ -242,13 +242,13 @@ Check your production server:
 
 ```bash
 # Check if container is running
-docker ps | grep letraz-scrapper
+docker ps | grep letraz-utils
 
 # Check health endpoint
 curl http://localhost:8080/health
 
 # Check logs
-docker logs letraz-scrapper
+docker logs letraz-utils
 
 # Check deployment status
 ./deploy.sh --status
@@ -275,7 +275,7 @@ To manually trigger a deployment:
 ```bash
 # Using CircleCI API
 curl -X POST \
-  https://circleci.com/api/v2/project/github/LetrazApp/letraz-scrapper/pipeline \
+  https://circleci.com/api/v2/project/github/LetrazApp/letraz-utils/pipeline \
   -H "Circle-Token: YOUR-CIRCLECI-TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -291,12 +291,12 @@ If a deployment fails, the script automatically rolls back. For manual rollback:
 
 ```bash
 # On production server
-docker stop letraz-scrapper
-docker rm letraz-scrapper
+docker stop letraz-utils
+docker rm letraz-utils
 
 # Start previous version (if backup exists)  
-docker rename letraz-scrapper-backup letraz-scrapper
-docker start letraz-scrapper
+docker rename letraz-utils-backup letraz-utils
+docker start letraz-utils
 
 # Or deploy specific version
 ./deploy.sh abc1234  # specific commit SHA
@@ -321,7 +321,7 @@ echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_USERNAME --password-stdin
 **Issue**: Health Check Fails
 ```bash
 # Solution: Check application logs
-docker logs letraz-scrapper
+docker logs letraz-utils
 ```
 
 ### 7.2 Pipeline Status
@@ -370,7 +370,7 @@ Your CI/CD pipeline is now configured for:
 - **Reliable rollback capabilities** with health checks
 - **Comprehensive monitoring** with notifications
 
-The pipeline follows industry best practices and is production-ready for the letraz-scrapper GenAI application.
+The pipeline follows industry best practices and is production-ready for the letraz-utils GenAI application.
 
 ## Support
 

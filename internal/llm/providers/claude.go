@@ -11,10 +11,10 @@ import (
 	"github.com/anthropics/anthropic-sdk-go/option"
 	"github.com/sirupsen/logrus"
 
-	"letraz-scrapper/internal/config"
-	"letraz-scrapper/internal/llm/processors"
-	"letraz-scrapper/pkg/models"
-	"letraz-scrapper/pkg/utils"
+	"letraz-utils/internal/config"
+	"letraz-utils/internal/llm/processors"
+	"letraz-utils/pkg/models"
+	"letraz-utils/pkg/utils"
 )
 
 // ClaudeProvider implements the LLM provider interface using Anthropic's Claude
