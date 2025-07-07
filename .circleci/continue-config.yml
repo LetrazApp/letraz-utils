@@ -1,0 +1,276 @@
+version: 2.1
+
+orbs:
+  docker: circleci/docker@2.7.1
+  go: circleci/go@1.11.0
+
+parameters:
+  run-build-deploy:
+    type: boolean
+    default: false
+  docker-tag:
+    type: string
+    default: "latest"
+
+# Reusable job configuration for common environment variables
+common_env: &common_env
+  environment:
+    - GO_VERSION: "1.23"
+    - DOCKER_REGISTRY: "ghcr.io/letrazapp"
+    - IMAGE_NAME: "letraz-scrapper"
+
+# Common Docker login step
+docker_login: &docker_login
+  run:
+    name: Login to GitHub Container Registry
+    command: |
+      echo "Logging in to GitHub Container Registry..."
+      echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_USERNAME --password-stdin
+
+jobs:
+  # Job to run tests and linting
+  test:
+    docker:
+      - image: cimg/go:1.23
+    <<: *common_env
+    steps:
+      - checkout
+      - go/load-cache
+      - go/mod-download
+      - go/save-cache
+      - run:
+          name: Run tests
+          command: |
+            echo "Running Go tests..."
+            go test -v ./...
+      - run:
+          name: Run linting
+          command: |
+            echo "Running Go linting..."
+            go vet ./...
+            go fmt ./...
+      - run:
+          name: Check Go modules
+          command: |
+            echo "Checking Go module consistency..."
+            go mod tidy
+            if [ -n "$(git status --porcelain)" ]; then
+              echo "go.mod or go.sum files are not up to date"
+              exit 1
+            fi
+
+  # Job to build AMD64 Docker image
+  build-amd64:
+    docker:
+      - image: cimg/base:2024.02
+    <<: *common_env
+    resource_class: large
+    steps:
+      - checkout
+      - setup_remote_docker:
+          docker_layer_caching: true
+      - *docker_login
+      - run:
+          name: Build AMD64 Docker image
+          command: |
+            echo "Building AMD64 Docker image..."
+            docker build \
+              --platform linux/amd64 \
+              --cache-from ${DOCKER_REGISTRY}/${IMAGE_NAME}:cache-amd64 \
+              --tag ${DOCKER_REGISTRY}/${IMAGE_NAME}:<< parameters.docker-tag >>-amd64 \
+              --tag ${DOCKER_REGISTRY}/${IMAGE_NAME}:latest-amd64 \
+              .
+      - run:
+          name: Push AMD64 Docker image
+          command: |
+            echo "Pushing AMD64 Docker image..."
+            docker push ${DOCKER_REGISTRY}/${IMAGE_NAME}:<< parameters.docker-tag >>-amd64
+            docker push ${DOCKER_REGISTRY}/${IMAGE_NAME}:latest-amd64
+
+  # Job to build ARM64 Docker image
+  build-arm64:
+    machine:
+      image: ubuntu-2204:2024.01.1
+    resource_class: arm.medium
+    <<: *common_env
+    steps:
+      - checkout
+      - *docker_login
+      - run:
+          name: Build ARM64 Docker image
+          command: |
+            echo "Building ARM64 Docker image..."
+            docker build \
+              --platform linux/arm64 \
+              --cache-from ${DOCKER_REGISTRY}/${IMAGE_NAME}:cache-arm64 \
+              --tag ${DOCKER_REGISTRY}/${IMAGE_NAME}:<< parameters.docker-tag >>-arm64 \
+              --tag ${DOCKER_REGISTRY}/${IMAGE_NAME}:latest-arm64 \
+              .
+      - run:
+          name: Push ARM64 Docker image
+          command: |
+            echo "Pushing ARM64 Docker image..."
+            docker push ${DOCKER_REGISTRY}/${IMAGE_NAME}:<< parameters.docker-tag >>-arm64
+            docker push ${DOCKER_REGISTRY}/${IMAGE_NAME}:latest-arm64
+
+  # Job to create and push multi-platform manifest
+  create-manifest:
+    docker:
+      - image: cimg/base:2024.02
+    <<: *common_env
+    steps:
+      - *docker_login
+      - run:
+          name: Create and push multi-platform manifest
+          command: |
+            echo "Creating multi-platform manifest..."
+            
+            # Create manifest for commit SHA tag
+            docker manifest create ${DOCKER_REGISTRY}/${IMAGE_NAME}:<< parameters.docker-tag >> \
+              ${DOCKER_REGISTRY}/${IMAGE_NAME}:<< parameters.docker-tag >>-amd64 \
+              ${DOCKER_REGISTRY}/${IMAGE_NAME}:<< parameters.docker-tag >>-arm64
+            
+            # Create manifest for latest tag
+            docker manifest create ${DOCKER_REGISTRY}/${IMAGE_NAME}:latest \
+              ${DOCKER_REGISTRY}/${IMAGE_NAME}:latest-amd64 \
+              ${DOCKER_REGISTRY}/${IMAGE_NAME}:latest-arm64
+            
+            # Push manifests
+            docker manifest push ${DOCKER_REGISTRY}/${IMAGE_NAME}:<< parameters.docker-tag >>
+            docker manifest push ${DOCKER_REGISTRY}/${IMAGE_NAME}:latest
+            
+            echo "Multi-platform manifest created and pushed successfully"
+
+  # Job to deploy to production server
+  deploy:
+    docker:
+      - image: cimg/base:2024.02
+    <<: *common_env
+    steps:
+      - checkout
+      - add_ssh_keys:
+          fingerprints:
+            - "$SSH_FINGERPRINT"
+      - run:
+          name: Add production server to known hosts
+          command: |
+            echo "Adding production server to known hosts..."
+            mkdir -p ~/.ssh
+            ssh-keyscan -H $SSH_HOST >> ~/.ssh/known_hosts
+      - run:
+          name: Deploy to production
+          command: |
+            echo "Deploying to production server..."
+            
+            # Copy deployment script to server
+            scp .circleci/deploy.sh $SSH_USER@$SSH_HOST:/tmp/deploy.sh
+            
+            # Execute deployment on server
+            ssh $SSH_USER@$SSH_HOST "bash /tmp/deploy.sh << parameters.docker-tag >>"
+      - run:
+          name: Verify deployment
+          command: |
+            echo "Verifying deployment..."
+            
+            # Wait for service to be ready
+            sleep 30
+            
+            # Check health endpoint
+            ssh $SSH_USER@$SSH_HOST "curl -f http://localhost:8080/health || exit 1"
+            
+            echo "Deployment verified successfully"
+
+  # Job to send notifications
+  notify:
+    docker:
+      - image: cimg/base:2024.02
+    parameters:
+      status:
+        type: string
+        default: "success"
+    steps:
+      - run:
+          name: Send notification
+          command: |
+            echo "Sending << parameters.status >> notification..."
+            
+            if [ "<< parameters.status >>" = "success" ]; then
+              MESSAGE="✅ Deployment successful for letraz-scrapper:<< parameters.docker-tag >>"
+            else
+              MESSAGE="❌ Deployment failed for letraz-scrapper:<< parameters.docker-tag >>"
+            fi
+            
+            # Send notification via webhook (if configured)
+            if [ -n "$WEBHOOK_URL" ]; then
+              curl -X POST -H "Content-Type: application/json" \
+                -d "{\"text\": \"$MESSAGE\", \"tag\": \"<< parameters.docker-tag >>\", \"branch\": \"$CIRCLE_BRANCH\"}" \
+                $WEBHOOK_URL
+            fi
+            
+            echo "Notification sent: $MESSAGE"
+
+workflows:
+  # Main build and deploy workflow
+  build-and-deploy:
+    when: << pipeline.parameters.run-build-deploy >>
+    jobs:
+      # Test first
+      - test:
+          filters:
+            branches:
+              only: /.*/
+      
+      # Build both architectures in parallel
+      - build-amd64:
+          requires:
+            - test
+          filters:
+            branches:
+              only: main
+      
+      - build-arm64:
+          requires:
+            - test
+          filters:
+            branches:
+              only: main
+      
+      # Create multi-platform manifest
+      - create-manifest:
+          requires:
+            - build-amd64
+            - build-arm64
+          filters:
+            branches:
+              only: main
+      
+      # Deploy to production
+      - deploy:
+          requires:
+            - create-manifest
+          filters:
+            branches:
+              only: main
+          context:
+            - production-deployment
+      
+      # Send success notification
+      - notify:
+          name: notify-success
+          status: "success"
+          requires:
+            - deploy
+          filters:
+            branches:
+              only: main
+      
+      # Send failure notification (runs on failure)
+      - notify:
+          name: notify-failure
+          status: "failure"
+          requires:
+            - deploy
+          filters:
+            branches:
+              only: main
+          type: approval 
