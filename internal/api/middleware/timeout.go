@@ -12,4 +12,4 @@ func TimeoutConfig(timeout time.Duration) echo.MiddlewareFunc {
 	return middleware.TimeoutWithConfig(middleware.TimeoutConfig{
 		Timeout: timeout,
 	})
-} 
+}

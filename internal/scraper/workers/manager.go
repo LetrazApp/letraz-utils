@@ -118,7 +118,7 @@ func (pm *PoolManager) GetStats() (*PoolManagerStats, error) {
 
 	return &PoolManagerStats{
 		Initialized:      pm.initialized,
-		PoolStats:        poolStats,
+		PoolStats:        &poolStats,
 		RateLimiterStats: rateLimiterStats,
 		WorkerCount:      len(pm.pool.workers),
 		QueueCapacity:    pm.config.Workers.QueueSize,
@@ -148,7 +148,7 @@ func (pm *PoolManager) GetDomainStats(domain string) (map[string]interface{}, er
 // PoolManagerStats represents comprehensive statistics for the pool manager
 type PoolManagerStats struct {
 	Initialized      bool                              `json:"initialized"`
-	PoolStats        PoolStats                         `json:"pool_stats"`
+	PoolStats        *PoolStatsData                    `json:"pool_stats"`
 	RateLimiterStats map[string]map[string]interface{} `json:"rate_limiter_stats"`
 	WorkerCount      int                               `json:"worker_count"`
 	QueueCapacity    int                               `json:"queue_capacity"`

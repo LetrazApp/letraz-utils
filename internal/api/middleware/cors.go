@@ -14,4 +14,4 @@ func CORSConfig() echo.MiddlewareFunc {
 		AllowCredentials: false,
 		MaxAge:           86400, // 24 hours
 	})
-} 
+}

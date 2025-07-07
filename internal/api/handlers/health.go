@@ -95,13 +95,13 @@ func StatusHandler(c echo.Context) error {
 		Version:   "1.0.0",
 		Uptime:    time.Since(startTime),
 		Checks: map[string]string{
-			"api":            "operational",
-			"workers":        "operational",
-			"llm":            "operational",
-			"memory_usage":   "normal",
-			"request_queue":  "normal",
+			"api":           "operational",
+			"workers":       "operational",
+			"llm":           "operational",
+			"memory_usage":  "normal",
+			"request_queue": "normal",
 		},
 	}
 
 	return c.JSON(http.StatusOK, response)
-} 
+}

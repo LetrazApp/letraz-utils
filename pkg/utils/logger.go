@@ -52,4 +52,4 @@ func GetLogger() *logrus.Logger {
 // LogWithRequestID creates a logger with request ID context
 func LogWithRequestID(requestID string) *logrus.Entry {
 	return GetLogger().WithField("request_id", requestID)
-} 
+}

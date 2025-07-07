@@ -59,7 +59,7 @@ type WorkerPool struct {
 	stats          *PoolStats
 }
 
-// PoolStats tracks worker pool statistics
+// PoolStats tracks worker pool statistics (internal use with mutex)
 type PoolStats struct {
 	mu                    sync.RWMutex
 	JobsQueued            int64
@@ -68,6 +68,16 @@ type PoolStats struct {
 	JobsFailed            int64
 	TotalProcessingTime   time.Duration
 	AverageProcessingTime time.Duration
+}
+
+// PoolStatsData represents pool statistics for external consumption (no mutex)
+type PoolStatsData struct {
+	JobsQueued            int64         `json:"jobs_queued"`
+	JobsProcessed         int64         `json:"jobs_processed"`
+	JobsSuccessful        int64         `json:"jobs_successful"`
+	JobsFailed            int64         `json:"jobs_failed"`
+	TotalProcessingTime   time.Duration `json:"total_processing_time"`
+	AverageProcessingTime time.Duration `json:"average_processing_time"`
 }
 
 // NewWorkerPool creates a new worker pool instance
@@ -223,11 +233,20 @@ func (wp *WorkerPool) IsRunning() bool {
 }
 
 // GetStats returns current pool statistics
-func (wp *WorkerPool) GetStats() PoolStats {
+func (wp *WorkerPool) GetStats() PoolStatsData {
 	wp.stats.mu.RLock()
 	defer wp.stats.mu.RUnlock()
 
-	stats := *wp.stats
+	// Create a copy without the mutex to avoid copying lock value
+	stats := PoolStatsData{
+		JobsQueued:            wp.stats.JobsQueued,
+		JobsProcessed:         wp.stats.JobsProcessed,
+		JobsSuccessful:        wp.stats.JobsSuccessful,
+		JobsFailed:            wp.stats.JobsFailed,
+		TotalProcessingTime:   wp.stats.TotalProcessingTime,
+		AverageProcessingTime: wp.stats.AverageProcessingTime,
+	}
+
 	if stats.JobsProcessed > 0 {
 		stats.AverageProcessingTime = stats.TotalProcessingTime / time.Duration(stats.JobsProcessed)
 	}
