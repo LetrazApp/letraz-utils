@@ -2,7 +2,7 @@ package llm
 
 import (
 	"context"
-	"letraz-scrapper/pkg/models"
+	"letraz-utils/pkg/models"
 )
 
 // LLMProvider defines the interface for LLM providers

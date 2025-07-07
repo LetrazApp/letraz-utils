@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"letraz-scrapper/internal/config"
-	"letraz-scrapper/internal/scraper"
-	"letraz-scrapper/pkg/models"
-	"letraz-scrapper/pkg/utils"
+	"letraz-utils/internal/config"
+	"letraz-utils/internal/scraper"
+	"letraz-utils/pkg/models"
+	"letraz-utils/pkg/utils"
 
 	"github.com/sirupsen/logrus"
 )

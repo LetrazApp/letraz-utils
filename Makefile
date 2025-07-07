@@ -1,7 +1,7 @@
 # Letraz Job Scraper Makefile
 
 # Variables
-BINARY_NAME=letraz-scrapper
+BINARY_NAME=letraz-utils
 MAIN_PATH=cmd/server/main.go
 BUILD_DIR=bin
 
@@ -113,7 +113,7 @@ docker-run-prod: ## Run Docker container in production mode
 	@echo "$(YELLOW)🐳 Running Docker container in production mode...$(NC)"
 	@mkdir -p data logs tmp
 	@docker run -d \
-		--name letraz-scrapper-prod \
+		--name letraz-utils-prod \
 		--env-file .env \
 		-p 8080:8080 \
 		--memory=2g \
@@ -128,16 +128,16 @@ docker-run-prod: ## Run Docker container in production mode
 
 docker-stop: ## Stop Docker container
 	@echo "$(YELLOW)🛑 Stopping Docker container...$(NC)"
-	@docker stop letraz-scrapper-prod || true
-	@docker rm letraz-scrapper-prod || true
+	@docker stop letraz-utils-prod || true
+	@docker rm letraz-utils-prod || true
 
 docker-logs: ## View Docker container logs
 	@echo "$(YELLOW)📋 Viewing Docker container logs...$(NC)"
-	@docker logs -f letraz-scrapper-prod
+	@docker logs -f letraz-utils-prod
 
 docker-shell: ## Open shell in Docker container
 	@echo "$(YELLOW)🐚 Opening shell in Docker container...$(NC)"
-	@docker exec -it letraz-scrapper-prod /bin/sh
+	@docker exec -it letraz-utils-prod /bin/sh
 
 docker-clean: ## Clean Docker images and containers
 	@echo "$(YELLOW)🧹 Cleaning Docker images and containers...$(NC)"
@@ -181,7 +181,7 @@ docker-run-registry: ## Run Docker container from registry image
 	@echo "$(YELLOW)🐳 Running Docker container from registry...$(NC)"
 	@mkdir -p data logs tmp
 	@docker run -d \
-		--name letraz-scrapper-registry \
+		--name letraz-utils-registry \
 		--env-file .env \
 		-p 8080:8080 \
 		--memory=2g \

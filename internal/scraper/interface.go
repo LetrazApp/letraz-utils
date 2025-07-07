@@ -3,7 +3,7 @@ package scraper
 import (
 	"context"
 
-	"letraz-scrapper/pkg/models"
+	"letraz-utils/pkg/models"
 )
 
 // Scraper defines the interface for job scraping engines

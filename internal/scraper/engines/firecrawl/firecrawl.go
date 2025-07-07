@@ -9,10 +9,10 @@ import (
 	"github.com/mendableai/firecrawl-go"
 	"github.com/sirupsen/logrus"
 
-	"letraz-scrapper/internal/config"
-	"letraz-scrapper/internal/llm"
-	"letraz-scrapper/pkg/models"
-	"letraz-scrapper/pkg/utils"
+	"letraz-utils/internal/config"
+	"letraz-utils/internal/llm"
+	"letraz-utils/pkg/models"
+	"letraz-utils/pkg/utils"
 )
 
 // FirecrawlScraper implements the Scraper interface using Firecrawl API

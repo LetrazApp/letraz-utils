@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"time"
 
-	"letraz-scrapper/pkg/models"
-	"letraz-scrapper/pkg/utils"
+	"letraz-utils/pkg/models"
+	"letraz-utils/pkg/utils"
 
 	"github.com/labstack/echo/v4"
 )

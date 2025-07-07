@@ -1,9 +1,9 @@
 #!/bin/bash
-# Setup script for Letraz Job Scraper development environment
+# Setup script for Letraz Utils development environment
 
 set -e
 
-echo "🔧 Setting up development environment for Letraz Job Scraper..."
+echo "🔧 Setting up development environment for Letraz Utils..."
 
 # Get Go path
 GOPATH=$(go env GOPATH)
@@ -45,7 +45,7 @@ else
     
     # Add to shell RC file
     echo "" >> "$SHELL_RC"
-    echo "# Go tools path (added by Letraz Job Scraper setup)" >> "$SHELL_RC"
+    echo "# Go tools path (added by Letraz Utils setup)" >> "$SHELL_RC"
     echo "export PATH=\"$GOBIN:\$PATH\"" >> "$SHELL_RC"
     
     echo "✅ Added Go bin directory to PATH"

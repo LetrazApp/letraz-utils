@@ -7,9 +7,9 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"letraz-scrapper/internal/config"
-	"letraz-scrapper/pkg/models"
-	"letraz-scrapper/pkg/utils"
+	"letraz-utils/internal/config"
+	"letraz-utils/pkg/models"
+	"letraz-utils/pkg/utils"
 )
 
 // Manager manages LLM providers and their lifecycle

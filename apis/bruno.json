@@ -1,6 +1,6 @@
 {
   "version": "1",
-  "name": "Letraz Scrapper API",
+  "name": "Letraz Utils API",
   "type": "collection",
   "ignore": [
     "node_modules",

@@ -1,4 +1,4 @@
-module letraz-scrapper
+module letraz-utils
 
 go 1.23.0
 
