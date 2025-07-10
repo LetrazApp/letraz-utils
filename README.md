@@ -46,7 +46,7 @@ go mod download
 
 ```bash
 # Copy environment template
-cp env.example .env
+cp .env.example .env
 
 # Edit .env with your API keys
 nano .env
@@ -239,7 +239,7 @@ make docker-push
 
 ```bash
 # Create environment file
-cp env.example .env
+cp .env.example .env
 # Edit .env with production values
 
 # Run container

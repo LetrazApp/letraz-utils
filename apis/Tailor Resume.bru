@@ -1,0 +1,262 @@
+meta {
+  name: Tailor Resume
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{host}}/api/v1/resume/tailor
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "baseResume": {
+      "id": "base_resume-id",
+      "base": true,
+      "user": {
+          "id": "example_user_id",
+          "title": null,
+          "first_name": "Subhajit",
+          "last_name": "Kundu",
+          "email": "subhajit@letraz.app",
+          "phone": "9876543210",
+          "dob": null,
+          "nationality": null,
+          "address": "West Bengal, India",
+          "city": "",
+          "postal": "",
+          "country": null,
+          "website": "https://subhajit.lol",
+          "profile_text": "<p class=\"text-node\">Experienced Software Engineer with 5+ years in data migration, automation, web application development, and system integration using Python, django, Django REST Framework. Skilled in delivering scalable solutions, automating workflows, and collaborating with stakeholders to meet business goals.</p>",
+          "created_at": "2025-02-11T06:40:47.639781+05:30",
+          "updated_at": "2025-07-10T12:54:24.688015+05:30"
+      },
+      "job": {
+          "job_url": "",
+          "title": "",
+          "company_name": "",
+          "location": "",
+          "currency": "",
+          "salary_max": null,
+          "salary_min": null,
+          "requirements": null,
+          "description": "",
+          "responsibilities": null,
+          "benefits": null
+      },
+      "sections": [
+          {
+              "id": "dc92aa14-3628-415f-ae3b-da4e77283fc8",
+              "resume": "rsm_pCOywDN3MwEyJPjfLt-bn",
+              "index": 0,
+              "type": "Experience",
+              "data": {
+                  "id": "3bbd854b-f85c-4804-9441-87886d06f4f4",
+                  "user": "user_2m4Ks3YryVkHEqVvk6LcdvZuA8x",
+                  "resume_section": "dc92aa14-3628-415f-ae3b-da4e77283fc8",
+                  "company_name": "Infosys",
+                  "job_title": "Sr. Associate Consultant",
+                  "employment_type": "Full Time",
+                  "city": "Hyedrabad",
+                  "country": {
+                      "code": "IND",
+                      "name": "India"
+                  },
+                  "started_from_month": 7,
+                  "started_from_year": 2024,
+                  "finished_at_month": null,
+                  "finished_at_year": null,
+                  "current": true,
+                  "description": "<ul class=\"list-node\"><li><p class=\"text-node\">Worked for a US based client operating in beverage industry to deliver effective solutions</p></li><li><p class=\"text-node\">Designed and implemented an efficient approach to migrate data from legacy systems to a newly developed architecture</p></li><li><p class=\"text-node\">Automated the processes for transforming, cleansing, and sanitizing large datasets using Python, seamlessly ingesting the data into various target systems (Salsify PIM, Atlas &amp; Salesforce etc.) with Django REST Framework</p></li><li><p class=\"text-node\">Developed and deployed integrations between multiple interdependent systems leveraging Django REST Framework with SQLite and Azure PostgreSQL deployed on Azure web app</p></li></ul>",
+                  "created_at": "2025-02-11T06:48:54.504000+05:30",
+                  "updated_at": "2025-07-08T08:14:27.751217+05:30"
+              }
+          },
+          {
+              "id": "5952a371-06ba-4ba7-8e33-0de41e180153",
+              "resume": "rsm_pCOywDN3MwEyJPjfLt-bn",
+              "index": 1,
+              "type": "Experience",
+              "data": {
+                  "id": "e2edc930-8913-4644-8195-0e9302b1f77e",
+                  "user": "user_2m4Ks3YryVkHEqVvk6LcdvZuA8x",
+                  "resume_section": "5952a371-06ba-4ba7-8e33-0de41e180153",
+                  "company_name": "Infosys",
+                  "job_title": "Sr. Associate Consultant",
+                  "employment_type": "Full Time",
+                  "city": "Hyderabad",
+                  "country": {
+                      "code": "IND",
+                      "name": "India"
+                  },
+                  "started_from_month": 4,
+                  "started_from_year": 2023,
+                  "finished_at_month": 5,
+                  "finished_at_year": 2024,
+                  "current": false,
+                  "description": "<ul class=\"list-node\"><li><p class=\"text-node\">Worked for a NZ based client operating in consumer furniture industry.</p></li><li><p class=\"text-node\">Developed an efficient solution for migrating data from legacy systems to a newly designed architecture</p></li><li><p class=\"text-node\">Automated data transformation, cleansing, and sanitation processes using Python, enabling seamless ingestion into Salsify PIM via Django REST Framework</p></li><li><p class=\"text-node\">Designed and implemented integrations between multiple interdependent systems using Django REST Framework and used SQLite and PostgreSQL as the DB service</p></li><li><p class=\"text-node\">Leveraged Salsify PIM to create a streamlined and effective data modeling solution</p></li></ul>",
+                  "created_at": "2025-07-08T08:14:08.730757+05:30",
+                  "updated_at": "2025-07-08T08:17:25.029683+05:30"
+              }
+          },
+          {
+              "id": "0796a76a-bae7-4a49-a13a-3c6d5261b6eb",
+              "resume": "rsm_pCOywDN3MwEyJPjfLt-bn",
+              "index": 2,
+              "type": "Experience",
+              "data": {
+                  "id": "4f607be4-ad8d-40a9-886c-8b94d7f3c977",
+                  "user": "user_2m4Ks3YryVkHEqVvk6LcdvZuA8x",
+                  "resume_section": "0796a76a-bae7-4a49-a13a-3c6d5261b6eb",
+                  "company_name": "Infosys",
+                  "job_title": "Associate Consultant",
+                  "employment_type": "Full Time",
+                  "city": "Hyderabad",
+                  "country": {
+                      "code": "IND",
+                      "name": "India"
+                  },
+                  "started_from_month": 11,
+                  "started_from_year": 2022,
+                  "finished_at_month": 4,
+                  "finished_at_year": 2023,
+                  "current": false,
+                  "description": "<ul class=\"list-node\"><li><p class=\"text-node\">Worked for a US based client operating in electronics &amp; electrical components industry.</p></li><li><p class=\"text-node\">Designed and implemented a robust solution for migrating data from legacy systems to a newly developed architecture</p></li><li><p class=\"text-node\">Automated the processes for transforming, cleansing, and sanitizing large datasets using Python, ensuring smooth ingestion into inriver PIM with Django REST Framework<br>Utilized inriver PIM to develop an efficient and effective data modeling solution</p></li></ul>",
+                  "created_at": "2025-07-06T22:54:06.678499+05:30",
+                  "updated_at": "2025-07-06T22:54:06.678515+05:30"
+              }
+          },
+          {
+              "id": "62840cf6-6f98-487d-9506-ffa8cb7abe26",
+              "resume": "rsm_pCOywDN3MwEyJPjfLt-bn",
+              "index": 3,
+              "type": "Experience",
+              "data": {
+                  "id": "6a102435-5048-4609-984d-d18c6efe0a3a",
+                  "user": "user_2m4Ks3YryVkHEqVvk6LcdvZuA8x",
+                  "resume_section": "62840cf6-6f98-487d-9506-ffa8cb7abe26",
+                  "company_name": "Infosys",
+                  "job_title": "Associate Consultant",
+                  "employment_type": "Full Time",
+                  "city": "Hyderabad",
+                  "country": {
+                      "code": "IND",
+                      "name": "India"
+                  },
+                  "started_from_month": 12,
+                  "started_from_year": 2021,
+                  "finished_at_month": 11,
+                  "finished_at_year": 2022,
+                  "current": false,
+                  "description": "<ul class=\"list-node\"><li><p class=\"text-node\">Worked for a US based client operating in electronics &amp; home appliances industry.</p></li><li><p class=\"text-node\">Implemented optimal solution for handling migration of data from older to newly devised architecture and system</p></li><li><p class=\"text-node\">Achieved automation for the transformation, cleansing and sanitation of large datasets using python, and ingestion into Akeneo PIM with Django REST framework</p></li><li><p class=\"text-node\">Implemented integrations between multiple dependent systems with Django REST Framework where MySQL served as DB service</p></li><li><p class=\"text-node\">Worked with Akeneo PIM to create an efficient data modeling solution</p></li></ul>",
+                  "created_at": "2025-07-06T22:55:45.969300+05:30",
+                  "updated_at": "2025-07-06T22:55:45.969323+05:30"
+              }
+          },
+          {
+              "id": "05ebf442-b415-4868-9bd6-830876810584",
+              "resume": "rsm_pCOywDN3MwEyJPjfLt-bn",
+              "index": 4,
+              "type": "Education",
+              "data": {
+                  "id": "7440bef9-bf32-4039-81bf-952202ab4541",
+                  "user": "user_2m4Ks3YryVkHEqVvk6LcdvZuA8x",
+                  "resume_section": "05ebf442-b415-4868-9bd6-830876810584",
+                  "institution_name": "JIS College of Engineering",
+                  "field_of_study": "Computer Science and Engineering",
+                  "degree": "B.Tech",
+                  "country": {
+                      "code": "IND",
+                      "name": "India"
+                  },
+                  "started_from_month": null,
+                  "started_from_year": 2015,
+                  "finished_at_month": null,
+                  "finished_at_year": 2019,
+                  "current": false,
+                  "description": "<ul class=\"list-node\"><li><p class=\"text-node\">DGPA: 8.42/10.0</p></li></ul>",
+                  "created_at": "2025-07-06T20:01:42.879183+05:30",
+                  "updated_at": "2025-07-06T20:02:12.828705+05:30"
+              }
+          }
+      ]
+    },
+    "job": {
+      "title": "Frontend Engineer (React & TypeScript)",
+      "job_url": "https://www.linkedin.com/jobs/view/4258394226",
+      "company_name": "Accolade India",
+      "location": "India",
+      "salary": {
+        "currency": "",
+        "max": 0,
+        "min": 0
+      },
+      "requirements": [
+        "0-2 years of professional frontend development experience",
+        "Strong command of TypeScript and React",
+        "Experience with modern UI state management libraries (Redux, Zustand, Context API)",
+        "Experience with testing frameworks like Jest and React Testing Library",
+        "Problem-solving skills and clear communication",
+        "Collaborative mindset"
+      ],
+      "description": "Accolade is building the industry's first AI-native Operations Centralization Platform for the multifamily real estate industry. They are seeking a Frontend Engineer to build complex, data-intensive enterprise applications from the ground up, working directly with their Lead Frontend Engineer.",
+      "responsibilities": [
+        "Translate complex requirements into clean, testable TypeScript and React code",
+        "Develop responsive, high-performance user interfaces",
+        "Collaborate with product managers, designers, and backend engineers",
+        "Participate in code reviews to share knowledge",
+        "Contribute to building a landmark application from the ground up"
+      ],
+      "benefits": [
+        "Direct mentorship from Lead Frontend Engineer",
+        "Opportunity to build a foundational product",
+        "Modern, quality-driven culture",
+        "Competitive compensation and benefits package"
+      ]
+    },
+    "resumeId": "example_resume_id"
+  }
+}
+
+tests {
+  test("Response should be successful", function() {
+    expect(res.status).to.equal(200);
+  });
+  
+  test("Response should have success field", function() {
+    expect(res.body.success).to.be.true;
+  });
+  
+  test("Response should contain tailored resume", function() {
+    expect(res.body.resume).to.exist;
+    expect(res.body.resume.id).to.exist;
+  });
+  
+  test("Response should contain structured suggestions", function() {
+    expect(res.body.suggestions).to.exist;
+    expect(res.body.suggestions).to.be.an('array');
+    expect(res.body.suggestions.length).to.be.greaterThan(0);
+    expect(res.body.suggestions.length).to.be.at.most(3);
+  });
+  
+  test("Suggestions should have required metadata", function() {
+    expect(res.body.suggestions[0]).to.have.property('id');
+    expect(res.body.suggestions[0]).to.have.property('type');
+    expect(res.body.suggestions[0]).to.have.property('priority');
+    expect(res.body.suggestions[0]).to.have.property('impact');
+    expect(res.body.suggestions[0]).to.have.property('section');
+    expect(res.body.suggestions[0]).to.have.property('suggested');
+    expect(res.body.suggestions[0]).to.have.property('reasoning');
+  });
+  
+  test("Response should contain thread ID", function() {
+    expect(res.body.threadId).to.exist;
+    expect(res.body.threadId).to.equal("rsm_pCOywDN3MwEyJPjfLt-bn_tailored_001");
+  });
+}
