@@ -50,7 +50,7 @@ func main() {
 	e := echo.New()
 
 	// Setup routes
-	routes.SetupRoutes(e, cfg, poolManager)
+	routes.SetupRoutes(e, cfg, poolManager, llmManager)
 
 	// Graceful shutdown
 	go func() {

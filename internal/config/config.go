@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -64,6 +65,13 @@ type Config struct {
 		Format string `yaml:"format" default:"json"`
 		Output string `yaml:"output" default:"stdout"`
 	} `yaml:"logging"`
+
+	Redis struct {
+		URL      string        `yaml:"url" default:"redis://localhost:6379"`
+		Password string        `yaml:"password"`
+		DB       int           `yaml:"db" default:"0"`
+		Timeout  time.Duration `yaml:"timeout" default:"5s"`
+	} `yaml:"redis"`
 }
 
 // LoadConfig loads configuration from file and environment variables
@@ -89,7 +97,7 @@ func LoadConfig(configPath string) (*Config, error) {
 	config.LLM.Provider = "claude"
 	config.LLM.MaxTokens = 4096
 	config.LLM.Temperature = 0.1
-	config.LLM.Timeout = 30 * time.Second
+	config.LLM.Timeout = 120 * time.Second
 
 	config.Scraper.MaxRetries = 3
 	config.Scraper.RequestTimeout = 30 * time.Second
@@ -108,6 +116,10 @@ func LoadConfig(configPath string) (*Config, error) {
 	config.Logging.Level = "warn"
 	config.Logging.Format = "json"
 	config.Logging.Output = "stdout"
+
+	config.Redis.URL = "redis://localhost:6379"
+	config.Redis.DB = 0
+	config.Redis.Timeout = 5 * time.Second
 
 	// Load from YAML file if it exists
 	if configPath != "" {
@@ -175,5 +187,25 @@ func (c *Config) loadFromEnv() {
 
 	if firecrawlVersion := os.Getenv("FIRECRAWL_VERSION"); firecrawlVersion != "" {
 		c.Firecrawl.Version = firecrawlVersion
+	}
+
+	if redisURL := os.Getenv("REDIS_URL"); redisURL != "" {
+		c.Redis.URL = redisURL
+	}
+
+	if redisPassword := os.Getenv("REDIS_PASSWORD"); redisPassword != "" {
+		c.Redis.Password = redisPassword
+	}
+
+	if redisDB := os.Getenv("REDIS_DB"); redisDB != "" {
+		if db, err := strconv.Atoi(redisDB); err == nil {
+			c.Redis.DB = db
+		}
+	}
+
+	if redisTimeout := os.Getenv("REDIS_TIMEOUT"); redisTimeout != "" {
+		if timeout, err := time.ParseDuration(redisTimeout); err == nil {
+			c.Redis.Timeout = timeout
+		}
 	}
 }

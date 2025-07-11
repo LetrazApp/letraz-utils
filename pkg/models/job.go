@@ -5,10 +5,13 @@ import "time"
 // Job represents a structured job posting extracted from job boards
 // This matches the requested structure from the user
 type Job struct {
-	Title            string   `json:"title" validate:"required"`
-	JobURL           string   `json:"job_url" validate:"required,url"`
-	CompanyName      string   `json:"company_name" validate:"required"`
+	Title            string   `json:"title"`
+	JobURL           string   `json:"job_url"`
+	CompanyName      string   `json:"company_name"`
 	Location         string   `json:"location"`
+	Currency         string   `json:"currency"`
+	SalaryMax        *int     `json:"salary_max"`
+	SalaryMin        *int     `json:"salary_min"`
 	Salary           Salary   `json:"salary"`
 	Requirements     []string `json:"requirements"`
 	Description      string   `json:"description"`

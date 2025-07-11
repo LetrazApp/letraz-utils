@@ -4,20 +4,23 @@ import (
 	"letraz-utils/internal/api/handlers"
 	"letraz-utils/internal/api/middleware"
 	"letraz-utils/internal/config"
+	"letraz-utils/internal/llm"
 	"letraz-utils/internal/scraper/workers"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	echomiddleware "github.com/labstack/echo/v4/middleware"
 )
 
 // SetupRoutes configures all API routes
-func SetupRoutes(e *echo.Echo, cfg *config.Config, poolManager *workers.PoolManager) {
+func SetupRoutes(e *echo.Echo, cfg *config.Config, poolManager *workers.PoolManager, llmManager *llm.Manager) {
 	// Global middleware
 	e.Use(echomiddleware.Logger())
 	e.Use(echomiddleware.Recover())
 	e.Use(middleware.CORSConfig())
 	e.Use(middleware.RequestValidation())
-	e.Use(middleware.TimeoutConfig(cfg.Server.ReadTimeout))
+	// Use selective timeout: 30s for most endpoints, 2 minutes for AI-intensive endpoints
+	e.Use(middleware.SelectiveTimeoutConfig(cfg.Server.ReadTimeout, 2*time.Minute))
 
 	// Health check routes
 	health := e.Group("/health")
@@ -35,6 +38,12 @@ func SetupRoutes(e *echo.Echo, cfg *config.Config, poolManager *workers.PoolMana
 	v1 := e.Group("/api/v1")
 	{
 		v1.POST("/scrape", handlers.ScrapeHandler(cfg, poolManager))
+
+		// Resume tailoring routes
+		resume := v1.Group("/resume")
+		{
+			resume.POST("/tailor", handlers.TailorResumeHandler(cfg, llmManager))
+		}
 
 		// Worker monitoring routes
 		workers := v1.Group("/workers")

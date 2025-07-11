@@ -10,6 +10,12 @@ type LLMProvider interface {
 	// ExtractJobData processes HTML content and extracts structured job data
 	ExtractJobData(ctx context.Context, html, url string) (*models.Job, error)
 
+	// TailorResume tailors a base resume for a specific job posting
+	TailorResume(ctx context.Context, baseResume *models.BaseResume, job *models.Job) (*models.TailoredResume, []models.Suggestion, error)
+
+	// TailorResumeWithRawResponse tailors a resume and returns the raw AI response for conversation history
+	TailorResumeWithRawResponse(ctx context.Context, baseResume *models.BaseResume, job *models.Job) (*models.TailoredResume, []models.Suggestion, string, error)
+
 	// IsHealthy checks if the LLM provider is healthy and available
 	IsHealthy(ctx context.Context) error
 

@@ -91,6 +91,42 @@ func (m *Manager) ExtractJobData(ctx context.Context, html, url string) (*models
 	return provider.ExtractJobData(ctx, html, url)
 }
 
+// TailorResume tailors a resume for a specific job using the configured LLM provider
+func (m *Manager) TailorResume(ctx context.Context, baseResume *models.BaseResume, job *models.Job) (*models.TailoredResume, []models.Suggestion, error) {
+	m.mu.RLock()
+	provider := m.provider
+	healthy := m.healthy
+	m.mu.RUnlock()
+
+	if provider == nil {
+		return nil, nil, fmt.Errorf("LLM manager not started or provider not available")
+	}
+
+	if !healthy {
+		return nil, nil, fmt.Errorf("LLM provider is not available - check API key configuration (set LLM_API_KEY environment variable)")
+	}
+
+	return provider.TailorResume(ctx, baseResume, job)
+}
+
+// TailorResumeWithRawResponse tailors a resume and returns the raw AI response for conversation history
+func (m *Manager) TailorResumeWithRawResponse(ctx context.Context, baseResume *models.BaseResume, job *models.Job) (*models.TailoredResume, []models.Suggestion, string, error) {
+	m.mu.RLock()
+	provider := m.provider
+	healthy := m.healthy
+	m.mu.RUnlock()
+
+	if provider == nil {
+		return nil, nil, "", fmt.Errorf("LLM manager not started or provider not available")
+	}
+
+	if !healthy {
+		return nil, nil, "", fmt.Errorf("LLM provider is not available - check API key configuration (set LLM_API_KEY environment variable)")
+	}
+
+	return provider.TailorResumeWithRawResponse(ctx, baseResume, job)
+}
+
 // IsHealthy checks if the LLM manager and provider are healthy
 func (m *Manager) IsHealthy() bool {
 	m.mu.RLock()

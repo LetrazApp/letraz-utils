@@ -128,7 +128,7 @@ mkdir -p ~/app
 cd ~/app
 
 # Create production .env file
-cp /path/to/your/env.example .env
+cp /path/to/your/.env.example .env
 # Edit .env with your production values
 ```
 
