@@ -470,7 +470,7 @@ Return a JSON object with exactly this structure:
       "id": "sug_001",
       "type": "experience",
       "priority": "high",
-      "impact": "Emphasizing Python and Django skills would directly align with the job requirements and increase selection chances by 40%",
+      "impact": "Emphasizing Python and Django skills would directly align with the job requirements and increase selection chances by 40%%",
       "section": "Experience",
       "current": "Developed web applications using various technologies",
       "suggested": "Add specific mention of Python frameworks and API development experience in the experience descriptions",
@@ -493,7 +493,7 @@ Return a JSON object with exactly this structure:
       "impact": "Quantifying achievements with metrics would strengthen the profile and demonstrate measurable impact",
       "section": "Profile",
       "current": "Generic statements about experience",
-      "suggested": "Include specific metrics from existing projects (e.g., 'improved system performance by X%', 'handled Y requests per day')",
+      "suggested": "Include specific metrics from existing projects (e.g., 'improved system performance by X%%', 'handled Y requests per day')",
       "reasoning": "Quantified achievements are more compelling to hiring managers and show concrete value delivery"
     }
   ]

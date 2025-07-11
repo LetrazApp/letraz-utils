@@ -365,7 +365,7 @@ Return a JSON object with exactly this structure:
       "id": "sug_001",
       "type": "experience",
       "priority": "high",
-      "impact": "Emphasizing Python and Django skills would directly align with the job requirements and increase selection chances by 40%",
+      "impact": "Emphasizing Python and Django skills would directly align with the job requirements and increase selection chances by 40%%",
       "section": "Experience",
       "current": "Developed web applications using various technologies",
       "suggested": "Add specific mention of Python frameworks and API development experience in the experience descriptions",
