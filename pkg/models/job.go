@@ -10,8 +10,6 @@ type Job struct {
 	CompanyName      string   `json:"company_name"`
 	Location         string   `json:"location"`
 	Currency         string   `json:"currency"`
-	SalaryMax        *int     `json:"salary_max"`
-	SalaryMin        *int     `json:"salary_min"`
 	Salary           Salary   `json:"salary"`
 	Requirements     []string `json:"requirements"`
 	Description      string   `json:"description"`

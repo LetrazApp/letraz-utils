@@ -600,9 +600,11 @@ func (tm *TaskManagerImpl) executeTailorTask(ctx context.Context, processID stri
 
 	// Store AI response in conversation history (if Redis is available)
 	if redisAvailable && redisClient != nil {
-		// Store the raw AI response and structured response
-		// (Similar to the existing handler logic)
 		// TODO: Implement conversation history storage in background task
+		tm.appLogger.WithFields(map[string]interface{}{
+			"process_id": processID,
+			"resume_id":  request.ResumeID,
+		}).Debug("Conversation history storage not yet implemented in background task")
 	}
 
 	// Create task data

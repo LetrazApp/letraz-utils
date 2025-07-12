@@ -64,6 +64,32 @@ fmt: ## Format code
 	@go fmt ./...
 	@echo "$(GREEN)✅ Code formatted$(NC)"
 
+# Protocol Buffer Generation
+proto: ## Generate protobuf files from consolidated letraz-utils.proto
+	@echo "$(YELLOW)🔧 Generating protobuf files...$(NC)"
+	@protoc --go_out=. --go_opt=paths=source_relative \
+		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
+		api/proto/letraz/v1/letraz-utils.proto
+	@echo "$(GREEN)✅ Protobuf files generated$(NC)"
+
+proto-separate: ## Generate protobuf files from separate proto files (fallback)
+	@echo "$(YELLOW)🔧 Generating protobuf files from separate files...$(NC)"
+	@protoc --go_out=. --go_opt=paths=source_relative \
+		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
+		api/proto/letraz/v1/common.proto api/proto/letraz/v1/scraper.proto api/proto/letraz/v1/resume.proto
+	@echo "$(GREEN)✅ Protobuf files generated from separate files$(NC)"
+
+proto-clean: ## Clean generated protobuf files
+	@echo "$(YELLOW)🧹 Cleaning generated protobuf files...$(NC)"
+	@find . -name "*.pb.go" -delete
+	@echo "$(GREEN)✅ Protobuf files cleaned$(NC)"
+
+proto-deps: ## Install protobuf dependencies
+	@echo "$(YELLOW)📦 Installing protobuf dependencies...$(NC)"
+	@go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+	@go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+	@echo "$(GREEN)✅ Protobuf dependencies installed$(NC)"
+
 clean: ## Clean build artifacts
 	@echo "$(YELLOW)🧹 Cleaning build artifacts...$(NC)"
 	@rm -rf $(BUILD_DIR)
