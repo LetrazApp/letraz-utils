@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -169,4 +170,10 @@ func ParseProcessID(processID string) *ProcessIDMetadata {
 	}
 
 	return metadata
+}
+
+// IsDevelopment checks if the application is running in development mode
+func IsDevelopment() bool {
+	env := os.Getenv("GO_ENV")
+	return env == "development" || env == "dev" || env == ""
 }

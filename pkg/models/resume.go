@@ -98,9 +98,9 @@ type BaseResume struct {
 
 // TailorResumeRequest represents the request for resume tailoring
 type TailorResumeRequest struct {
-	BaseResume BaseResume `json:"baseResume"`
+	BaseResume BaseResume `json:"base_resume"`
 	Job        Job        `json:"job"`
-	ResumeID   string     `json:"resumeId"`
+	ResumeID   string     `json:"resume_id"`
 }
 
 // TailoredResume represents the tailored resume response

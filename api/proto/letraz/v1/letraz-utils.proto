@@ -1,0 +1,147 @@
+syntax = "proto3";
+
+package letraz.v1;
+
+option go_package = "letraz-utils/api/proto/letraz/v1;letrazv1";
+
+import "google/protobuf/struct.proto";
+
+// ===== SERVICES =====
+
+service ScraperService {
+  // Scrape a job posting from a URL
+  rpc ScrapeJob(ScrapeJobRequest) returns (ScrapeJobResponse);
+}
+
+service ResumeService {
+  // Tailor a resume for a specific job posting
+  rpc TailorResume(TailorResumeRequest) returns (TailorResumeResponse);
+}
+
+// ===== SCRAPER MESSAGES =====
+
+message ScrapeJobRequest {
+  string url = 1;
+  ScrapeOptions options = 2;
+}
+
+message ScrapeJobResponse {
+  string processId = 1;       // Process ID for async tracking (camelCase to match REST)
+  string status = 2;          // ACCEPTED, FAILURE
+  string message = 3;         // Status message
+  string timestamp = 4;       // ISO timestamp string (to match REST format)
+  
+  // Optional error fields (only for failures)
+  string error = 5;           // Error code/type
+}
+
+// ===== RESUME MESSAGES =====
+
+message BaseResume {
+  string id = 1;
+  bool base = 2;
+  User user = 3;
+  repeated ResumeSection sections = 4;
+}
+
+message User {
+  string id = 1;
+  string title = 2;                // nullable in JSON
+  string first_name = 3;
+  string last_name = 4;
+  string email = 5;
+  string phone = 6;
+  string dob = 7;                  // nullable in JSON
+  string nationality = 8;          // nullable in JSON
+  string address = 9;
+  string city = 10;
+  string postal = 11;
+  string country = 12;             // nullable in JSON
+  string website = 13;
+  string profile_text = 14;
+  string created_at = 15;          // ISO timestamp string
+  string updated_at = 16;          // ISO timestamp string
+}
+
+message ResumeSection {
+  string id = 1;
+  string resume = 2;
+  int32 index = 3;
+  string type = 4;
+  google.protobuf.Struct data = 5;  // Structured data (JSON-like) instead of string
+}
+
+message TailorResumeRequest {
+  BaseResume base_resume = 1;
+  Job job = 2;
+  string resume_id = 3;
+}
+
+message TailorResumeResponse {
+  string processId = 1;       // Process ID for async tracking (camelCase to match REST)
+  string status = 2;          // ACCEPTED, FAILURE
+  string message = 3;         // Status message
+  string timestamp = 4;       // ISO timestamp string (to match REST format)
+  
+  // Optional error fields (only for failures)
+  string error = 5;           // Error code/type
+}
+
+// ===== COMMON MESSAGES =====
+
+message Job {
+  string title = 1;
+  string job_url = 2;
+  string company_name = 3;
+  string location = 4;
+  string currency = 5;
+  int32 salary_max = 6;           // nullable in JSON, 0 means null
+  int32 salary_min = 7;           // nullable in JSON, 0 means null
+  Salary salary = 8;
+  repeated string requirements = 9;
+  string description = 10;
+  repeated string responsibilities = 11;
+  repeated string benefits = 12;
+}
+
+message Salary {
+  string currency = 1;
+  int32 max = 2;
+  int32 min = 3;
+}
+
+message SalaryRange {
+  int32 min = 1;
+  int32 max = 2;
+  string currency = 3;
+  string period = 4; // hourly, monthly, yearly
+}
+
+message JobPosting {
+  string id = 1;
+  string title = 2;
+  string company = 3;
+  string location = 4;
+  bool remote = 5;
+  SalaryRange salary = 6;
+  string description = 7;
+  repeated string requirements = 8;
+  repeated string skills = 9;
+  repeated string benefits = 10;
+  string experience_level = 11;
+  string job_type = 12;
+  string posted_date = 13;           // ISO timestamp string
+  string application_url = 14;
+  map<string, string> metadata = 15;
+  string processed_at = 16;          // ISO timestamp string
+}
+
+message ScrapeOptions {
+  string engine = 1;      // "headed", "raw", "auto"
+  int32 timeout_seconds = 2;
+  string llm_provider = 3; // "openai", "claude", "local"
+  string user_agent = 4;
+  string proxy = 5;
+}
+
+// ErrorInfo removed - using simple string error field in responses 
