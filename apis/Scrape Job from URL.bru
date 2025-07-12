@@ -15,5 +15,39 @@ headers {
 }
 
 body:json {
-  {"url": "https://www.linkedin.com/jobs/view/4258394226"}
+  {
+    "url": "https://www.linkedin.com/jobs/view/4258394226",
+    "options": {
+      "engine": "hybrid"
+    }
+  }
+}
+
+tests {
+  test("Response should be accepted", function() {
+    expect(res.status).to.equal(202);
+  });
+  
+  test("Response should have processId", function() {
+    expect(res.body.processId).to.exist;
+    expect(res.body.processId).to.be.a('string');
+    expect(res.body.processId.length).to.be.greaterThan(0);
+  });
+  
+  test("Response should have accepted status", function() {
+    expect(res.body.status).to.equal('ACCEPTED');
+  });
+  
+  test("Response should have message", function() {
+    expect(res.body.message).to.exist;
+    expect(res.body.message).to.contain('background processing');
+  });
+  
+  test("Response should have timestamp", function() {
+    expect(res.body.timestamp).to.exist;
+  });
+  
+  test("Process ID should follow expected format", function() {
+    expect(res.body.processId).to.match(/^scrape_\d{8}_[a-fA-F0-9-]{36}$/);
+  });
 }
