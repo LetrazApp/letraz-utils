@@ -115,19 +115,8 @@ func (f *FirecrawlScraper) scrapeContent(ctx context.Context, url string, option
 		Formats: f.config.Firecrawl.Formats,
 	}
 
-	// Apply timeout if specified
-	if options != nil && options.Timeout > 0 {
-		// Note: Firecrawl Go SDK doesn't expose timeout in scrape params directly
-		// We rely on context timeout for now
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, options.Timeout)
-		defer cancel()
-	} else {
-		// Use default timeout from config
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, f.config.Firecrawl.Timeout)
-		defer cancel()
-	}
+	// Note: Firecrawl Go SDK doesn't expose timeout in scrape params directly
+	// Timeout control is handled internally by the SDK
 
 	// Perform the scrape with retry logic
 	var scrapeResult *firecrawl.FirecrawlDocument

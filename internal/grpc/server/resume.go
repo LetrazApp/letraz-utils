@@ -181,18 +181,6 @@ func convertGRPCJobToModel(grpcJob *letrazv1.Job) *models.Job {
 		return nil
 	}
 
-	var salaryMin, salaryMax *int
-
-	// Handle nullable salary fields
-	if grpcJob.GetSalaryMin() > 0 {
-		min := int(grpcJob.GetSalaryMin())
-		salaryMin = &min
-	}
-	if grpcJob.GetSalaryMax() > 0 {
-		max := int(grpcJob.GetSalaryMax())
-		salaryMax = &max
-	}
-
 	// Convert salary object
 	salary := models.Salary{
 		Currency: grpcJob.GetSalary().GetCurrency(),
@@ -206,8 +194,6 @@ func convertGRPCJobToModel(grpcJob *letrazv1.Job) *models.Job {
 		CompanyName:      grpcJob.GetCompanyName(),
 		Location:         grpcJob.GetLocation(),
 		Currency:         grpcJob.GetCurrency(),
-		SalaryMin:        salaryMin,
-		SalaryMax:        salaryMax,
 		Salary:           salary,
 		Requirements:     grpcJob.GetRequirements(),
 		Description:      grpcJob.GetDescription(),

@@ -55,7 +55,11 @@ func main() {
 	}
 	logger.Debug("DEBUG: PoolManager initialized successfully")
 
-	defer poolManager.Shutdown()
+	defer func() {
+		if err := poolManager.Shutdown(); err != nil {
+			logger.WithError(err).Error("Error shutting down pool manager")
+		}
+	}()
 
 	// Initialize Echo
 	e := echo.New()

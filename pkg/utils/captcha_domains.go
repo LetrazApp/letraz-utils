@@ -194,9 +194,7 @@ func extractDomain(urlStr string) (string, error) {
 	}
 
 	// Remove www. prefix if present
-	if strings.HasPrefix(hostname, "www.") {
-		hostname = hostname[4:]
-	}
+	hostname = strings.TrimPrefix(hostname, "www.")
 
 	return hostname, nil
 }
