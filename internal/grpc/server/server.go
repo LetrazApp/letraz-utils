@@ -24,6 +24,7 @@ type Server struct {
 	llmManager  *llm.Manager
 	taskManager background.TaskManager
 	logger      *logrus.Logger
+	grpcServer  *grpc.Server
 
 	// Embed the unimplemented server methods
 	letrazv1.UnimplementedScraperServiceServer
@@ -41,7 +42,7 @@ func NewServer(cfg *config.Config, poolManager *workers.PoolManager, llmManager 
 }
 
 func (s *Server) Start(lis net.Listener) error {
-	grpcServer := grpc.NewServer(
+	s.grpcServer = grpc.NewServer(
 		grpc.KeepaliveParams(keepalive.ServerParameters{
 			Time:    30 * time.Second,
 			Timeout: 5 * time.Second,
@@ -65,20 +66,22 @@ func (s *Server) Start(lis net.Listener) error {
 	)
 
 	// Register services
-	letrazv1.RegisterScraperServiceServer(grpcServer, s)
-	letrazv1.RegisterResumeServiceServer(grpcServer, s)
+	letrazv1.RegisterScraperServiceServer(s.grpcServer, s)
+	letrazv1.RegisterResumeServiceServer(s.grpcServer, s)
 
 	// Enable reflection for debugging
-	reflection.Register(grpcServer)
+	reflection.Register(s.grpcServer)
 
 	s.logger.WithField("address", lis.Addr().String()).Info("Starting gRPC server")
 
-	return grpcServer.Serve(lis)
+	return s.grpcServer.Serve(lis)
 }
 
 func (s *Server) Stop() {
 	s.logger.Info("Shutting down gRPC server...")
-	// Graceful shutdown logic can be added here
+	if s.grpcServer != nil {
+		s.grpcServer.GracefulStop()
+	}
 }
 
 func (s *Server) GetConfig() *config.Config {

@@ -218,12 +218,17 @@ func LogMetricsSummary() {
 	logger := utils.GetLogger()
 
 	for method, methodMetrics := range allMetrics {
+		successRate := float64(0)
+		if methodMetrics.Metrics.RequestCount > 0 {
+			successRate = float64(methodMetrics.Metrics.SuccessCount) / float64(methodMetrics.Metrics.RequestCount) * 100
+		}
+
 		logger.WithFields(map[string]interface{}{
 			"method":           method,
 			"request_count":    methodMetrics.Metrics.RequestCount,
 			"success_count":    methodMetrics.Metrics.SuccessCount,
 			"error_count":      methodMetrics.Metrics.ErrorCount,
-			"success_rate":     float64(methodMetrics.Metrics.SuccessCount) / float64(methodMetrics.Metrics.RequestCount) * 100,
+			"success_rate":     successRate,
 			"average_duration": methodMetrics.Metrics.AverageDuration,
 			"type":             "grpc_metrics_summary",
 		}).Info("gRPC method metrics summary")
@@ -231,13 +236,18 @@ func LogMetricsSummary() {
 }
 
 // StartMetricsReporting starts a goroutine that periodically logs metrics
-func StartMetricsReporting(interval time.Duration) {
+func StartMetricsReporting(ctx context.Context, interval time.Duration) {
 	go func() {
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 
-		for range ticker.C {
-			LogMetricsSummary()
+		for {
+			select {
+			case <-ticker.C:
+				LogMetricsSummary()
+			case <-ctx.Done():
+				return
+			}
 		}
 	}()
 }

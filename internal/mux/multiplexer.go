@@ -54,10 +54,10 @@ func NewMultiplexer(cfg *config.Config, poolManager *workers.PoolManager, llmMan
 		cancel:      cancel,
 		httpServer: &http.Server{
 			Handler:           httpHandler,
-			ReadTimeout:       30 * time.Second,
-			WriteTimeout:      30 * time.Second,
+			ReadTimeout:       cfg.Server.ReadTimeout,
+			WriteTimeout:      cfg.Server.WriteTimeout,
 			ReadHeaderTimeout: 5 * time.Second,
-			IdleTimeout:       60 * time.Second,
+			IdleTimeout:       cfg.Server.IdleTimeout,
 		},
 	}
 }
