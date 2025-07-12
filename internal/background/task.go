@@ -9,13 +9,13 @@ import (
 )
 
 // TaskStatus represents the status of a background task
-type TaskStatus string
+type TaskStatus = models.AsyncStatus
 
 const (
-	TaskStatusAccepted   TaskStatus = "ACCEPTED"
-	TaskStatusProcessing TaskStatus = "PROCESSING"
-	TaskStatusSuccess    TaskStatus = "SUCCESS"
-	TaskStatusFailure    TaskStatus = "FAILURE"
+	TaskStatusAccepted   = models.AsyncStatusAccepted
+	TaskStatusProcessing = models.AsyncStatusProcessing
+	TaskStatusSuccess    = models.AsyncStatusSuccess
+	TaskStatusFailure    = models.AsyncStatusFailure
 )
 
 // TaskType represents the type of background task
@@ -35,7 +35,7 @@ type TaskResult struct {
 	Error          string                 `json:"error,omitempty"`
 	CreatedAt      time.Time              `json:"createdAt"`
 	CompletedAt    *time.Time             `json:"completedAt,omitempty"`
-	ProcessingTime time.Duration          `json:"processingTime,omitempty"`
+	ProcessingTime *time.Duration         `json:"processingTime,omitempty"`
 	Metadata       map[string]interface{} `json:"metadata,omitempty"`
 }
 

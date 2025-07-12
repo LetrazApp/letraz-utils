@@ -35,7 +35,6 @@ func main() {
 	if err := llmManager.Start(); err != nil {
 		logger.WithError(err).Fatal("Failed to start LLM manager")
 	}
-	defer llmManager.Stop()
 
 	// Initialize background task manager
 	logger.Info("Initializing background task manager")

@@ -37,6 +37,13 @@ type TaskCompletionLog struct {
 // LogTaskCompletion logs task completion to stdout in structured JSON format
 func (l *TaskCompletionLogger) LogTaskCompletion(result *TaskResult) error {
 	// Create the structured log entry
+	var processingTimeStr string
+	if result.ProcessingTime != nil {
+		processingTimeStr = result.ProcessingTime.String()
+	} else {
+		processingTimeStr = "0s"
+	}
+
 	logEntry := TaskCompletionLog{
 		ProcessID:      result.ProcessID,
 		Status:         string(result.Status),
@@ -44,7 +51,7 @@ func (l *TaskCompletionLogger) LogTaskCompletion(result *TaskResult) error {
 		Error:          result.Error,
 		Timestamp:      time.Now(),
 		Operation:      string(result.Type),
-		ProcessingTime: result.ProcessingTime.String(),
+		ProcessingTime: processingTimeStr,
 		Metadata:       result.Metadata,
 	}
 
@@ -59,11 +66,18 @@ func (l *TaskCompletionLogger) LogTaskCompletion(result *TaskResult) error {
 	fmt.Println(string(jsonData))
 
 	// Also log to the application logger for debugging
+	var processingTimeForLog interface{}
+	if result.ProcessingTime != nil {
+		processingTimeForLog = *result.ProcessingTime
+	} else {
+		processingTimeForLog = "not set"
+	}
+
 	l.logger.WithFields(map[string]interface{}{
 		"process_id":      result.ProcessID,
 		"status":          result.Status,
 		"operation":       result.Type,
-		"processing_time": result.ProcessingTime,
+		"processing_time": processingTimeForLog,
 	}).Info("Background task completed")
 
 	return nil
@@ -125,6 +139,13 @@ func (l *TaskCompletionLogger) LogTaskMetrics(processID string, taskType TaskTyp
 
 // CreateTaskCompletionLog creates a TaskCompletionLog from a TaskResult
 func CreateTaskCompletionLog(result *TaskResult) *TaskCompletionLog {
+	var processingTimeStr string
+	if result.ProcessingTime != nil {
+		processingTimeStr = result.ProcessingTime.String()
+	} else {
+		processingTimeStr = "0s"
+	}
+
 	return &TaskCompletionLog{
 		ProcessID:      result.ProcessID,
 		Status:         string(result.Status),
@@ -132,7 +153,7 @@ func CreateTaskCompletionLog(result *TaskResult) *TaskCompletionLog {
 		Error:          result.Error,
 		Timestamp:      time.Now(),
 		Operation:      string(result.Type),
-		ProcessingTime: result.ProcessingTime.String(),
+		ProcessingTime: processingTimeStr,
 		Metadata:       result.Metadata,
 	}
 }

@@ -14,6 +14,21 @@ import (
 	"letraz-utils/pkg/utils"
 )
 
+// Task manager configuration constants
+const (
+	// Default configuration values
+	DefaultMaxWorkers   = 10
+	DefaultMaxQueueSize = 100
+
+	// Minimum configuration values to prevent misconfiguration
+	MinWorkers   = 1
+	MinQueueSize = 1
+
+	// Maximum configuration values for safety
+	MaxWorkers   = 1000
+	MaxQueueSize = 10000
+)
+
 // TaskManager defines the interface for managing background tasks
 type TaskManager interface {
 	// Start starts the task manager
@@ -63,28 +78,61 @@ type TaskExecution struct {
 	ProcessID     string
 	Type          TaskType
 	Context       context.Context
+	Cancel        context.CancelFunc
 	ExecuteFunc   func(context.Context) (*TaskResult, error)
 	CompletedChan chan *TaskResult
 }
 
+// validateTaskManagerConfig validates and returns safe configuration values
+func validateTaskManagerConfig(cfg *config.Config) (maxWorkers, maxQueueSize int, err error) {
+	// Validate and set worker pool size
+	maxWorkers = cfg.Workers.PoolSize
+	if maxWorkers <= 0 {
+		maxWorkers = DefaultMaxWorkers
+	} else if maxWorkers < MinWorkers {
+		return 0, 0, fmt.Errorf("worker pool size (%d) is below minimum (%d)", maxWorkers, MinWorkers)
+	} else if maxWorkers > MaxWorkers {
+		return 0, 0, fmt.Errorf("worker pool size (%d) exceeds maximum (%d)", maxWorkers, MaxWorkers)
+	}
+
+	// Validate and set queue size
+	maxQueueSize = cfg.Workers.QueueSize
+	if maxQueueSize <= 0 {
+		maxQueueSize = DefaultMaxQueueSize
+	} else if maxQueueSize < MinQueueSize {
+		return 0, 0, fmt.Errorf("queue size (%d) is below minimum (%d)", maxQueueSize, MinQueueSize)
+	} else if maxQueueSize > MaxQueueSize {
+		return 0, 0, fmt.Errorf("queue size (%d) exceeds maximum (%d)", maxQueueSize, MaxQueueSize)
+	}
+
+	return maxWorkers, maxQueueSize, nil
+}
+
 // NewTaskManager creates a new task manager
 func NewTaskManager(cfg *config.Config) *TaskManagerImpl {
-	maxWorkers := 10
-	maxQueueSize := 100
+	logger := utils.GetLogger()
 
-	// Use configuration values if available
-	if cfg.Workers.PoolSize > 0 {
-		maxWorkers = cfg.Workers.PoolSize
+	// Validate configuration and get safe values
+	maxWorkers, maxQueueSize, err := validateTaskManagerConfig(cfg)
+	if err != nil {
+		// Log validation error and fall back to defaults
+		logger.WithError(err).Warn("Task manager configuration validation failed, using defaults")
+		maxWorkers = DefaultMaxWorkers
+		maxQueueSize = DefaultMaxQueueSize
 	}
-	if cfg.Workers.QueueSize > 0 {
-		maxQueueSize = cfg.Workers.QueueSize
-	}
+
+	// Log final configuration values
+	logger.WithFields(map[string]interface{}{
+		"max_workers":    maxWorkers,
+		"max_queue_size": maxQueueSize,
+		"using_defaults": err != nil,
+	}).Info("Task manager configuration initialized")
 
 	return &TaskManagerImpl{
 		config:       cfg,
 		store:        NewInMemoryTaskStore(),
 		logger:       NewTaskCompletionLogger(),
-		appLogger:    utils.GetLogger(),
+		appLogger:    logger,
 		workerPool:   make(chan struct{}, maxWorkers),
 		maxWorkers:   maxWorkers,
 		maxQueueSize: maxQueueSize,
@@ -179,11 +227,13 @@ func (tm *TaskManagerImpl) SubmitScrapeTask(ctx context.Context, processID strin
 	// Log task acceptance
 	tm.logger.LogTaskAccepted(processID, TaskTypeScrape)
 
-	// Create task execution
+	// Create task execution with derived context for better isolation
+	taskCtx, cancelFunc := context.WithCancel(tm.ctx)
 	execution := &TaskExecution{
 		ProcessID: processID,
 		Type:      TaskTypeScrape,
-		Context:   tm.ctx, // Use task manager's context, not HTTP request context
+		Context:   taskCtx, // Use derived context for task isolation
+		Cancel:    cancelFunc,
 		ExecuteFunc: func(execCtx context.Context) (*TaskResult, error) {
 			return tm.executeScrapeTask(execCtx, processID, request, poolManager)
 		},
@@ -228,11 +278,13 @@ func (tm *TaskManagerImpl) SubmitTailorTask(ctx context.Context, processID strin
 	// Log task acceptance
 	tm.logger.LogTaskAccepted(processID, TaskTypeTailor)
 
-	// Create task execution
+	// Create task execution with derived context for better isolation
+	taskCtx, cancelFunc := context.WithCancel(tm.ctx)
 	execution := &TaskExecution{
 		ProcessID: processID,
 		Type:      TaskTypeTailor,
-		Context:   tm.ctx, // Use task manager's context, not HTTP request context
+		Context:   taskCtx, // Use derived context for task isolation
+		Cancel:    cancelFunc,
 		ExecuteFunc: func(execCtx context.Context) (*TaskResult, error) {
 			return tm.executeTailorTask(execCtx, processID, request, llmManager, cfg)
 		},
@@ -330,14 +382,25 @@ func (tm *TaskManagerImpl) processTask(workerID int, task *TaskExecution) {
 			"error":           err.Error(),
 		}).Error("Task execution failed")
 
-		// Update task result with failure
-		result = &TaskResult{
-			ProcessID:      task.ProcessID,
-			Type:           task.Type,
-			Status:         TaskStatusFailure,
-			Error:          err.Error(),
-			CreatedAt:      time.Now(),
-			ProcessingTime: processingTime,
+		// Retrieve existing task result to preserve original CreatedAt
+		existingResult, getErr := tm.store.Get(task.Context, task.ProcessID)
+		if getErr != nil {
+			tm.appLogger.WithError(getErr).Error("Failed to retrieve existing task result for failure update")
+			// Fallback: create new result (preserving old behavior)
+			result = &TaskResult{
+				ProcessID:      task.ProcessID,
+				Type:           task.Type,
+				Status:         TaskStatusFailure,
+				Error:          err.Error(),
+				CreatedAt:      time.Now(),
+				ProcessingTime: &processingTime,
+			}
+		} else {
+			// Update existing result with failure data
+			existingResult.Status = TaskStatusFailure
+			existingResult.Error = err.Error()
+			existingResult.ProcessingTime = &processingTime
+			result = existingResult
 		}
 
 		tm.logger.LogTaskError(task.ProcessID, task.Type, err)
@@ -351,7 +414,7 @@ func (tm *TaskManagerImpl) processTask(workerID int, task *TaskExecution) {
 		}).Info("Task execution completed successfully")
 
 		result.Status = TaskStatusSuccess
-		result.ProcessingTime = processingTime
+		result.ProcessingTime = &processingTime
 		completedAt := time.Now()
 		result.CompletedAt = &completedAt
 
@@ -366,6 +429,11 @@ func (tm *TaskManagerImpl) processTask(workerID int, task *TaskExecution) {
 	// Log structured completion to stdout
 	if err := tm.logger.LogTaskCompletion(result); err != nil {
 		tm.appLogger.WithError(err).Error("Failed to log task completion")
+	}
+
+	// Cancel the task context to prevent context leaks
+	if task.Cancel != nil {
+		task.Cancel()
 	}
 }
 
@@ -404,6 +472,12 @@ func (tm *TaskManagerImpl) cleanupRoutine() {
 func (tm *TaskManagerImpl) executeScrapeTask(ctx context.Context, processID string, request models.ScrapeRequest, poolManager *workers.PoolManager) (*TaskResult, error) {
 	startTime := time.Now()
 
+	// Retrieve the existing task result to preserve original CreatedAt
+	existingResult, err := tm.store.Get(ctx, processID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve existing task result: %w", err)
+	}
+
 	// Execute the scraping job using the existing worker pool
 	result, err := poolManager.SubmitJob(ctx, request.URL, request.Options)
 	if err != nil {
@@ -440,26 +514,28 @@ func (tm *TaskManagerImpl) executeScrapeTask(ctx context.Context, processID stri
 		return nil, fmt.Errorf("job processing completed but no data was returned")
 	}
 
-	// Create successful task result
-	taskResult := &TaskResult{
-		ProcessID:      processID,
-		Type:           TaskTypeScrape,
-		Status:         TaskStatusSuccess,
-		Data:           taskData,
-		CreatedAt:      startTime,
-		ProcessingTime: time.Since(startTime),
-		Metadata: map[string]interface{}{
-			"url":    request.URL,
-			"engine": engine,
-		},
+	// Update the existing task result with success data
+	processingTime := time.Since(startTime)
+	existingResult.Status = TaskStatusSuccess
+	existingResult.Data = taskData
+	existingResult.ProcessingTime = &processingTime
+	existingResult.Metadata = map[string]interface{}{
+		"url":    request.URL,
+		"engine": engine,
 	}
 
-	return taskResult, nil
+	return existingResult, nil
 }
 
 // executeTailorTask executes a tailor task in the background
 func (tm *TaskManagerImpl) executeTailorTask(ctx context.Context, processID string, request models.TailorResumeRequest, llmManager *llm.Manager, cfg *config.Config) (*TaskResult, error) {
 	startTime := time.Now()
+
+	// Retrieve the existing task result to preserve original CreatedAt
+	existingResult, err := tm.store.Get(ctx, processID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve existing task result: %w", err)
+	}
 
 	// Check LLM manager health
 	if !llmManager.IsHealthy() {
@@ -536,22 +612,18 @@ func (tm *TaskManagerImpl) executeTailorTask(ctx context.Context, processID stri
 		ThreadID:       request.ResumeID,
 	}
 
-	// Create successful task result
-	taskResult := &TaskResult{
-		ProcessID:      processID,
-		Type:           TaskTypeTailor,
-		Status:         TaskStatusSuccess,
-		Data:           taskData,
-		CreatedAt:      startTime,
-		ProcessingTime: time.Since(startTime),
-		Metadata: map[string]interface{}{
-			"resume_id": request.ResumeID,
-			"job_title": request.Job.Title,
-			"company":   request.Job.CompanyName,
-		},
+	// Update the existing task result with success data
+	processingTime := time.Since(startTime)
+	existingResult.Status = TaskStatusSuccess
+	existingResult.Data = taskData
+	existingResult.ProcessingTime = &processingTime
+	existingResult.Metadata = map[string]interface{}{
+		"resume_id": request.ResumeID,
+		"job_title": request.Job.Title,
+		"company":   request.Job.CompanyName,
 	}
 
-	return taskResult, nil
+	return existingResult, nil
 }
 
 // getEngineFromOptions extracts the engine from scrape options

@@ -2,6 +2,8 @@ package models
 
 import (
 	"time"
+
+	"letraz-utils/pkg/utils"
 )
 
 // AsyncStatus represents the status of an async operation
@@ -151,17 +153,33 @@ func (r *AsyncTaskStatusResponse) HasError() bool {
 }
 
 // GetScrapeData returns the scrape data if this is a scrape task
-func (r *AsyncTaskStatusResponse) GetScrapeData() *AsyncScrapeCompletionData {
+// Returns (data, true) if successful, (nil, false) if type assertion fails
+func (r *AsyncTaskStatusResponse) GetScrapeData() (*AsyncScrapeCompletionData, bool) {
 	if data, ok := r.Data.(*AsyncScrapeCompletionData); ok {
-		return data
+		return data, true
 	}
-	return nil
+
+	// Log type assertion failure for debugging
+	logger := utils.GetLogger()
+	logger.WithField("process_id", r.ProcessID).
+		WithField("data_type", r.Data).
+		Warn("Type assertion failed in GetScrapeData: expected AsyncScrapeCompletionData")
+
+	return nil, false
 }
 
 // GetTailorData returns the tailor data if this is a tailor task
-func (r *AsyncTaskStatusResponse) GetTailorData() *AsyncTailorCompletionData {
+// Returns (data, true) if successful, (nil, false) if type assertion fails
+func (r *AsyncTaskStatusResponse) GetTailorData() (*AsyncTailorCompletionData, bool) {
 	if data, ok := r.Data.(*AsyncTailorCompletionData); ok {
-		return data
+		return data, true
 	}
-	return nil
+
+	// Log type assertion failure for debugging
+	logger := utils.GetLogger()
+	logger.WithField("process_id", r.ProcessID).
+		WithField("data_type", r.Data).
+		Warn("Type assertion failed in GetTailorData: expected AsyncTailorCompletionData")
+
+	return nil, false
 }
