@@ -46,6 +46,13 @@ func SetupRoutes(e *echo.Echo, cfg *config.Config, poolManager *workers.PoolMana
 			resume.POST("/tailor", handlers.TailorResumeHandler(cfg, llmManager, taskManager))
 		}
 
+		// Proto file serving routes
+		proto := v1.Group("/proto")
+		{
+			proto.GET("/letraz-utils.proto", handlers.ProtoHandler())
+			proto.GET("/letraz-utils/metadata", handlers.ProtoMetadataHandler())
+		}
+
 		// Worker monitoring routes
 		workers := v1.Group("/workers")
 		{
