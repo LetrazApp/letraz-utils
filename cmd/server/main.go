@@ -1,13 +1,16 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"letraz-utils/internal/api/routes"
+	"letraz-utils/internal/background"
 	"letraz-utils/internal/config"
 	"letraz-utils/internal/llm"
 	"letraz-utils/internal/scraper/workers"
@@ -34,6 +37,14 @@ func main() {
 	}
 	defer llmManager.Stop()
 
+	// Initialize background task manager
+	logger.Info("Initializing background task manager")
+	taskManager := background.NewTaskManager(cfg)
+	ctx := context.Background()
+	if err := taskManager.Start(ctx); err != nil {
+		logger.WithError(err).Fatal("Failed to start task manager")
+	}
+
 	// Initialize worker pool
 	logger.Debug("DEBUG: About to initialize worker pool")
 	poolManager := workers.NewPoolManager(cfg, llmManager)
@@ -50,7 +61,7 @@ func main() {
 	e := echo.New()
 
 	// Setup routes
-	routes.SetupRoutes(e, cfg, poolManager, llmManager)
+	routes.SetupRoutes(e, cfg, poolManager, llmManager, taskManager)
 
 	// Graceful shutdown
 	go func() {
@@ -60,20 +71,35 @@ func main() {
 
 		logger.Info("Shutting down server...")
 
+		// Create a shutdown context with timeout
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		// Stop task manager first (most important for background tasks)
+		logger.Info("Stopping background task manager...")
+		if err := taskManager.Stop(shutdownCtx); err != nil {
+			logger.WithError(err).Error("Error stopping task manager")
+		}
+
 		// Stop worker pool
+		logger.Info("Stopping worker pool...")
 		if err := poolManager.Shutdown(); err != nil {
 			logger.WithError(err).Error("Error stopping worker pool")
 		}
 
 		// Stop LLM manager
+		logger.Info("Stopping LLM manager...")
 		if err := llmManager.Stop(); err != nil {
 			logger.WithError(err).Error("Error stopping LLM manager")
 		}
 
-		// Shutdown Echo
-		if err := e.Shutdown(nil); err != nil {
+		// Shutdown Echo server
+		logger.Info("Stopping HTTP server...")
+		if err := e.Shutdown(shutdownCtx); err != nil {
 			logger.WithError(err).Error("Error shutting down server")
 		}
+
+		logger.Info("Server shutdown complete")
 	}()
 
 	// Start server

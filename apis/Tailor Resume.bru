@@ -212,38 +212,30 @@ body:json {
 }
 
 tests {
-  test("Response should be successful", function() {
-    expect(res.status).to.equal(200);
+  test("Response should be accepted", function() {
+    expect(res.status).to.equal(202);
   });
   
-  test("Response should have success field", function() {
-    expect(res.body.success).to.be.true;
+  test("Response should have processId", function() {
+    expect(res.body.processId).to.exist;
+    expect(res.body.processId).to.be.a('string');
+    expect(res.body.processId.length).to.be.greaterThan(0);
   });
   
-  test("Response should contain tailored resume", function() {
-    expect(res.body.resume).to.exist;
-    expect(res.body.resume.id).to.exist;
+  test("Response should have accepted status", function() {
+    expect(res.body.status).to.equal('ACCEPTED');
   });
   
-  test("Response should contain structured suggestions", function() {
-    expect(res.body.suggestions).to.exist;
-    expect(res.body.suggestions).to.be.an('array');
-    expect(res.body.suggestions.length).to.be.greaterThan(0);
-    expect(res.body.suggestions.length).to.be.at.most(3);
+  test("Response should have message", function() {
+    expect(res.body.message).to.exist;
+    expect(res.body.message).to.contain('background processing');
   });
   
-  test("Suggestions should have required metadata", function() {
-    expect(res.body.suggestions[0]).to.have.property('id');
-    expect(res.body.suggestions[0]).to.have.property('type');
-    expect(res.body.suggestions[0]).to.have.property('priority');
-    expect(res.body.suggestions[0]).to.have.property('impact');
-    expect(res.body.suggestions[0]).to.have.property('section');
-    expect(res.body.suggestions[0]).to.have.property('suggested');
-    expect(res.body.suggestions[0]).to.have.property('reasoning');
+  test("Response should have timestamp", function() {
+    expect(res.body.timestamp).to.exist;
   });
   
-  test("Response should contain thread ID", function() {
-    expect(res.body.threadId).to.exist;
-    expect(res.body.threadId).to.equal("rsm_pCOywDN3MwEyJPjfLt-bn_tailored_001");
+  test("Process ID should follow expected format", function() {
+    expect(res.body.processId).to.match(/^tailor_\d{8}_[a-fA-F0-9-]{36}$/);
   });
 }

@@ -27,6 +27,13 @@ type Config struct {
 		MaxRetries int           `yaml:"max_retries" default:"3"`
 	} `yaml:"workers"`
 
+	BackgroundTasks struct {
+		MaxConcurrentTasks int           `yaml:"max_concurrent_tasks" default:"50"`
+		TaskTimeout        time.Duration `yaml:"task_timeout" default:"300s"`
+		CleanupInterval    time.Duration `yaml:"cleanup_interval" default:"1h"`
+		MaxTaskAge         time.Duration `yaml:"max_task_age" default:"24h"`
+	} `yaml:"background_tasks"`
+
 	LLM struct {
 		Provider    string        `yaml:"provider" default:"claude"`
 		APIKey      string        `yaml:"api_key"`
@@ -93,6 +100,11 @@ func LoadConfig(configPath string) (*Config, error) {
 	config.Workers.RateLimit = 60
 	config.Workers.Timeout = 30 * time.Second
 	config.Workers.MaxRetries = 3
+
+	config.BackgroundTasks.MaxConcurrentTasks = 50
+	config.BackgroundTasks.TaskTimeout = 300 * time.Second
+	config.BackgroundTasks.CleanupInterval = 1 * time.Hour
+	config.BackgroundTasks.MaxTaskAge = 24 * time.Hour
 
 	config.LLM.Provider = "claude"
 	config.LLM.MaxTokens = 4096

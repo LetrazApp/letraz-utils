@@ -12,6 +12,12 @@ workers:
   timeout: "30s"
   max_retries: 3
 
+background_tasks:
+  max_concurrent_tasks: 50
+  task_timeout: "300s"
+  cleanup_interval: "1h"
+  max_task_age: "24h"
+
 llm:
   provider: "claude"
   api_key: ""  # Set via environment variable LLM_API_KEY

@@ -3,6 +3,7 @@ package routes
 import (
 	"letraz-utils/internal/api/handlers"
 	"letraz-utils/internal/api/middleware"
+	"letraz-utils/internal/background"
 	"letraz-utils/internal/config"
 	"letraz-utils/internal/llm"
 	"letraz-utils/internal/scraper/workers"
@@ -13,7 +14,7 @@ import (
 )
 
 // SetupRoutes configures all API routes
-func SetupRoutes(e *echo.Echo, cfg *config.Config, poolManager *workers.PoolManager, llmManager *llm.Manager) {
+func SetupRoutes(e *echo.Echo, cfg *config.Config, poolManager *workers.PoolManager, llmManager *llm.Manager, taskManager background.TaskManager) {
 	// Global middleware
 	e.Use(echomiddleware.Logger())
 	e.Use(echomiddleware.Recover())
@@ -37,12 +38,12 @@ func SetupRoutes(e *echo.Echo, cfg *config.Config, poolManager *workers.PoolMana
 	// API v1 routes
 	v1 := e.Group("/api/v1")
 	{
-		v1.POST("/scrape", handlers.ScrapeHandler(cfg, poolManager))
+		v1.POST("/scrape", handlers.ScrapeHandler(cfg, poolManager, taskManager))
 
 		// Resume tailoring routes
 		resume := v1.Group("/resume")
 		{
-			resume.POST("/tailor", handlers.TailorResumeHandler(cfg, llmManager))
+			resume.POST("/tailor", handlers.TailorResumeHandler(cfg, llmManager, taskManager))
 		}
 
 		// Worker monitoring routes
