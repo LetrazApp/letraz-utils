@@ -50,7 +50,7 @@ logging:
   level: "debug"  # Changed from "warn" to "debug" for troubleshooting captcha issues
   format: "json"
   output: "stdout"
-  
+
   # New adapter-based logging configuration
   adapters:
     # Console output for immediate feedback
@@ -60,7 +60,7 @@ logging:
       options:
         format: "json"
         colorized: false
-    
+
     # Application log file
     - name: "app_log"
       type: "file"
@@ -74,7 +74,7 @@ logging:
         create_dirs: true
         sync_on_write: false
         rotation_policy: "size"
-    
+
     # Betterstack telemetry logging
     - name: "betterstack"
       type: "betterstack"
