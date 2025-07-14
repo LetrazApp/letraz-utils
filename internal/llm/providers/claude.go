@@ -9,10 +9,11 @@ import (
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
-	"github.com/sirupsen/logrus"
 
 	"letraz-utils/internal/config"
 	"letraz-utils/internal/llm/processors"
+	"letraz-utils/internal/logging"
+	"letraz-utils/internal/logging/types"
 	"letraz-utils/pkg/models"
 	"letraz-utils/pkg/utils"
 )
@@ -22,7 +23,7 @@ type ClaudeProvider struct {
 	client      anthropic.Client
 	config      *config.Config
 	htmlCleaner *processors.HTMLCleaner
-	logger      *logrus.Logger
+	logger      types.Logger
 }
 
 // NewClaudeProvider creates a new Claude provider instance
@@ -35,7 +36,7 @@ func NewClaudeProvider(cfg *config.Config) *ClaudeProvider {
 		client:      client,
 		config:      cfg,
 		htmlCleaner: processors.NewHTMLCleaner(),
-		logger:      utils.GetLogger(),
+		logger:      logging.GetGlobalLogger(),
 	}
 }
 
@@ -43,11 +44,11 @@ func NewClaudeProvider(cfg *config.Config) *ClaudeProvider {
 func (cp *ClaudeProvider) ExtractJobData(ctx context.Context, html, url string) (*models.Job, error) {
 	startTime := time.Now()
 
-	cp.logger.WithFields(logrus.Fields{
+	cp.logger.Info("Starting job data extraction with Claude", map[string]interface{}{
 		"url":         url,
 		"html_length": len(html),
 		"provider":    "claude",
-	}).Info("Starting job data extraction with Claude")
+	})
 
 	// Clean and preprocess HTML
 	cleanedContent, err := cp.htmlCleaner.ExtractJobContent(html)
@@ -59,7 +60,9 @@ func (cp *ClaudeProvider) ExtractJobData(ctx context.Context, html, url string) 
 	maxContentLength := cp.config.LLM.MaxTokens * 3 // Rough estimation: 3 chars per token
 	if len(cleanedContent) > maxContentLength {
 		cleanedContent = cleanedContent[:maxContentLength] + "..."
-		cp.logger.WithField("url", url).Debug("Content truncated to fit token limits")
+		cp.logger.Debug("Content truncated to fit token limits", map[string]interface{}{
+			"url": url,
+		})
 	}
 
 	// Create the prompt for Claude
@@ -79,27 +82,27 @@ func (cp *ClaudeProvider) ExtractJobData(ctx context.Context, html, url string) 
 	})
 
 	if err != nil {
-		cp.logger.WithFields(logrus.Fields{
+		cp.logger.Error("Claude API call failed", map[string]interface{}{
 			"url":      url,
 			"provider": "claude",
 			"error":    err.Error(),
-		}).Error("Claude API call failed")
+		})
 		return nil, fmt.Errorf("failed to call Claude API: %w", err)
 	}
 
-	cp.logger.WithFields(logrus.Fields{
+	cp.logger.Debug("Claude API call successful, parsing response", map[string]interface{}{
 		"url":      url,
 		"provider": "claude",
-	}).Debug("Claude API call successful, parsing response")
+	})
 
 	// Parse the response
 	job, err := cp.parseClaudeResponse(response, url)
 	if err != nil {
-		cp.logger.WithFields(logrus.Fields{
+		cp.logger.Error("Failed to parse Claude response", map[string]interface{}{
 			"url":      url,
 			"provider": "claude",
 			"error":    err.Error(),
-		}).Error("Failed to parse Claude response")
+		})
 
 		// Don't wrap CustomError types so they can be properly handled upstream
 		if _, ok := err.(*utils.CustomError); ok {
@@ -110,11 +113,11 @@ func (cp *ClaudeProvider) ExtractJobData(ctx context.Context, html, url string) 
 	}
 
 	processingTime := time.Since(startTime)
-	cp.logger.WithFields(logrus.Fields{
+	cp.logger.Info("Job data extraction completed successfully", map[string]interface{}{
 		"url":             url,
 		"processing_time": processingTime,
 		"provider":        "claude",
-	}).Info("Job data extraction completed successfully")
+	})
 
 	return job, nil
 }
@@ -203,7 +206,9 @@ func (cp *ClaudeProvider) parseClaudeResponse(response *anthropic.Message, url s
 		responseText = strings.TrimSpace(responseText)
 	}
 
-	cp.logger.WithField("response_text", responseText).Debug("Claude response received")
+	cp.logger.Debug("Claude response received", map[string]interface{}{
+		"response_text": responseText,
+	})
 
 	// Parse JSON response with validation fields
 	var rawResponse struct {
@@ -274,12 +279,12 @@ func (cp *ClaudeProvider) parseClaudeResponse(response *anthropic.Message, url s
 func (cp *ClaudeProvider) TailorResume(ctx context.Context, baseResume *models.BaseResume, job *models.Job) (*models.TailoredResume, []models.Suggestion, error) {
 	startTime := time.Now()
 
-	cp.logger.WithFields(logrus.Fields{
+	cp.logger.Info("Starting resume tailoring with Claude", map[string]interface{}{
 		"resume_id": baseResume.ID,
 		"job_title": job.Title,
 		"company":   job.CompanyName,
 		"provider":  "claude",
-	}).Info("Starting resume tailoring with Claude")
+	})
 
 	// Create the comprehensive prompt for resume tailoring
 	prompt := cp.buildResumeTailoringPrompt(baseResume, job)
@@ -298,37 +303,37 @@ func (cp *ClaudeProvider) TailorResume(ctx context.Context, baseResume *models.B
 	})
 
 	if err != nil {
-		cp.logger.WithFields(logrus.Fields{
+		cp.logger.Error("Claude API call failed for resume tailoring", map[string]interface{}{
 			"resume_id": baseResume.ID,
 			"provider":  "claude",
 			"error":     err.Error(),
-		}).Error("Claude API call failed for resume tailoring")
+		})
 		return nil, nil, fmt.Errorf("failed to call Claude API for resume tailoring: %w", err)
 	}
 
-	cp.logger.WithFields(logrus.Fields{
+	cp.logger.Debug("Claude API call successful for resume tailoring, parsing response", map[string]interface{}{
 		"resume_id": baseResume.ID,
 		"provider":  "claude",
-	}).Debug("Claude API call successful for resume tailoring, parsing response")
+	})
 
 	// Parse the response
 	tailoredResume, suggestions, err := cp.parseResumeTailoringResponse(response, baseResume, job)
 	if err != nil {
-		cp.logger.WithFields(logrus.Fields{
+		cp.logger.Error("Failed to parse Claude resume tailoring response", map[string]interface{}{
 			"resume_id": baseResume.ID,
 			"provider":  "claude",
 			"error":     err.Error(),
-		}).Error("Failed to parse Claude resume tailoring response")
+		})
 		return nil, nil, fmt.Errorf("failed to parse Claude resume tailoring response: %w", err)
 	}
 
 	processingTime := time.Since(startTime)
-	cp.logger.WithFields(logrus.Fields{
+	cp.logger.Info("Resume tailoring completed successfully", map[string]interface{}{
 		"resume_id":         baseResume.ID,
 		"processing_time":   processingTime,
 		"provider":          "claude",
 		"suggestions_count": len(suggestions),
-	}).Info("Resume tailoring completed successfully")
+	})
 
 	return tailoredResume, suggestions, nil
 }
@@ -337,7 +342,7 @@ func (cp *ClaudeProvider) TailorResume(ctx context.Context, baseResume *models.B
 func (cp *ClaudeProvider) TailorResumeWithRawResponse(ctx context.Context, baseResume *models.BaseResume, job *models.Job) (*models.TailoredResume, []models.Suggestion, string, error) {
 	startTime := time.Now()
 
-	cp.logger.WithFields(logrus.Fields{
+	cp.logger.WithFields(map[string]interface{}{
 		"resume_id": baseResume.ID,
 		"job_title": job.Title,
 		"company":   job.CompanyName,
@@ -361,18 +366,18 @@ func (cp *ClaudeProvider) TailorResumeWithRawResponse(ctx context.Context, baseR
 	})
 
 	if err != nil {
-		cp.logger.WithFields(logrus.Fields{
+		cp.logger.Error("Claude API call failed for resume tailoring", map[string]interface{}{
 			"resume_id": baseResume.ID,
 			"provider":  "claude",
 			"error":     err.Error(),
-		}).Error("Claude API call failed for resume tailoring")
+		})
 		return nil, nil, "", fmt.Errorf("failed to call Claude API for resume tailoring: %w", err)
 	}
 
-	cp.logger.WithFields(logrus.Fields{
+	cp.logger.Debug("Claude API call successful for resume tailoring, parsing response", map[string]interface{}{
 		"resume_id": baseResume.ID,
 		"provider":  "claude",
-	}).Debug("Claude API call successful for resume tailoring, parsing response")
+	})
 
 	// Get the raw response text first
 	var rawResponse string
@@ -384,21 +389,21 @@ func (cp *ClaudeProvider) TailorResumeWithRawResponse(ctx context.Context, baseR
 	// Parse the response
 	tailoredResume, suggestions, err := cp.parseResumeTailoringResponse(response, baseResume, job)
 	if err != nil {
-		cp.logger.WithFields(logrus.Fields{
+		cp.logger.Error("Failed to parse Claude resume tailoring response", map[string]interface{}{
 			"resume_id": baseResume.ID,
 			"provider":  "claude",
 			"error":     err.Error(),
-		}).Error("Failed to parse Claude resume tailoring response")
+		})
 		return nil, nil, rawResponse, fmt.Errorf("failed to parse Claude resume tailoring response: %w", err)
 	}
 
 	processingTime := time.Since(startTime)
-	cp.logger.WithFields(logrus.Fields{
+	cp.logger.Info("Resume tailoring with raw response completed successfully", map[string]interface{}{
 		"resume_id":         baseResume.ID,
 		"processing_time":   processingTime,
 		"provider":          "claude",
 		"suggestions_count": len(suggestions),
-	}).Info("Resume tailoring with raw response completed successfully")
+	})
 
 	return tailoredResume, suggestions, rawResponse, nil
 }
@@ -576,10 +581,14 @@ func (cp *ClaudeProvider) parseResumeTailoringResponse(response *anthropic.Messa
 		responseText = strings.TrimSpace(responseText)
 	}
 
-	cp.logger.WithField("response_length", len(responseText)).Debug("Claude resume tailoring response received")
+	cp.logger.Debug("Claude resume tailoring response received", map[string]interface{}{
+		"response_length": len(responseText),
+	})
 
 	// Log the actual response for debugging
-	cp.logger.WithField("raw_response", responseText).Debug("Raw Claude response for debugging")
+	cp.logger.Debug("Raw Claude response for debugging", map[string]interface{}{
+		"raw_response": responseText,
+	})
 
 	// Parse JSON response
 	var tailoringResponse struct {
@@ -589,7 +598,9 @@ func (cp *ClaudeProvider) parseResumeTailoringResponse(response *anthropic.Messa
 
 	if err := json.Unmarshal([]byte(responseText), &tailoringResponse); err != nil {
 		// Try to parse as old format with string suggestions as fallback
-		cp.logger.WithField("parse_error", err.Error()).Warn("Failed to parse structured suggestions, trying fallback")
+		cp.logger.Warn("Failed to parse structured suggestions, trying fallback", map[string]interface{}{
+			"parse_error": err.Error(),
+		})
 
 		var fallbackResponse struct {
 			TailoredResume models.TailoredResume `json:"tailored_resume"`

@@ -16,11 +16,11 @@ import (
 func (s *Server) TailorResume(ctx context.Context, req *letrazv1.TailorResumeRequest) (*letrazv1.TailorResumeResponse, error) {
 	requestID := utils.GenerateRequestID()
 
-	s.logger.WithFields(map[string]interface{}{
+	s.logger.Info("gRPC async tailor resume request received", map[string]interface{}{
 		"request_id": requestID,
 		"resume_id":  req.GetResumeId(),
 		"method":     "TailorResume",
-	}).Info("gRPC async tailor resume request received")
+	})
 
 	// Validate request
 	if req.GetBaseResume() == nil {
@@ -35,9 +35,9 @@ func (s *Server) TailorResume(ctx context.Context, req *letrazv1.TailorResumeReq
 
 	// Check LLM manager health
 	if !s.llmManager.IsHealthy() {
-		s.logger.WithFields(map[string]interface{}{
+		s.logger.Error("LLM manager is not healthy", map[string]interface{}{
 			"request_id": requestID,
-		}).Error("LLM manager is not healthy")
+		})
 
 		return &letrazv1.TailorResumeResponse{
 			ProcessId: "",
@@ -62,23 +62,23 @@ func (s *Server) TailorResume(ctx context.Context, req *letrazv1.TailorResumeReq
 	// Generate process ID for background task
 	processID := utils.GenerateTailorProcessID()
 
-	s.logger.WithFields(map[string]interface{}{
+	s.logger.Info("Submitting resume tailoring task for background processing", map[string]interface{}{
 		"request_id":     requestID,
 		"process_id":     processID,
 		"base_resume_id": req.GetBaseResume().GetId(),
 		"resume_id":      req.GetResumeId(),
 		"job_title":      req.GetJob().GetTitle(),
 		"company":        req.GetJob().GetCompanyName(),
-	}).Info("Submitting resume tailoring task for background processing")
+	})
 
 	// Submit task to background task manager (async processing)
 	err := s.taskManager.SubmitTailorTask(ctx, processID, tailorReq, s.llmManager, s.cfg)
 	if err != nil {
-		s.logger.WithFields(map[string]interface{}{
+		s.logger.Error("Failed to submit background tailor task", map[string]interface{}{
 			"request_id": requestID,
 			"process_id": processID,
 			"error":      err.Error(),
-		}).Error("Failed to submit background tailor task")
+		})
 
 		return &letrazv1.TailorResumeResponse{
 			ProcessId: processID,
@@ -90,11 +90,11 @@ func (s *Server) TailorResume(ctx context.Context, req *letrazv1.TailorResumeReq
 	}
 
 	// Return immediate response with process ID (async pattern)
-	s.logger.WithFields(map[string]interface{}{
+	s.logger.Info("Resume tailoring task submitted successfully for background processing", map[string]interface{}{
 		"request_id": requestID,
 		"process_id": processID,
 		"resume_id":  req.GetResumeId(),
-	}).Info("Resume tailoring task submitted successfully for background processing")
+	})
 
 	return &letrazv1.TailorResumeResponse{
 		ProcessId: processID,

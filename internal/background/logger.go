@@ -6,19 +6,19 @@ import (
 	"os"
 	"time"
 
-	"github.com/sirupsen/logrus"
-	"letraz-utils/pkg/utils"
+	"letraz-utils/internal/logging"
+	"letraz-utils/internal/logging/types"
 )
 
 // TaskCompletionLogger handles structured logging for task completion
 type TaskCompletionLogger struct {
-	logger *logrus.Logger
+	logger types.Logger
 }
 
 // NewTaskCompletionLogger creates a new task completion logger
 func NewTaskCompletionLogger() *TaskCompletionLogger {
 	return &TaskCompletionLogger{
-		logger: utils.GetLogger(),
+		logger: logging.GetGlobalLogger(),
 	}
 }
 
@@ -58,7 +58,9 @@ func (l *TaskCompletionLogger) LogTaskCompletion(result *TaskResult) error {
 	// Marshal to JSON
 	jsonData, err := json.Marshal(logEntry)
 	if err != nil {
-		l.logger.WithError(err).Error("Failed to marshal task completion log")
+		l.logger.Error("Failed to marshal task completion log", map[string]interface{}{
+			"error": err.Error(),
+		})
 		return fmt.Errorf("failed to marshal task completion log: %w", err)
 	}
 
@@ -73,52 +75,52 @@ func (l *TaskCompletionLogger) LogTaskCompletion(result *TaskResult) error {
 		processingTimeForLog = "not set"
 	}
 
-	l.logger.WithFields(map[string]interface{}{
+	l.logger.Info("Background task completed", map[string]interface{}{
 		"process_id":      result.ProcessID,
 		"status":          result.Status,
 		"operation":       result.Type,
 		"processing_time": processingTimeForLog,
-	}).Info("Background task completed")
+	})
 
 	return nil
 }
 
 // LogTaskStart logs when a task starts processing
 func (l *TaskCompletionLogger) LogTaskStart(processID string, taskType TaskType) {
-	l.logger.WithFields(map[string]interface{}{
+	l.logger.Info("Background task started", map[string]interface{}{
 		"process_id": processID,
 		"operation":  taskType,
 		"status":     "PROCESSING",
-	}).Info("Background task started")
+	})
 }
 
 // LogTaskAccepted logs when a task is accepted for processing
 func (l *TaskCompletionLogger) LogTaskAccepted(processID string, taskType TaskType) {
-	l.logger.WithFields(map[string]interface{}{
+	l.logger.Info("Background task accepted", map[string]interface{}{
 		"process_id": processID,
 		"operation":  taskType,
 		"status":     "ACCEPTED",
-	}).Info("Background task accepted")
+	})
 }
 
 // LogTaskError logs task errors during processing
 func (l *TaskCompletionLogger) LogTaskError(processID string, taskType TaskType, err error) {
-	l.logger.WithFields(map[string]interface{}{
+	l.logger.Error("Background task failed", map[string]interface{}{
 		"process_id": processID,
 		"operation":  taskType,
 		"status":     "FAILURE",
 		"error":      err.Error(),
-	}).Error("Background task failed")
+	})
 }
 
 // LogTaskSuccess logs successful task completion
 func (l *TaskCompletionLogger) LogTaskSuccess(processID string, taskType TaskType, processingTime time.Duration) {
-	l.logger.WithFields(map[string]interface{}{
+	l.logger.Info("Background task completed successfully", map[string]interface{}{
 		"process_id":      processID,
 		"operation":       taskType,
 		"status":          "SUCCESS",
 		"processing_time": processingTime,
-	}).Info("Background task completed successfully")
+	})
 }
 
 // LogTaskMetrics logs task metrics for monitoring
@@ -134,7 +136,7 @@ func (l *TaskCompletionLogger) LogTaskMetrics(processID string, taskType TaskTyp
 		logFields[key] = value
 	}
 
-	l.logger.WithFields(logFields).Info("Background task metrics")
+	l.logger.Info("Background task metrics", logFields)
 }
 
 // CreateTaskCompletionLog creates a TaskCompletionLog from a TaskResult

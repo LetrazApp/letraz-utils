@@ -9,7 +9,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"letraz-utils/pkg/utils"
+	"letraz-utils/internal/logging"
 )
 
 // MetricsData holds metrics information for gRPC calls
@@ -148,7 +148,7 @@ func MetricsInterceptor() grpc.UnaryServerInterceptor {
 		collector.RecordMetrics(info.FullMethod, duration, err)
 
 		// Log metrics for monitoring
-		logger := utils.GetLogger()
+		logger := logging.GetGlobalLogger()
 		statusCode := codes.OK
 		if err != nil {
 			if s, ok := status.FromError(err); ok {
@@ -158,12 +158,12 @@ func MetricsInterceptor() grpc.UnaryServerInterceptor {
 			}
 		}
 
-		logger.WithFields(map[string]interface{}{
+		logger.Debug("gRPC method metrics recorded", map[string]interface{}{
 			"method":      info.FullMethod,
 			"duration_ms": duration.Milliseconds(),
 			"status_code": statusCode.String(),
 			"type":        "grpc_metrics",
-		}).Debug("gRPC method metrics recorded")
+		})
 
 		return resp, err
 	}
@@ -189,7 +189,7 @@ func StreamMetricsInterceptor() grpc.StreamServerInterceptor {
 		collector.RecordMetrics(info.FullMethod, duration, err)
 
 		// Log metrics for monitoring
-		logger := utils.GetLogger()
+		logger := logging.GetGlobalLogger()
 		statusCode := codes.OK
 		if err != nil {
 			if s, ok := status.FromError(err); ok {
@@ -199,12 +199,12 @@ func StreamMetricsInterceptor() grpc.StreamServerInterceptor {
 			}
 		}
 
-		logger.WithFields(map[string]interface{}{
+		logger.Debug("gRPC stream metrics recorded", map[string]interface{}{
 			"method":      info.FullMethod,
 			"duration_ms": duration.Milliseconds(),
 			"status_code": statusCode.String(),
 			"type":        "grpc_stream_metrics",
-		}).Debug("gRPC stream metrics recorded")
+		})
 
 		return err
 	}
@@ -215,7 +215,7 @@ func LogMetricsSummary() {
 	collector := GetMetricsCollector()
 	allMetrics := collector.GetAllMetrics()
 
-	logger := utils.GetLogger()
+	logger := logging.GetGlobalLogger()
 
 	for method, methodMetrics := range allMetrics {
 		successRate := float64(0)
@@ -223,7 +223,7 @@ func LogMetricsSummary() {
 			successRate = float64(methodMetrics.Metrics.SuccessCount) / float64(methodMetrics.Metrics.RequestCount) * 100
 		}
 
-		logger.WithFields(map[string]interface{}{
+		logger.Info("gRPC method metrics summary", map[string]interface{}{
 			"method":           method,
 			"request_count":    methodMetrics.Metrics.RequestCount,
 			"success_count":    methodMetrics.Metrics.SuccessCount,
@@ -231,7 +231,7 @@ func LogMetricsSummary() {
 			"success_rate":     successRate,
 			"average_duration": methodMetrics.Metrics.AverageDuration,
 			"type":             "grpc_metrics_summary",
-		}).Info("gRPC method metrics summary")
+		})
 	}
 }
 

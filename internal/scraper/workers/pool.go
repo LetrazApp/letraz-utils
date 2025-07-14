@@ -9,11 +9,10 @@ import (
 	"time"
 
 	"letraz-utils/internal/config"
+	"letraz-utils/internal/logging"
 	"letraz-utils/internal/scraper"
 	"letraz-utils/pkg/models"
 	"letraz-utils/pkg/utils"
-
-	"github.com/sirupsen/logrus"
 )
 
 // JobResult represents the result of a scraping job
@@ -42,7 +41,7 @@ type Worker struct {
 	JobChan  chan ScrapeJob
 	QuitChan chan bool
 	Pool     *WorkerPool
-	logger   *logrus.Logger
+	logger   logging.Logger
 }
 
 // WorkerPool manages multiple worker goroutines and job queue
@@ -53,7 +52,7 @@ type WorkerPool struct {
 	dispatcher     *Dispatcher
 	rateLimiter    *RateLimiter
 	scraperFactory scraper.ScraperFactory
-	logger         *logrus.Logger
+	logger         logging.Logger
 	mu             sync.RWMutex
 	running        bool
 	stats          *PoolStats
@@ -82,7 +81,7 @@ type PoolStatsData struct {
 
 // NewWorkerPool creates a new worker pool instance
 func NewWorkerPool(cfg *config.Config, scraperFactory scraper.ScraperFactory) *WorkerPool {
-	logger := utils.GetLogger()
+	logger := logging.GetGlobalLogger()
 
 	pool := &WorkerPool{
 		config:         cfg,
@@ -101,7 +100,7 @@ func NewWorkerPool(cfg *config.Config, scraperFactory scraper.ScraperFactory) *W
 			JobChan:  make(chan ScrapeJob),
 			QuitChan: make(chan bool),
 			Pool:     pool,
-			logger:   logger.WithField("worker_id", i+1).Logger,
+			logger:   logger,
 		}
 		pool.workers[i] = worker
 	}
@@ -109,7 +108,9 @@ func NewWorkerPool(cfg *config.Config, scraperFactory scraper.ScraperFactory) *W
 	// Initialize dispatcher
 	pool.dispatcher = NewDispatcher(pool.jobQueue, pool.workers)
 
-	logger.WithField("pool_size", cfg.Workers.PoolSize).Info("Worker pool initialized")
+	logger.Info("Worker pool initialized", map[string]interface{}{
+		"pool_size": cfg.Workers.PoolSize,
+	})
 	return pool
 }
 
@@ -122,25 +123,29 @@ func (wp *WorkerPool) Start() error {
 		return fmt.Errorf("worker pool is already running")
 	}
 
-	wp.logger.Info("Starting worker pool")
-	wp.logger.WithField("worker_count", len(wp.workers)).Debug("DEBUG: About to start workers")
+	wp.logger.Info("Starting worker pool", nil)
+	wp.logger.Debug("DEBUG: About to start workers", map[string]interface{}{
+		"worker_count": len(wp.workers),
+	})
 
 	// Start dispatcher
 	wp.dispatcher.Start()
-	wp.logger.Debug("DEBUG: Dispatcher started")
+	wp.logger.Debug("DEBUG: Dispatcher started", nil)
 
 	// Start workers
 	for i, worker := range wp.workers {
 		go worker.Start()
-		wp.logger.WithFields(logrus.Fields{
+		wp.logger.Debug("DEBUG: Worker started", map[string]interface{}{
 			"worker_id": worker.ID,
 			"index":     i,
-		}).Debug("DEBUG: Worker started")
+		})
 	}
 
 	wp.running = true
-	wp.logger.WithField("workers", len(wp.workers)).Info("Worker pool started successfully")
-	wp.logger.Debug("DEBUG: Worker pool start completed")
+	wp.logger.Info("Worker pool started successfully", map[string]interface{}{
+		"workers": len(wp.workers),
+	})
+	wp.logger.Debug("DEBUG: Worker pool start completed", nil)
 	return nil
 }
 
@@ -153,7 +158,7 @@ func (wp *WorkerPool) Stop() error {
 		return nil
 	}
 
-	wp.logger.Info("Stopping worker pool")
+	wp.logger.Info("Stopping worker pool", nil)
 
 	// Stop dispatcher first
 	wp.dispatcher.Stop()
@@ -167,7 +172,7 @@ func (wp *WorkerPool) Stop() error {
 	close(wp.jobQueue)
 
 	wp.running = false
-	wp.logger.Info("Worker pool stopped successfully")
+	wp.logger.Info("Worker pool stopped successfully", nil)
 	return nil
 }
 
@@ -201,10 +206,10 @@ func (wp *WorkerPool) SubmitJob(ctx context.Context, url string, options *models
 	// Submit job to queue
 	select {
 	case wp.jobQueue <- job:
-		wp.logger.WithFields(logrus.Fields{
+		wp.logger.Info("Job submitted to queue", map[string]interface{}{
 			"job_id": job.ID,
 			"url":    url,
-		}).Info("Job submitted to queue")
+		})
 	case <-time.After(5 * time.Second):
 		return nil, fmt.Errorf("job queue is full, request timed out")
 	}
@@ -256,14 +261,14 @@ func (wp *WorkerPool) GetStats() PoolStatsData {
 
 // Start starts the worker goroutine
 func (w *Worker) Start() {
-	w.logger.Info("Worker started")
+	w.logger.Info("Worker started", nil)
 
 	for {
 		select {
 		case job := <-w.JobChan:
 			w.processJob(job)
 		case <-w.QuitChan:
-			w.logger.Info("Worker stopping")
+			w.logger.Info("Worker stopping", nil)
 			return
 		}
 	}
@@ -303,10 +308,10 @@ func (w *Worker) processJob(job ScrapeJob) {
 	select {
 	case job.ResultChan <- result:
 	case <-time.After(5 * time.Second):
-		w.logger.WithFields(logrus.Fields{
+		w.logger.Error("WORKER: Result channel timeout - failed to send result back to client", map[string]interface{}{
 			"job_id":    job.ID,
 			"worker_id": w.ID,
-		}).Error("WORKER: Result channel timeout - failed to send result back to client")
+		})
 	}
 }
 
@@ -340,12 +345,12 @@ func (w *Worker) scrapeJob(job ScrapeJob) JobResult {
 
 	for attempt := 0; attempt <= maxRetries; attempt++ {
 		if attempt > 0 {
-			w.logger.WithFields(logrus.Fields{
+			w.logger.Debug("Retrying scraping job", map[string]interface{}{
 				"job_id":    job.ID,
 				"worker_id": w.ID,
 				"attempt":   attempt + 1,
 				"url":       job.URL,
-			}).Debug("Retrying scraping job")
+			})
 
 			// Exponential backoff
 			backoffDelay := time.Duration(attempt) * time.Second
@@ -370,13 +375,13 @@ func (w *Worker) scrapeJob(job ScrapeJob) JobResult {
 				// For "not job posting" errors, this is actually a successful determination
 				if customErr, ok := err.(*utils.CustomError); ok && customErr.Code == http.StatusUnprocessableEntity {
 					w.Pool.rateLimiter.RecordSuccess(domain)
-					w.logger.WithFields(logrus.Fields{
+					w.logger.Info("LLM successfully determined content is not a job posting", map[string]interface{}{
 						"job_id":    job.ID,
 						"worker_id": w.ID,
 						"attempt":   attempt + 1,
 						"mode":      "llm",
 						"reason":    "not_job_posting",
-					}).Info("LLM successfully determined content is not a job posting")
+					})
 
 					// Don't retry "not job posting" errors - return immediately
 					return result
@@ -385,14 +390,14 @@ func (w *Worker) scrapeJob(job ScrapeJob) JobResult {
 				// Check if this is a non-retryable error (API auth, missing key, etc.)
 				if isNonRetryableError(err) {
 					w.Pool.rateLimiter.RecordFailure(domain, err)
-					w.logger.WithFields(logrus.Fields{
+					w.logger.Error("LLM processing failed with non-retryable error", map[string]interface{}{
 						"job_id":    job.ID,
 						"worker_id": w.ID,
 						"attempt":   attempt + 1,
 						"error":     err.Error(),
 						"mode":      "llm",
 						"reason":    "non_retryable_error",
-					}).Error("LLM processing failed with non-retryable error")
+					})
 
 					// Return immediately for non-retryable errors
 					return result
@@ -401,13 +406,13 @@ func (w *Worker) scrapeJob(job ScrapeJob) JobResult {
 				// For retryable errors, record failure and continue retry loop
 				lastErr = err
 				w.Pool.rateLimiter.RecordFailure(domain, err)
-				w.logger.WithFields(logrus.Fields{
+				w.logger.Debug("LLM processing failed, will retry", map[string]interface{}{
 					"job_id":    job.ID,
 					"worker_id": w.ID,
 					"attempt":   attempt + 1,
 					"error":     err.Error(),
 					"mode":      "llm",
-				}).Debug("LLM processing failed, will retry")
+				})
 
 				// Continue to retry for technical failures
 				continue
@@ -424,13 +429,13 @@ func (w *Worker) scrapeJob(job ScrapeJob) JobResult {
 			jobPosting, err := scraper.ScrapeJobLegacy(job.Context, job.URL, job.Options)
 			if err != nil {
 				lastErr = err
-				w.logger.WithFields(logrus.Fields{
+				w.logger.Debug("Scraping attempt failed (legacy mode)", map[string]interface{}{
 					"job_id":    job.ID,
 					"worker_id": w.ID,
 					"attempt":   attempt + 1,
 					"error":     err.Error(),
 					"mode":      "legacy",
-				}).Debug("Scraping attempt failed (legacy mode)")
+				})
 
 				// Record failure for rate limiting
 				w.Pool.rateLimiter.RecordFailure(domain, err)
@@ -442,14 +447,14 @@ func (w *Worker) scrapeJob(job ScrapeJob) JobResult {
 			result.UsedLLM = false
 			w.Pool.rateLimiter.RecordSuccess(domain)
 
-			w.logger.WithFields(logrus.Fields{
+			w.logger.Debug("Scraping job completed successfully (legacy mode)", map[string]interface{}{
 				"job_id":    job.ID,
 				"worker_id": w.ID,
 				"job_title": jobPosting.Title,
 				"company":   jobPosting.Company,
 				"attempt":   attempt + 1,
 				"mode":      "legacy",
-			}).Debug("Scraping job completed successfully (legacy mode)")
+			})
 		}
 
 		return result

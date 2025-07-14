@@ -35,14 +35,7 @@ func main() {
 
 	// Get the new logger instance
 	logger := logging.GetGlobalLogger()
-	logger.Info("Starting Letraz Job Scraper with new logging system")
-
-	// Log a test message to verify Betterstack integration
-	logger.Info("Testing Betterstack integration", map[string]interface{}{
-		"environment":         os.Getenv("GO_ENV"),
-		"betterstack_enabled": os.Getenv("BETTERSTACK_ENABLED"),
-		"timestamp":           time.Now().Unix(),
-	})
+	logger.Info("Starting Letraz Utils Service")
 
 	// Initialize LLM manager
 	llmManager := llm.NewManager(cfg)

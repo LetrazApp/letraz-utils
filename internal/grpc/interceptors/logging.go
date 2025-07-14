@@ -8,6 +8,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"letraz-utils/internal/logging"
 	"letraz-utils/pkg/utils"
 )
 
@@ -20,17 +21,17 @@ func LoggingInterceptor() grpc.UnaryServerInterceptor {
 		handler grpc.UnaryHandler,
 	) (interface{}, error) {
 		startTime := time.Now()
-		logger := utils.GetLogger()
+		logger := logging.GetGlobalLogger()
 
 		// Extract request ID from context if available
 		requestID := utils.GenerateRequestID()
 
 		// Log request start
-		logger.WithFields(map[string]interface{}{
+		logger.Info("gRPC request started", map[string]interface{}{
 			"request_id": requestID,
 			"method":     info.FullMethod,
 			"type":       "grpc_request_start",
-		}).Info("gRPC request started")
+		})
 
 		// Call the actual handler
 		resp, err := handler(ctx, req)
@@ -59,9 +60,9 @@ func LoggingInterceptor() grpc.UnaryServerInterceptor {
 
 		if err != nil {
 			logFields["error"] = err.Error()
-			logger.WithFields(logFields).Error("gRPC request failed")
+			logger.Error("gRPC request failed", logFields)
 		} else {
-			logger.WithFields(logFields).Info("gRPC request completed")
+			logger.Info("gRPC request completed", logFields)
 		}
 
 		return resp, err
@@ -77,17 +78,17 @@ func StreamLoggingInterceptor() grpc.StreamServerInterceptor {
 		handler grpc.StreamHandler,
 	) error {
 		startTime := time.Now()
-		logger := utils.GetLogger()
+		logger := logging.GetGlobalLogger()
 
 		// Generate request ID for stream
 		requestID := utils.GenerateRequestID()
 
 		// Log stream start
-		logger.WithFields(map[string]interface{}{
+		logger.Info("gRPC stream started", map[string]interface{}{
 			"request_id": requestID,
 			"method":     info.FullMethod,
 			"type":       "grpc_stream_start",
-		}).Info("gRPC stream started")
+		})
 
 		// Call the actual handler
 		err := handler(srv, ss)
@@ -116,9 +117,9 @@ func StreamLoggingInterceptor() grpc.StreamServerInterceptor {
 
 		if err != nil {
 			logFields["error"] = err.Error()
-			logger.WithFields(logFields).Error("gRPC stream failed")
+			logger.Error("gRPC stream failed", logFields)
 		} else {
-			logger.WithFields(logFields).Info("gRPC stream completed")
+			logger.Info("gRPC stream completed", logFields)
 		}
 
 		return err

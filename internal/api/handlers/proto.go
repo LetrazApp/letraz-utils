@@ -7,20 +7,20 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"letraz-utils/pkg/utils"
+	"letraz-utils/internal/logging"
 )
 
 // ProtoHandler serves the protobuf definition file
 func ProtoHandler() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		logger := utils.GetLogger()
+		logger := logging.GetGlobalLogger()
 
 		// Get the proto file path
 		protoPath := filepath.Join("api", "proto", "letraz", "v1", "letraz-utils.proto")
 
 		// Check if file exists
 		if _, err := os.Stat(protoPath); os.IsNotExist(err) {
-			logger.WithError(err).Error("Proto file not found")
+			logger.Error("Proto file not found", map[string]interface{}{"error": err})
 			return c.JSON(http.StatusNotFound, map[string]string{
 				"error": "Proto file not found",
 			})
@@ -29,7 +29,7 @@ func ProtoHandler() echo.HandlerFunc {
 		// Read the proto file
 		content, err := os.ReadFile(protoPath)
 		if err != nil {
-			logger.WithError(err).Error("Failed to read proto file")
+			logger.Error("Failed to read proto file", map[string]interface{}{"error": err})
 			return c.JSON(http.StatusInternalServerError, map[string]string{
 				"error": "Failed to read proto file",
 			})
@@ -47,10 +47,10 @@ func ProtoHandler() echo.HandlerFunc {
 			return c.NoContent(http.StatusNotModified)
 		}
 
-		logger.WithFields(map[string]interface{}{
+		logger.Info("Proto file served", map[string]interface{}{
 			"client_ip":  c.RealIP(),
 			"user_agent": c.Request().UserAgent(),
-		}).Info("Proto file served")
+		})
 
 		return c.Blob(http.StatusOK, "text/plain; charset=utf-8", content)
 	}

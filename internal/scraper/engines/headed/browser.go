@@ -11,9 +11,9 @@ import (
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
 	"github.com/go-rod/stealth"
-	"github.com/sirupsen/logrus"
 	"letraz-utils/internal/config"
-	"letraz-utils/pkg/utils"
+	"letraz-utils/internal/logging"
+	"letraz-utils/internal/logging/types"
 )
 
 // BrowserManager manages browser instances and pools
@@ -23,7 +23,7 @@ type BrowserManager struct {
 	browsers     []*rod.Browser
 	mu           sync.RWMutex
 	maxInstances int
-	logger       *logrus.Logger
+	logger       types.Logger
 }
 
 // BrowserInstance represents a managed browser instance
@@ -37,7 +37,7 @@ type BrowserInstance struct {
 
 // NewBrowserManager creates a new browser manager
 func NewBrowserManager(cfg *config.Config) *BrowserManager {
-	logger := utils.GetLogger()
+	logger := logging.GetGlobalLogger()
 
 	// Setup launcher with enhanced stealth mode and system browser
 	l := launcher.New().
@@ -49,9 +49,11 @@ func NewBrowserManager(cfg *config.Config) *BrowserManager {
 	// Use system-installed Chrome/Chromium instead of downloading
 	if chromePath := getSystemChromePath(); chromePath != "" {
 		l = l.Bin(chromePath)
-		logger.WithField("chrome_path", chromePath).Info("Using system Chrome browser")
+		logger.Info("Using system Chrome browser", map[string]interface{}{
+			"chrome_path": chromePath,
+		})
 	} else {
-		logger.Warn("System Chrome not found, Rod will download browser")
+		logger.Warn("System Chrome not found, Rod will download browser", map[string]interface{}{})
 	}
 
 	if cfg.Scraper.UserAgent != "" {
@@ -78,7 +80,9 @@ func (bm *BrowserManager) GetBrowser(ctx context.Context) (*BrowserInstance, err
 		if bm.isBrowserHealthy(browser) {
 			page, err := bm.createStealthPage(browser)
 			if err != nil {
-				bm.logger.WithError(err).Warn("Failed to create page from existing browser")
+				bm.logger.Warn("Failed to create page from existing browser", map[string]interface{}{
+					"error": err.Error(),
+				})
 				continue
 			}
 
@@ -135,7 +139,7 @@ func (bm *BrowserManager) createBrowser(ctx context.Context) (*rod.Browser, erro
 		return nil, fmt.Errorf("failed to connect to browser: %w", err)
 	}
 
-	bm.logger.Info("New browser instance created")
+	bm.logger.Info("New browser instance created", map[string]interface{}{})
 	return browser, nil
 }
 
@@ -153,7 +157,9 @@ func (bm *BrowserManager) createStealthPage(browser *rod.Browser) (*rod.Page, er
 		DeviceScaleFactor: 1,
 	})
 	if err != nil {
-		bm.logger.WithError(err).Warn("Failed to set viewport")
+		bm.logger.Warn("Failed to set viewport", map[string]interface{}{
+			"error": err.Error(),
+		})
 	}
 
 	// Set user agent if configured
@@ -162,7 +168,9 @@ func (bm *BrowserManager) createStealthPage(browser *rod.Browser) (*rod.Page, er
 			UserAgent: bm.config.Scraper.UserAgent,
 		})
 		if err != nil {
-			bm.logger.WithError(err).Warn("Failed to set user agent")
+			bm.logger.Warn("Failed to set user agent", map[string]interface{}{
+				"error": err.Error(),
+			})
 		}
 	}
 
@@ -183,7 +191,10 @@ func (bm *BrowserManager) createStealthPage(browser *rod.Browser) (*rod.Page, er
 	for name, value := range headers {
 		_, err := page.SetExtraHeaders([]string{name, value})
 		if err != nil {
-			bm.logger.WithError(err).WithField("header", name).Debug("Failed to set header")
+			bm.logger.Debug("Failed to set header", map[string]interface{}{
+				"error":  err.Error(),
+				"header": name,
+			})
 		}
 	}
 
@@ -241,7 +252,9 @@ func (bm *BrowserManager) createStealthPage(browser *rod.Browser) (*rod.Page, er
 		}`)
 	})
 	if err != nil {
-		bm.logger.WithError(err).Warn("Failed to inject stealth JavaScript")
+		bm.logger.Warn("Failed to inject stealth JavaScript", map[string]interface{}{
+			"error": err.Error(),
+		})
 	}
 
 	return page, nil
@@ -271,7 +284,9 @@ func (bi *BrowserInstance) Navigate(ctx context.Context, url string, timeout tim
 		return fmt.Errorf("failed to navigate to %s: %w", url, err)
 	}
 
-	bi.manager.logger.WithField("url", url).Debug("Successfully navigated to URL")
+	bi.manager.logger.Debug("Successfully navigated to URL", map[string]interface{}{
+		"url": url,
+	})
 	return nil
 }
 

@@ -6,11 +6,11 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
-	"github.com/sirupsen/logrus"
 
 	"letraz-utils/internal/background"
 	"letraz-utils/internal/config"
 	"letraz-utils/internal/llm"
+	"letraz-utils/internal/logging"
 	"letraz-utils/pkg/models"
 	"letraz-utils/pkg/utils"
 )
@@ -21,24 +21,24 @@ var resumeValidator = validator.New()
 func TailorResumeHandler(cfg *config.Config, llmManager *llm.Manager, taskManager background.TaskManager) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		requestID := utils.GenerateRequestID()
-		logger := utils.GetLogger()
+		logger := logging.GetGlobalLogger()
 
 		// Set request ID in context
 		c.Set("request_id", requestID)
 
-		logger.WithFields(logrus.Fields{
+		logger.Info("Processing async resume tailoring request", map[string]interface{}{
 			"request_id": requestID,
 			"endpoint":   "/api/v1/resume/tailor",
 			"method":     "POST",
-		}).Info("Processing async resume tailoring request")
+		})
 
 		// Parse and validate request body
 		var req models.TailorResumeRequest
 		if err := c.Bind(&req); err != nil {
-			logger.WithFields(logrus.Fields{
+			logger.Error("Failed to parse request body", map[string]interface{}{
 				"request_id": requestID,
 				"error":      err.Error(),
-			}).Error("Failed to parse request body")
+			})
 
 			return c.JSON(http.StatusBadRequest, models.CreateAsyncErrorResponse(
 				"invalid_request",
@@ -48,10 +48,10 @@ func TailorResumeHandler(cfg *config.Config, llmManager *llm.Manager, taskManage
 
 		// Validate request
 		if err := resumeValidator.Struct(&req); err != nil {
-			logger.WithFields(logrus.Fields{
+			logger.Error("Request validation failed", map[string]interface{}{
 				"request_id": requestID,
 				"error":      err.Error(),
-			}).Error("Request validation failed")
+			})
 
 			return c.JSON(http.StatusBadRequest, models.CreateAsyncErrorResponse(
 				"validation_failed",
@@ -91,7 +91,7 @@ func TailorResumeHandler(cfg *config.Config, llmManager *llm.Manager, taskManage
 		// Generate process ID for background task
 		processID := utils.GenerateTailorProcessID()
 
-		logger.WithFields(logrus.Fields{
+		logger.Info("Submitting resume tailoring task for background processing", map[string]interface{}{
 			"request_id":     requestID,
 			"process_id":     processID,
 			"base_resume_id": req.BaseResume.ID,
@@ -99,13 +99,13 @@ func TailorResumeHandler(cfg *config.Config, llmManager *llm.Manager, taskManage
 			"job_title":      req.Job.Title,
 			"company":        req.Job.CompanyName,
 			"sections_count": len(req.BaseResume.Sections),
-		}).Info("Submitting resume tailoring task for background processing")
+		})
 
 		// Submit task to background task manager
 		ctx := c.Request().Context()
 		err := taskManager.SubmitTailorTask(ctx, processID, req, llmManager, cfg)
 		if err != nil {
-			logger.WithError(err).Error("Failed to submit background tailor task")
+			logger.Error("Failed to submit background tailor task", map[string]interface{}{"error": err})
 			return c.JSON(http.StatusInternalServerError, models.CreateAsyncErrorResponse(
 				"task_submission_failed",
 				fmt.Sprintf("Failed to submit resume tailoring task: %v", err),
@@ -116,11 +116,11 @@ func TailorResumeHandler(cfg *config.Config, llmManager *llm.Manager, taskManage
 		// Return immediate response with process ID
 		response := models.CreateAsyncTailorResponse(processID)
 
-		logger.WithFields(logrus.Fields{
+		logger.Info("Resume tailoring task submitted successfully for background processing", map[string]interface{}{
 			"request_id": requestID,
 			"process_id": processID,
 			"resume_id":  req.ResumeID,
-		}).Info("Resume tailoring task submitted successfully for background processing")
+		})
 
 		return c.JSON(http.StatusAccepted, response)
 	}

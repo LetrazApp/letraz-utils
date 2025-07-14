@@ -3,7 +3,7 @@ package models
 import (
 	"time"
 
-	"letraz-utils/pkg/utils"
+	"letraz-utils/internal/logging"
 )
 
 // AsyncStatus represents the status of an async operation
@@ -160,10 +160,12 @@ func (r *AsyncTaskStatusResponse) GetScrapeData() (*AsyncScrapeCompletionData, b
 	}
 
 	// Log type assertion failure for debugging
-	logger := utils.GetLogger()
-	logger.WithField("process_id", r.ProcessID).
-		WithField("data_type", r.Data).
-		Warn("Type assertion failed in GetScrapeData: expected AsyncScrapeCompletionData")
+	logger := logging.GetGlobalLogger()
+	logger.Warn("Type assertion failed in GetScrapeData: expected AsyncScrapeCompletionData",
+		map[string]interface{}{
+			"process_id": r.ProcessID,
+			"data_type":  r.Data,
+		})
 
 	return nil, false
 }
@@ -176,10 +178,12 @@ func (r *AsyncTaskStatusResponse) GetTailorData() (*AsyncTailorCompletionData, b
 	}
 
 	// Log type assertion failure for debugging
-	logger := utils.GetLogger()
-	logger.WithField("process_id", r.ProcessID).
-		WithField("data_type", r.Data).
-		Warn("Type assertion failed in GetTailorData: expected AsyncTailorCompletionData")
+	logger := logging.GetGlobalLogger()
+	logger.Warn("Type assertion failed in GetTailorData: expected AsyncTailorCompletionData",
+		map[string]interface{}{
+			"process_id": r.ProcessID,
+			"data_type":  r.Data,
+		})
 
 	return nil, false
 }

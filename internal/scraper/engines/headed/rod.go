@@ -7,9 +7,10 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/sirupsen/logrus"
 	"letraz-utils/internal/config"
 	"letraz-utils/internal/llm"
+	"letraz-utils/internal/logging"
+	"letraz-utils/internal/logging/types"
 	"letraz-utils/internal/scraper/captcha"
 	"letraz-utils/pkg/models"
 	"letraz-utils/pkg/utils"
@@ -21,7 +22,7 @@ type RodScraper struct {
 	browserManager *BrowserManager
 	llmManager     *llm.Manager
 	captchaSolver  captcha.CaptchaSolver
-	logger         *logrus.Logger
+	logger         types.Logger
 }
 
 // ScrapingResult represents the result of a scraping operation
@@ -41,7 +42,7 @@ func NewRodScraper(cfg *config.Config, llmManager *llm.Manager) *RodScraper {
 		browserManager: NewBrowserManager(cfg),
 		llmManager:     llmManager,
 		captchaSolver:  captcha.NewTwoCaptchaSolver(cfg),
-		logger:         utils.GetLogger(),
+		logger:         logging.GetGlobalLogger(),
 	}
 }
 
@@ -49,10 +50,10 @@ func NewRodScraper(cfg *config.Config, llmManager *llm.Manager) *RodScraper {
 func (rs *RodScraper) ScrapeJob(ctx context.Context, url string, options *models.ScrapeOptions) (*models.Job, error) {
 	startTime := time.Now()
 
-	rs.logger.WithFields(logrus.Fields{
+	rs.logger.Info("Starting job scrape with Rod engine and LLM processing", map[string]interface{}{
 		"url":    url,
 		"engine": "rod_llm",
-	}).Info("Starting job scrape with Rod engine and LLM processing")
+	})
 
 	// Get browser instance
 	browser, err := rs.browserManager.GetBrowser(ctx)
@@ -85,12 +86,14 @@ func (rs *RodScraper) ScrapeJob(ctx context.Context, url string, options *models
 	// Check for captcha - if detected, return error for hybrid fallback
 	hasCaptcha, siteKey, err := captcha.DetectCaptcha(initialHTML)
 	if err != nil {
-		rs.logger.WithField("url", url).Debug("Error detecting captcha, continuing with scraping")
+		rs.logger.Debug("Error detecting captcha, continuing with scraping", map[string]interface{}{
+			"url": url,
+		})
 	} else if hasCaptcha {
-		rs.logger.WithFields(logrus.Fields{
+		rs.logger.Info("Captcha detected, triggering fallback to Firecrawl", map[string]interface{}{
 			"url":      url,
 			"site_key": siteKey,
-		}).Info("Captcha detected, triggering fallback to Firecrawl")
+		})
 
 		// Return captcha error to trigger fallback instead of solving
 		return nil, utils.NewCaptchaDetectedError(fmt.Sprintf("Captcha detected (type: %s) for URL: %s", siteKey, url))
@@ -111,11 +114,11 @@ func (rs *RodScraper) ScrapeJob(ctx context.Context, url string, options *models
 
 	processingTime := time.Since(startTime)
 
-	rs.logger.WithFields(logrus.Fields{
+	rs.logger.Info("Job scraping completed successfully with LLM processing", map[string]interface{}{
 		"url":             url,
 		"processing_time": processingTime,
 		"engine":          "rod_llm",
-	}).Info("Job scraping completed successfully with LLM processing")
+	})
 
 	return job, nil
 }
@@ -124,10 +127,10 @@ func (rs *RodScraper) ScrapeJob(ctx context.Context, url string, options *models
 func (rs *RodScraper) ScrapeJobLegacy(ctx context.Context, url string, options *models.ScrapeOptions) (*models.JobPosting, error) {
 	startTime := time.Now()
 
-	rs.logger.WithFields(logrus.Fields{
+	rs.logger.Info("Starting job scrape with Rod engine (legacy mode)", map[string]interface{}{
 		"url":    url,
 		"engine": "rod_legacy",
-	}).Info("Starting job scrape with Rod engine (legacy mode)")
+	})
 
 	// Get browser instance
 	browser, err := rs.browserManager.GetBrowser(ctx)
@@ -168,12 +171,12 @@ func (rs *RodScraper) ScrapeJobLegacy(ctx context.Context, url string, options *
 	jobPosting.Metadata["processing_time"] = processingTime.String()
 	jobPosting.Metadata["engine"] = "rod_legacy"
 
-	rs.logger.WithFields(logrus.Fields{
+	rs.logger.Info("Job scraping completed successfully (legacy mode)", map[string]interface{}{
 		"url":             url,
 		"job_title":       jobPosting.Title,
 		"company":         jobPosting.Company,
 		"processing_time": processingTime,
-	}).Info("Job scraping completed successfully (legacy mode)")
+	})
 
 	return jobPosting, nil
 }

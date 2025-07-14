@@ -16,11 +16,11 @@ import (
 func (s *Server) ScrapeJob(ctx context.Context, req *letrazv1.ScrapeJobRequest) (*letrazv1.ScrapeJobResponse, error) {
 	requestID := utils.GenerateRequestID()
 
-	s.logger.WithFields(map[string]interface{}{
+	s.logger.Info("gRPC async scrape request received", map[string]interface{}{
 		"request_id": requestID,
 		"url":        req.GetUrl(),
 		"method":     "ScrapeJob",
-	}).Info("gRPC async scrape request received")
+	})
 
 	// Validate request
 	if req.GetUrl() == "" {
@@ -36,20 +36,20 @@ func (s *Server) ScrapeJob(ctx context.Context, req *letrazv1.ScrapeJobRequest) 
 	// Generate process ID for background task
 	processID := utils.GenerateScrapeProcessID()
 
-	s.logger.WithFields(map[string]interface{}{
+	s.logger.Info("Submitting scrape task for background processing", map[string]interface{}{
 		"request_id": requestID,
 		"process_id": processID,
 		"url":        req.GetUrl(),
-	}).Info("Submitting scrape task for background processing")
+	})
 
 	// Submit task to background task manager (async processing)
 	err := s.taskManager.SubmitScrapeTask(ctx, processID, scrapeReq, s.poolManager)
 	if err != nil {
-		s.logger.WithFields(map[string]interface{}{
+		s.logger.Error("Failed to submit background scrape task", map[string]interface{}{
 			"request_id": requestID,
 			"process_id": processID,
 			"error":      err.Error(),
-		}).Error("Failed to submit background scrape task")
+		})
 
 		return &letrazv1.ScrapeJobResponse{
 			ProcessId: processID,
@@ -61,11 +61,11 @@ func (s *Server) ScrapeJob(ctx context.Context, req *letrazv1.ScrapeJobRequest) 
 	}
 
 	// Return immediate response with process ID (async pattern)
-	s.logger.WithFields(map[string]interface{}{
+	s.logger.Info("Scrape task submitted successfully for background processing", map[string]interface{}{
 		"request_id": requestID,
 		"process_id": processID,
 		"url":        req.GetUrl(),
-	}).Info("Scrape task submitted successfully for background processing")
+	})
 
 	return &letrazv1.ScrapeJobResponse{
 		ProcessId: processID,

@@ -7,10 +7,11 @@ import (
 	"time"
 
 	"github.com/mendableai/firecrawl-go"
-	"github.com/sirupsen/logrus"
 
 	"letraz-utils/internal/config"
 	"letraz-utils/internal/llm"
+	"letraz-utils/internal/logging"
+	"letraz-utils/internal/logging/types"
 	"letraz-utils/pkg/models"
 	"letraz-utils/pkg/utils"
 )
@@ -20,12 +21,12 @@ type FirecrawlScraper struct {
 	config     *config.Config
 	llmManager *llm.Manager
 	app        *firecrawl.FirecrawlApp
-	logger     *logrus.Logger
+	logger     types.Logger
 }
 
 // NewFirecrawlScraper creates a new Firecrawl scraper instance
 func NewFirecrawlScraper(cfg *config.Config, llmManager *llm.Manager) *FirecrawlScraper {
-	logger := utils.GetLogger()
+	logger := logging.GetGlobalLogger()
 
 	// Initialize Firecrawl app (only needs API key and API URL)
 	app, err := firecrawl.NewFirecrawlApp(
@@ -33,12 +34,16 @@ func NewFirecrawlScraper(cfg *config.Config, llmManager *llm.Manager) *Firecrawl
 		cfg.Firecrawl.APIURL,
 	)
 	if err != nil {
-		logger.Printf("Failed to initialize Firecrawl: %v", err)
+		logger.Error("Failed to initialize Firecrawl", map[string]interface{}{
+			"error": err.Error(),
+		})
 		return nil
 	}
 
-	logger.Printf("Firecrawl scraper initialized with API URL: %s, Version: %s",
-		cfg.Firecrawl.APIURL, cfg.Firecrawl.Version)
+	logger.Info("Firecrawl scraper initialized", map[string]interface{}{
+		"api_url": cfg.Firecrawl.APIURL,
+		"version": cfg.Firecrawl.Version,
+	})
 
 	return &FirecrawlScraper{
 		config:     cfg,
@@ -50,7 +55,9 @@ func NewFirecrawlScraper(cfg *config.Config, llmManager *llm.Manager) *Firecrawl
 
 // ScrapeJob scrapes a job posting from the given URL using Firecrawl and LLM processing
 func (f *FirecrawlScraper) ScrapeJob(ctx context.Context, url string, options *models.ScrapeOptions) (*models.Job, error) {
-	f.logger.Printf("Starting Firecrawl job scraping for URL: %s", url)
+	f.logger.Info("Starting Firecrawl job scraping", map[string]interface{}{
+		"url": url,
+	})
 
 	// Scrape the URL using Firecrawl
 	content, err := f.scrapeContent(ctx, url, options)
@@ -73,13 +80,16 @@ func (f *FirecrawlScraper) ScrapeJob(ctx context.Context, url string, options *m
 		return nil, fmt.Errorf("failed to parse job from content: %w", err)
 	}
 
-	f.logger.Printf("Successfully scraped and parsed job: %s at %s", job.Title, job.CompanyName)
+	f.logger.Info("Successfully scraped and parsed job", map[string]interface{}{
+		"job_title": job.Title,
+		"company":   job.CompanyName,
+	})
 	return job, nil
 }
 
 // ScrapeJobLegacy scrapes a job posting using legacy HTML parsing (returns basic extracted data)
 func (f *FirecrawlScraper) ScrapeJobLegacy(ctx context.Context, url string, options *models.ScrapeOptions) (*models.JobPosting, error) {
-	f.logger.Printf("Starting Firecrawl legacy job scraping for URL: %s", url)
+	f.logger.Info("Starting Firecrawl legacy job scraping", map[string]interface{}{"url": url})
 
 	// Scrape the URL using Firecrawl
 	content, err := f.scrapeContent(ctx, url, options)
@@ -104,7 +114,7 @@ func (f *FirecrawlScraper) ScrapeJobLegacy(ctx context.Context, url string, opti
 		jobPosting.Title = title
 	}
 
-	f.logger.Printf("Successfully scraped job posting (legacy mode) from %s", url)
+	f.logger.Info("Successfully scraped job posting (legacy mode)", map[string]interface{}{"url": url})
 	return jobPosting, nil
 }
 
@@ -123,14 +133,21 @@ func (f *FirecrawlScraper) scrapeContent(ctx context.Context, url string, option
 	var err error
 
 	for attempt := 1; attempt <= f.config.Firecrawl.MaxRetries; attempt++ {
-		f.logger.Printf("Firecrawl scrape attempt %d/%d for URL: %s", attempt, f.config.Firecrawl.MaxRetries, url)
+		f.logger.Info("Firecrawl scrape attempt", map[string]interface{}{
+			"attempt":     attempt,
+			"max_retries": f.config.Firecrawl.MaxRetries,
+			"url":         url,
+		})
 
 		scrapeResult, err = f.app.ScrapeURL(url, scrapeParams)
 		if err == nil {
 			break
 		}
 
-		f.logger.Printf("Firecrawl scrape attempt %d failed: %v", attempt, err)
+		f.logger.Info("Firecrawl scrape attempt failed", map[string]interface{}{
+			"attempt": attempt,
+			"error":   err.Error(),
+		})
 
 		if attempt < f.config.Firecrawl.MaxRetries {
 			// Wait before retry
@@ -156,13 +173,16 @@ func (f *FirecrawlScraper) scrapeContent(ctx context.Context, url string, option
 		return "", fmt.Errorf("no content found in Firecrawl response")
 	}
 
-	f.logger.Printf("Successfully scraped %d characters of content from %s", len(content), url)
+	f.logger.Info("Successfully scraped content", map[string]interface{}{
+		"content_length": len(content),
+		"url":            url,
+	})
 	return content, nil
 }
 
 // Cleanup releases any resources used by the scraper
 func (f *FirecrawlScraper) Cleanup() {
-	f.logger.Printf("Cleaning up Firecrawl scraper resources")
+	f.logger.Info("Cleaning up Firecrawl scraper resources", nil)
 	// Firecrawl SDK doesn't require explicit cleanup
 	// Just log the cleanup
 }
@@ -174,7 +194,7 @@ func (f *FirecrawlScraper) IsHealthy() bool {
 	}
 
 	if f.config.Firecrawl.APIKey == "" {
-		f.logger.Printf("Firecrawl API key not configured")
+		f.logger.Info("Firecrawl API key not configured", nil)
 		return false
 	}
 

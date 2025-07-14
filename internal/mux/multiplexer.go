@@ -8,14 +8,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
 	"letraz-utils/internal/background"
 	"letraz-utils/internal/config"
 	"letraz-utils/internal/grpc/server"
 	"letraz-utils/internal/llm"
+	"letraz-utils/internal/logging"
 	"letraz-utils/internal/scraper/workers"
-	"letraz-utils/pkg/utils"
 )
 
 // Multiplexer handles protocol detection and routing between gRPC and HTTP
@@ -24,7 +23,7 @@ type Multiplexer struct {
 	poolManager *workers.PoolManager
 	llmManager  *llm.Manager
 	taskManager background.TaskManager
-	logger      *logrus.Logger
+	logger      logging.Logger
 
 	// Servers
 	grpcServer *server.Server
@@ -49,7 +48,7 @@ func NewMultiplexer(cfg *config.Config, poolManager *workers.PoolManager, llmMan
 		poolManager: poolManager,
 		llmManager:  llmManager,
 		taskManager: taskManager,
-		logger:      utils.GetLogger(),
+		logger:      logging.GetGlobalLogger(),
 		ctx:         ctx,
 		cancel:      cancel,
 		httpServer: &http.Server{
@@ -85,9 +84,13 @@ func (m *Multiplexer) Start(address string) error {
 	m.wg.Add(1)
 	go func() {
 		defer m.wg.Done()
-		m.logger.WithField("address", address).Info("Starting gRPC server")
+		m.logger.Info("Starting gRPC server", map[string]interface{}{
+			"address": address,
+		})
 		if err := m.grpcServer.Start(grpcListener); err != nil {
-			m.logger.WithError(err).Error("gRPC server failed")
+			m.logger.Error("gRPC server failed", map[string]interface{}{
+				"error": err.Error(),
+			})
 		}
 	}()
 
@@ -95,9 +98,13 @@ func (m *Multiplexer) Start(address string) error {
 	m.wg.Add(1)
 	go func() {
 		defer m.wg.Done()
-		m.logger.WithField("address", address).Info("Starting HTTP server")
+		m.logger.Info("Starting HTTP server", map[string]interface{}{
+			"address": address,
+		})
 		if err := m.httpServer.Serve(httpListener); err != nil && err != http.ErrServerClosed {
-			m.logger.WithError(err).Error("HTTP server failed")
+			m.logger.Error("HTTP server failed", map[string]interface{}{
+				"error": err.Error(),
+			})
 		}
 	}()
 
@@ -105,19 +112,25 @@ func (m *Multiplexer) Start(address string) error {
 	m.wg.Add(1)
 	go func() {
 		defer m.wg.Done()
-		m.logger.WithField("address", address).Info("Starting protocol multiplexer")
+		m.logger.Info("Starting protocol multiplexer", map[string]interface{}{
+			"address": address,
+		})
 		if err := m.mux.Serve(); err != nil {
-			m.logger.WithError(err).Error("Multiplexer failed")
+			m.logger.Error("Multiplexer failed", map[string]interface{}{
+				"error": err.Error(),
+			})
 		}
 	}()
 
-	m.logger.WithField("address", address).Info("Multiplexer started successfully")
+	m.logger.Info("Multiplexer started successfully", map[string]interface{}{
+		"address": address,
+	})
 	return nil
 }
 
 // Stop gracefully shuts down the multiplexer and both servers
 func (m *Multiplexer) Stop() error {
-	m.logger.Info("Stopping multiplexer...")
+	m.logger.Info("Stopping multiplexer...", nil)
 
 	// Cancel context to signal shutdown
 	m.cancel()
@@ -128,7 +141,9 @@ func (m *Multiplexer) Stop() error {
 
 	// Stop HTTP server gracefully
 	if err := m.httpServer.Shutdown(shutdownCtx); err != nil {
-		m.logger.WithError(err).Error("HTTP server shutdown failed")
+		m.logger.Error("HTTP server shutdown failed", map[string]interface{}{
+			"error": err.Error(),
+		})
 	}
 
 	// Stop gRPC server
@@ -139,7 +154,9 @@ func (m *Multiplexer) Stop() error {
 	// Close the main listener
 	if m.listener != nil {
 		if err := m.listener.Close(); err != nil {
-			m.logger.WithError(err).Error("Failed to close listener")
+			m.logger.Error("Failed to close listener", map[string]interface{}{
+				"error": err.Error(),
+			})
 		}
 	}
 
@@ -152,9 +169,9 @@ func (m *Multiplexer) Stop() error {
 
 	select {
 	case <-done:
-		m.logger.Info("Multiplexer stopped gracefully")
+		m.logger.Info("Multiplexer stopped gracefully", nil)
 	case <-shutdownCtx.Done():
-		m.logger.Warn("Multiplexer shutdown timed out")
+		m.logger.Warn("Multiplexer shutdown timed out", nil)
 	}
 
 	return nil

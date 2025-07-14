@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"letraz-utils/internal/logging"
 	"letraz-utils/pkg/models"
 	"letraz-utils/pkg/utils"
 
@@ -15,9 +16,9 @@ var startTime = time.Now()
 // HealthHandler handles health check requests
 func HealthHandler(c echo.Context) error {
 	requestID := utils.GenerateRequestID()
-	logger := utils.LogWithRequestID(requestID)
+	logger := logging.GetGlobalLogger()
 
-	logger.Debug("Health check requested")
+	logger.Debug("Health check requested", map[string]interface{}{"request_id": requestID})
 
 	response := models.HealthResponse{
 		Status:    "healthy",
@@ -35,9 +36,9 @@ func HealthHandler(c echo.Context) error {
 // ReadinessHandler handles readiness probe requests
 func ReadinessHandler(c echo.Context) error {
 	requestID := utils.GenerateRequestID()
-	logger := utils.LogWithRequestID(requestID)
+	logger := logging.GetGlobalLogger()
 
-	logger.Debug("Readiness check requested")
+	logger.Debug("Readiness check requested", map[string]interface{}{"request_id": requestID})
 
 	// TODO: Add checks for external dependencies
 	// - LLM API connectivity
@@ -62,9 +63,9 @@ func ReadinessHandler(c echo.Context) error {
 // LivenessHandler handles liveness probe requests
 func LivenessHandler(c echo.Context) error {
 	requestID := utils.GenerateRequestID()
-	logger := utils.LogWithRequestID(requestID)
+	logger := logging.GetGlobalLogger()
 
-	logger.Debug("Liveness check requested")
+	logger.Debug("Liveness check requested", map[string]interface{}{"request_id": requestID})
 
 	response := models.HealthResponse{
 		Status:    "alive",
@@ -79,9 +80,9 @@ func LivenessHandler(c echo.Context) error {
 // StatusHandler provides detailed service status
 func StatusHandler(c echo.Context) error {
 	requestID := utils.GenerateRequestID()
-	logger := utils.LogWithRequestID(requestID)
+	logger := logging.GetGlobalLogger()
 
-	logger.Debug("Status check requested")
+	logger.Debug("Status check requested", map[string]interface{}{"request_id": requestID})
 
 	// TODO: Add more detailed status information
 	// - Memory usage
