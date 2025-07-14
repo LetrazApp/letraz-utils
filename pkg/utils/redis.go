@@ -7,16 +7,16 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
-	"github.com/sirupsen/logrus"
 
 	"letraz-utils/internal/config"
+	"letraz-utils/internal/logging"
 )
 
 // RedisClient wraps the Redis client with conversation history management
 type RedisClient struct {
 	client *redis.Client
 	config *config.Config
-	logger *logrus.Logger
+	logger logging.Logger
 }
 
 // ConversationEntry represents a single conversation entry
@@ -28,7 +28,7 @@ type ConversationEntry struct {
 	Metadata  map[string]interface{} `json:"metadata,omitempty"`
 }
 
-// ConversationHistory represents the complete conversation history
+// ConversationHistory represents the complete conversation history for a resume
 type ConversationHistory struct {
 	ThreadID  string              `json:"thread_id"`
 	ResumeID  string              `json:"resume_id"`
@@ -39,33 +39,28 @@ type ConversationHistory struct {
 
 // NewRedisClient creates a new Redis client instance
 func NewRedisClient(cfg *config.Config) *RedisClient {
-	logger := GetLogger()
-
-	// Parse Redis URL and create client options
-	opt, err := redis.ParseURL(cfg.Redis.URL)
+	// Parse Redis URL
+	opts, err := redis.ParseURL(cfg.Redis.URL)
 	if err != nil {
-		logger.WithError(err).Fatal("Failed to parse Redis URL")
+		// Fallback to default configuration
+		opts = &redis.Options{
+			Addr:     "localhost:6379",
+			Password: "",
+			DB:       0,
+		}
 	}
 
-	// Set password if provided
-	if cfg.Redis.Password != "" {
-		opt.Password = cfg.Redis.Password
-	}
+	// Configure timeouts
+	opts.DialTimeout = 5 * time.Second
+	opts.ReadTimeout = 3 * time.Second
+	opts.WriteTimeout = 3 * time.Second
 
-	// Set database
-	opt.DB = cfg.Redis.DB
-
-	// Set timeouts
-	opt.DialTimeout = cfg.Redis.Timeout
-	opt.ReadTimeout = cfg.Redis.Timeout
-	opt.WriteTimeout = cfg.Redis.Timeout
-
-	client := redis.NewClient(opt)
+	client := redis.NewClient(opts)
 
 	return &RedisClient{
 		client: client,
 		config: cfg,
-		logger: logger,
+		logger: logging.GetGlobalLogger(),
 	}
 }
 
@@ -79,7 +74,7 @@ func (r *RedisClient) Close() error {
 	return r.client.Close()
 }
 
-// CreateConversationThread creates a new conversation thread with the specified resumeID as threadID
+// CreateConversationThread creates a new conversation thread for a resume
 func (r *RedisClient) CreateConversationThread(ctx context.Context, resumeID string) error {
 	threadKey := r.getThreadKey(resumeID)
 
@@ -90,122 +85,127 @@ func (r *RedisClient) CreateConversationThread(ctx context.Context, resumeID str
 	}
 
 	if exists > 0 {
-		r.logger.WithField("resume_id", resumeID).Debug("Conversation thread already exists")
+		// Thread already exists, just update the timestamp
+		history, err := r.GetConversationHistory(ctx, resumeID)
+		if err != nil {
+			return fmt.Errorf("failed to get existing conversation history: %w", err)
+		}
+		history.UpdatedAt = time.Now()
+
+		historyJSON, err := json.Marshal(history)
+		if err != nil {
+			return fmt.Errorf("failed to marshal conversation history: %w", err)
+		}
+
+		err = r.client.Set(ctx, threadKey, historyJSON, 24*time.Hour).Err()
+		if err != nil {
+			return fmt.Errorf("failed to update conversation thread: %w", err)
+		}
 		return nil
 	}
 
-	// Create new conversation history
-	history := ConversationHistory{
-		ThreadID:  resumeID,
+	// Create new thread
+	history := &ConversationHistory{
+		ThreadID:  GenerateRequestID(),
 		ResumeID:  resumeID,
 		Entries:   []ConversationEntry{},
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
 
-	// Store in Redis with expiration (30 days)
 	historyJSON, err := json.Marshal(history)
 	if err != nil {
 		return fmt.Errorf("failed to marshal conversation history: %w", err)
 	}
 
-	err = r.client.Set(ctx, threadKey, historyJSON, 30*24*time.Hour).Err()
+	// Store with 24-hour expiration
+	err = r.client.Set(ctx, threadKey, historyJSON, 24*time.Hour).Err()
 	if err != nil {
-		return fmt.Errorf("failed to store conversation thread: %w", err)
+		return fmt.Errorf("failed to create conversation thread: %w", err)
 	}
 
-	r.logger.WithField("resume_id", resumeID).Info("Created new conversation thread")
 	return nil
 }
 
 // AddConversationEntry adds a new entry to the conversation history
 func (r *RedisClient) AddConversationEntry(ctx context.Context, resumeID string, entry ConversationEntry) error {
-	threadKey := r.getThreadKey(resumeID)
-
-	// Get existing conversation history
+	// Get current history
 	history, err := r.GetConversationHistory(ctx, resumeID)
 	if err != nil {
 		// If thread doesn't exist, create it first
 		if err := r.CreateConversationThread(ctx, resumeID); err != nil {
 			return fmt.Errorf("failed to create conversation thread: %w", err)
 		}
-		history = &ConversationHistory{
-			ThreadID:  resumeID,
-			ResumeID:  resumeID,
-			Entries:   []ConversationEntry{},
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
+		history, err = r.GetConversationHistory(ctx, resumeID)
+		if err != nil {
+			return fmt.Errorf("failed to get conversation history after creation: %w", err)
 		}
 	}
 
-	// Set entry metadata
-	entry.ID = fmt.Sprintf("%s_%d", resumeID, len(history.Entries)+1)
-	entry.Timestamp = time.Now()
-
 	// Add new entry
+	entry.ID = GenerateRequestID()
+	entry.Timestamp = time.Now()
 	history.Entries = append(history.Entries, entry)
 	history.UpdatedAt = time.Now()
 
-	// Store updated history
+	// Keep only last 50 entries to manage memory
+	if len(history.Entries) > 50 {
+		history.Entries = history.Entries[len(history.Entries)-50:]
+	}
+
+	// Save updated history
+	threadKey := r.getThreadKey(resumeID)
 	historyJSON, err := json.Marshal(history)
 	if err != nil {
-		return fmt.Errorf("failed to marshal updated conversation history: %w", err)
+		return fmt.Errorf("failed to marshal conversation history: %w", err)
 	}
 
-	err = r.client.Set(ctx, threadKey, historyJSON, 30*24*time.Hour).Err()
+	err = r.client.Set(ctx, threadKey, historyJSON, 24*time.Hour).Err()
 	if err != nil {
-		return fmt.Errorf("failed to update conversation history: %w", err)
+		r.logger.Error("Failed to save conversation entry", map[string]interface{}{
+			"resume_id": resumeID,
+			"entry_id":  entry.ID,
+			"error":     err.Error(),
+		})
+		return fmt.Errorf("failed to save conversation entry: %w", err)
 	}
-
-	r.logger.WithFields(logrus.Fields{
-		"resume_id":     resumeID,
-		"entry_id":      entry.ID,
-		"role":          entry.Role,
-		"total_entries": len(history.Entries),
-	}).Debug("Added conversation entry")
 
 	return nil
 }
 
-// GetConversationHistory retrieves the conversation history for a given resumeID
+// GetConversationHistory retrieves the conversation history for a resume
 func (r *RedisClient) GetConversationHistory(ctx context.Context, resumeID string) (*ConversationHistory, error) {
 	threadKey := r.getThreadKey(resumeID)
 
 	historyJSON, err := r.client.Get(ctx, threadKey).Result()
 	if err != nil {
 		if err == redis.Nil {
-			return nil, fmt.Errorf("conversation thread not found for resume ID: %s", resumeID)
+			return nil, fmt.Errorf("conversation thread not found for resume %s", resumeID)
 		}
 		return nil, fmt.Errorf("failed to get conversation history: %w", err)
 	}
 
 	var history ConversationHistory
-	if err := json.Unmarshal([]byte(historyJSON), &history); err != nil {
+	err = json.Unmarshal([]byte(historyJSON), &history)
+	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal conversation history: %w", err)
 	}
 
 	return &history, nil
 }
 
-// DeleteConversationThread deletes a conversation thread
+// DeleteConversationThread deletes the conversation thread for a resume
 func (r *RedisClient) DeleteConversationThread(ctx context.Context, resumeID string) error {
 	threadKey := r.getThreadKey(resumeID)
-
-	err := r.client.Del(ctx, threadKey).Err()
-	if err != nil {
-		return fmt.Errorf("failed to delete conversation thread: %w", err)
-	}
-
-	r.logger.WithField("resume_id", resumeID).Info("Deleted conversation thread")
-	return nil
+	return r.client.Del(ctx, threadKey).Err()
 }
 
 // getThreadKey generates the Redis key for a conversation thread
 func (r *RedisClient) getThreadKey(resumeID string) string {
-	return fmt.Sprintf("conversation:thread:%s", resumeID)
+	return fmt.Sprintf("conversation:resume:%s", resumeID)
 }
 
-// IsHealthy checks if Redis is healthy and accessible
+// IsHealthy checks if Redis is connected and healthy
 func (r *RedisClient) IsHealthy(ctx context.Context) error {
 	return r.Ping(ctx)
 }

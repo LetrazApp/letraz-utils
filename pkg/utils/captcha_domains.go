@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	"letraz-utils/internal/logging"
 )
 
 var (
@@ -28,19 +28,22 @@ func getConfiguredCaptchaDomainsFile() string {
 type CaptchaDomainManager struct {
 	domains map[string]time.Time // domain -> first seen time
 	mu      sync.RWMutex
-	logger  *logrus.Logger
+	logger  logging.Logger
 }
 
 // NewCaptchaDomainManager creates a new captcha domain manager
 func NewCaptchaDomainManager() *CaptchaDomainManager {
 	manager := &CaptchaDomainManager{
 		domains: make(map[string]time.Time),
-		logger:  GetLogger(),
+		logger:  logging.GetGlobalLogger(),
 	}
 
 	// Load existing domains from file
 	if err := manager.loadDomains(); err != nil {
-		manager.logger.WithError(err).Warn("Failed to load captcha domains file")
+		manager.logger.Error("Failed to load captcha domains from file", map[string]interface{}{
+			"file":  CaptchaDomainsFile,
+			"error": err.Error(),
+		})
 	}
 
 	return manager
@@ -50,7 +53,6 @@ func NewCaptchaDomainManager() *CaptchaDomainManager {
 func (cdm *CaptchaDomainManager) IsKnownCaptchaDomain(urlStr string) bool {
 	domain, err := extractDomain(urlStr)
 	if err != nil {
-		cdm.logger.WithError(err).WithField("url", urlStr).Debug("Failed to extract domain")
 		return false
 	}
 
@@ -61,7 +63,7 @@ func (cdm *CaptchaDomainManager) IsKnownCaptchaDomain(urlStr string) bool {
 	return exists
 }
 
-// AddCaptchaDomain adds a domain to the captcha domains list
+// AddCaptchaDomain adds a domain to the known captcha domains list
 func (cdm *CaptchaDomainManager) AddCaptchaDomain(urlStr string) error {
 	domain, err := extractDomain(urlStr)
 	if err != nil {
@@ -71,23 +73,23 @@ func (cdm *CaptchaDomainManager) AddCaptchaDomain(urlStr string) error {
 	cdm.mu.Lock()
 	defer cdm.mu.Unlock()
 
-	// Check if domain already exists
-	if _, exists := cdm.domains[domain]; exists {
-		cdm.logger.WithField("domain", domain).Debug("Domain already in captcha list")
-		return nil
-	}
-
 	// Add domain with current timestamp
-	cdm.domains[domain] = time.Now()
+	now := time.Now()
+	if _, exists := cdm.domains[domain]; !exists {
+		cdm.domains[domain] = now
 
-	cdm.logger.WithFields(logrus.Fields{
-		"domain": domain,
-		"url":    urlStr,
-	}).Info("Added domain to captcha protection list")
+		cdm.logger.Info("Added new captcha domain", map[string]interface{}{
+			"domain":      domain,
+			"total_count": len(cdm.domains),
+		})
 
-	// Save to file
-	if err := cdm.saveDomains(); err != nil {
-		return fmt.Errorf("failed to save captcha domains: %w", err)
+		// Save to file
+		if err := cdm.saveDomains(); err != nil {
+			cdm.logger.Error("Failed to save captcha domains to file", map[string]interface{}{
+				"file":  CaptchaDomainsFile,
+				"error": err.Error(),
+			})
+		}
 	}
 
 	return nil
@@ -98,12 +100,13 @@ func (cdm *CaptchaDomainManager) GetKnownDomains() map[string]time.Time {
 	cdm.mu.RLock()
 	defer cdm.mu.RUnlock()
 
-	result := make(map[string]time.Time)
-	for domain, firstSeen := range cdm.domains {
-		result[domain] = firstSeen
+	// Create a copy to avoid race conditions
+	copy := make(map[string]time.Time)
+	for domain, timestamp := range cdm.domains {
+		copy[domain] = timestamp
 	}
 
-	return result
+	return copy
 }
 
 // GetDomainsCount returns the number of known captcha domains
@@ -156,7 +159,9 @@ func (cdm *CaptchaDomainManager) loadDomains() error {
 		return fmt.Errorf("error reading captcha domains file: %w", err)
 	}
 
-	cdm.logger.WithField("count", domainsLoaded).Info("Loaded captcha domains from file")
+	cdm.logger.Info("Loaded captcha domains from file", map[string]interface{}{
+		"count": domainsLoaded,
+	})
 	return nil
 }
 

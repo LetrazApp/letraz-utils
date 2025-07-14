@@ -7,9 +7,8 @@ import (
 	"time"
 
 	"letraz-utils/internal/config"
-	"letraz-utils/pkg/utils"
+	"letraz-utils/internal/logging"
 
-	"github.com/sirupsen/logrus"
 	"golang.org/x/time/rate"
 )
 
@@ -47,7 +46,7 @@ type RateLimiter struct {
 	domainLimiters  map[string]*DomainLimiter
 	circuitBreakers map[string]*CircuitBreaker
 	mu              sync.RWMutex
-	logger          *logrus.Logger
+	logger          logging.Logger
 	cleanupTicker   *time.Ticker
 	stopCleanup     chan bool
 }
@@ -58,7 +57,7 @@ func NewRateLimiter(cfg *config.Config) *RateLimiter {
 		config:          cfg,
 		domainLimiters:  make(map[string]*DomainLimiter),
 		circuitBreakers: make(map[string]*CircuitBreaker),
-		logger:          utils.GetLogger().WithField("component", "rate_limiter").Logger,
+		logger:          logging.GetGlobalLogger(),
 		cleanupTicker:   time.NewTicker(5 * time.Minute),
 		stopCleanup:     make(chan bool),
 	}
@@ -79,7 +78,9 @@ func (rl *RateLimiter) Allow(domain string) bool {
 
 	// Check circuit breaker first
 	if !rl.isCircuitClosed(domain) {
-		rl.logger.WithField("domain", domain).Debug("Request rejected by circuit breaker")
+		rl.logger.Debug("Request rejected by circuit breaker", map[string]interface{}{
+			"domain": domain,
+		})
 		return false
 	}
 
@@ -94,12 +95,14 @@ func (rl *RateLimiter) Allow(domain string) bool {
 		limiter.lastSeen = time.Now()
 		limiter.mu.Unlock()
 
-		rl.logger.WithFields(logrus.Fields{
+		rl.logger.Debug("Request allowed", map[string]interface{}{
 			"domain":   domain,
 			"requests": limiter.requests,
-		}).Debug("Request allowed")
+		})
 	} else {
-		rl.logger.WithField("domain", domain).Debug("Request rejected by rate limiter")
+		rl.logger.Debug("Request rejected by rate limiter", map[string]interface{}{
+			"domain": domain,
+		})
 	}
 
 	return allowed
@@ -118,7 +121,9 @@ func (rl *RateLimiter) RecordSuccess(domain string) {
 		if cb.state == CircuitHalfOpen {
 			cb.state = CircuitClosed
 			cb.failureCount = 0
-			rl.logger.WithField("domain", domain).Info("Circuit breaker closed after successful request")
+			rl.logger.Info("Circuit breaker closed after successful request", map[string]interface{}{
+				"domain": domain,
+			})
 		}
 		cb.mu.Unlock()
 	}
@@ -146,11 +151,11 @@ func (rl *RateLimiter) RecordFailure(domain string, err error) {
 
 	if cb.failureCount >= cb.maxFailures && cb.state == CircuitClosed {
 		cb.state = CircuitOpen
-		rl.logger.WithFields(logrus.Fields{
+		rl.logger.Warn("Circuit breaker opened due to failures", map[string]interface{}{
 			"domain":   domain,
 			"failures": cb.failureCount,
 			"error":    err.Error(),
-		}).Warn("Circuit breaker opened due to failures")
+		})
 	}
 	cb.mu.Unlock()
 }
@@ -173,11 +178,11 @@ func (rl *RateLimiter) getDomainLimiter(domain string) *DomainLimiter {
 
 	rl.domainLimiters[domain] = limiter
 
-	rl.logger.WithFields(logrus.Fields{
+	rl.logger.Info("Created new domain rate limiter", map[string]interface{}{
 		"domain": domain,
 		"rate":   rps,
 		"burst":  burst,
-	}).Info("Created new domain rate limiter")
+	})
 
 	return limiter
 }
@@ -196,7 +201,9 @@ func (rl *RateLimiter) getCircuitBreaker(domain string) *CircuitBreaker {
 
 	rl.circuitBreakers[domain] = cb
 
-	rl.logger.WithField("domain", domain).Info("Created new circuit breaker")
+	rl.logger.Info("Created new circuit breaker", map[string]interface{}{
+		"domain": domain,
+	})
 
 	return cb
 }
@@ -218,7 +225,9 @@ func (rl *RateLimiter) isCircuitClosed(domain string) bool {
 			cb.mu.Lock()
 			if cb.state == CircuitOpen && time.Since(cb.lastFailTime) > cb.resetTimeout {
 				cb.state = CircuitHalfOpen
-				rl.logger.WithField("domain", domain).Info("Circuit breaker transitioned to half-open")
+				rl.logger.Info("Circuit breaker transitioned to half-open", map[string]interface{}{
+					"domain": domain,
+				})
 			}
 			cb.mu.Unlock()
 			cb.mu.RLock()
@@ -334,7 +343,9 @@ func (rl *RateLimiter) cleanup() {
 	}
 
 	if removedCount > 0 {
-		rl.logger.WithField("removed_count", removedCount).Info("Cleaned up unused rate limiters")
+		rl.logger.Info("Cleaned up unused rate limiters", map[string]interface{}{
+			"removed_count": removedCount,
+		})
 	}
 }
 

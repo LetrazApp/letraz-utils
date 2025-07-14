@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/sirupsen/logrus"
-
 	"letraz-utils/internal/config"
+	"letraz-utils/internal/logging"
+	"letraz-utils/internal/logging/types"
 	"letraz-utils/pkg/models"
-	"letraz-utils/pkg/utils"
 )
 
 // Manager manages LLM providers and their lifecycle
@@ -17,7 +16,7 @@ type Manager struct {
 	config   *config.Config
 	factory  *LLMFactory
 	provider LLMProvider
-	logger   *logrus.Logger
+	logger   types.Logger
 	mu       sync.RWMutex
 	healthy  bool
 }
@@ -27,7 +26,7 @@ func NewManager(cfg *config.Config) *Manager {
 	return &Manager{
 		config:  cfg,
 		factory: NewLLMFactory(cfg),
-		logger:  utils.GetLogger(),
+		logger:  logging.GetGlobalLogger(),
 	}
 }
 
@@ -36,7 +35,9 @@ func (m *Manager) Start() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.logger.WithField("provider", m.config.LLM.Provider).Info("Starting LLM manager")
+	m.logger.Info("Starting LLM manager", map[string]interface{}{
+		"provider": m.config.LLM.Provider,
+	})
 
 	// Create provider
 	provider, err := m.factory.CreateProvider()
@@ -51,12 +52,16 @@ func (m *Manager) Start() error {
 	defer cancel()
 
 	if err := m.provider.IsHealthy(ctx); err != nil {
-		m.logger.WithError(err).Warn("LLM provider health check failed - LLM features will be disabled")
+		m.logger.Warn("LLM provider health check failed - LLM features will be disabled", map[string]interface{}{
+			"error": err.Error(),
+		})
 		m.healthy = false
 		// Don't return error - allow server to start without LLM
 	} else {
 		m.healthy = true
-		m.logger.WithField("provider", m.provider.GetProviderName()).Info("LLM manager started successfully")
+		m.logger.Info("LLM manager started successfully", map[string]interface{}{
+			"provider": m.provider.GetProviderName(),
+		})
 	}
 
 	return nil
@@ -67,7 +72,7 @@ func (m *Manager) Stop() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.logger.Info("Stopping LLM manager")
+	m.logger.Info("Stopping LLM manager", map[string]interface{}{})
 	m.provider = nil
 	m.healthy = false
 	return nil

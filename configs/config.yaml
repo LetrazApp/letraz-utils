@@ -49,4 +49,43 @@ firecrawl:
 logging:
   level: "debug"  # Changed from "warn" to "debug" for troubleshooting captcha issues
   format: "json"
-  output: "stdout" 
+  output: "stdout"
+
+  # New adapter-based logging configuration
+  adapters:
+    # Console output for immediate feedback
+    - name: "console"
+      type: "stdout"
+      enabled: true
+      options:
+        format: "json"
+        colorized: false
+
+    # Application log file
+    - name: "app_log"
+      type: "file"
+      enabled: true
+      options:
+        file_path: "./logs/app.log"
+        format: "json"
+        max_size: 104857600  # 100MB
+        max_backups: 5
+        compress: true
+        create_dirs: true
+        sync_on_write: false
+        rotation_policy: "size"
+
+    # Betterstack telemetry logging
+    - name: "betterstack"
+      type: "betterstack"
+      enabled: true
+      options:
+        source_token: "${BETTERSTACK_SOURCE_TOKEN}"
+        endpoint: "${BETTERSTACK_ENDPOINT}"
+        batch_size: 100
+        flush_interval: "5s"
+        max_retries: 3
+        timeout: "30s"
+        user_agent: "letraz-utils/1.0"
+        headers:
+          Content-Type: "application/json" 

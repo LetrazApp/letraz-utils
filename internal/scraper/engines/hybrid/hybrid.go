@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/sirupsen/logrus"
-
 	"letraz-utils/internal/config"
 	"letraz-utils/internal/llm"
+	"letraz-utils/internal/logging"
+	"letraz-utils/internal/logging/types"
 	"letraz-utils/internal/scraper/engines/firecrawl"
 	"letraz-utils/internal/scraper/engines/headed"
 	"letraz-utils/pkg/models"
@@ -22,33 +22,35 @@ type HybridScraper struct {
 	rodScraper       *headed.RodScraper
 	firecrawlScraper *firecrawl.FirecrawlScraper
 	captchaDomainMgr *utils.CaptchaDomainManager
-	logger           *logrus.Logger
+	logger           types.Logger
 	usedRod          bool // Track if Rod scraper was actually used
 	usedFirecrawl    bool // Track if Firecrawl scraper was actually used
 }
 
 // NewHybridScraper creates a new hybrid scraper instance
 func NewHybridScraper(cfg *config.Config, llmManager *llm.Manager) *HybridScraper {
-	logger := utils.GetLogger()
+	logger := logging.GetGlobalLogger()
 
 	// Initialize both scrapers
 	rodScraper := headed.NewRodScraper(cfg, llmManager)
 	firecrawlScraper := firecrawl.NewFirecrawlScraper(cfg, llmManager)
 
 	if rodScraper == nil {
-		logger.Error("Failed to initialize Rod scraper for hybrid engine")
+		logger.Error("Failed to initialize Rod scraper for hybrid engine", map[string]interface{}{})
 		return nil
 	}
 
 	if firecrawlScraper == nil {
-		logger.Error("Failed to initialize Firecrawl scraper for hybrid engine")
+		logger.Error("Failed to initialize Firecrawl scraper for hybrid engine", map[string]interface{}{})
 		return nil
 	}
 
 	// Initialize captcha domain manager
 	captchaDomainMgr := utils.NewCaptchaDomainManager()
 
-	logger.WithField("known_captcha_domains", captchaDomainMgr.GetDomainsCount()).Info("Hybrid scraper initialized with Rod (primary) and Firecrawl (fallback)")
+	logger.Info("Hybrid scraper initialized with Rod (primary) and Firecrawl (fallback)", map[string]interface{}{
+		"known_captcha_domains": captchaDomainMgr.GetDomainsCount(),
+	})
 
 	return &HybridScraper{
 		config:           cfg,
@@ -62,7 +64,9 @@ func NewHybridScraper(cfg *config.Config, llmManager *llm.Manager) *HybridScrape
 
 // ScrapeJob scrapes a job posting using hybrid approach: Rod first, Firecrawl on captcha
 func (h *HybridScraper) ScrapeJob(ctx context.Context, url string, options *models.ScrapeOptions) (*models.Job, error) {
-	h.logger.WithField("url", url).Info("Starting hybrid job scraping (Rod → Firecrawl fallback)")
+	h.logger.Info("Starting hybrid job scraping (Rod → Firecrawl fallback)", map[string]interface{}{
+		"url": url,
+	})
 
 	// Reset usage tracking for this job
 	h.usedRod = false
@@ -70,9 +74,13 @@ func (h *HybridScraper) ScrapeJob(ctx context.Context, url string, options *mode
 
 	// Check if this domain is known to have captcha protection
 	if h.captchaDomainMgr.IsKnownCaptchaDomain(url) {
-		h.logger.WithField("url", url).Info("Domain is known to have captcha protection, skipping Rod and using Firecrawl directly")
+		h.logger.Info("Domain is known to have captcha protection, skipping Rod and using Firecrawl directly", map[string]interface{}{
+			"url": url,
+		})
 
-		h.logger.WithField("url", url).Debug("DEBUG: About to call Firecrawl directly")
+		h.logger.Debug("DEBUG: About to call Firecrawl directly", map[string]interface{}{
+			"url": url,
+		})
 
 		// Mark Firecrawl as used
 		h.usedFirecrawl = true
@@ -80,13 +88,15 @@ func (h *HybridScraper) ScrapeJob(ctx context.Context, url string, options *mode
 		// Go straight to Firecrawl for known captcha domains
 		job, err := h.firecrawlScraper.ScrapeJob(ctx, url, options)
 
-		h.logger.WithFields(logrus.Fields{
+		h.logger.Debug("DEBUG: Firecrawl direct call completed", map[string]interface{}{
 			"url":     url,
 			"success": err == nil,
-		}).Debug("DEBUG: Firecrawl direct call completed")
+		})
 
 		if err != nil {
-			h.logger.WithField("url", url).Debug("DEBUG: Firecrawl direct call failed, returning error")
+			h.logger.Debug("DEBUG: Firecrawl direct call failed, returning error", map[string]interface{}{
+				"url": url,
+			})
 			// Don't wrap CustomError types so they can be properly handled upstream
 			if _, ok := err.(*utils.CustomError); ok {
 				return nil, err
@@ -94,19 +104,23 @@ func (h *HybridScraper) ScrapeJob(ctx context.Context, url string, options *mode
 			return nil, fmt.Errorf("firecrawl scraping failed for known captcha domain: %w", err)
 		}
 
-		h.logger.WithFields(logrus.Fields{
+		h.logger.Info("Successfully scraped job using Firecrawl (known captcha domain)", map[string]interface{}{
 			"url":       url,
 			"job_title": job.Title,
 			"company":   job.CompanyName,
 			"engine":    "firecrawl_direct",
-		}).Info("Successfully scraped job using Firecrawl (known captcha domain)")
+		})
 
-		h.logger.WithField("url", url).Debug("DEBUG: About to return job result from direct path")
+		h.logger.Debug("DEBUG: About to return job result from direct path", map[string]interface{}{
+			"url": url,
+		})
 		return job, nil
 	}
 
 	// Try Rod scraper first for unknown domains
-	h.logger.WithField("url", url).Info("Attempting scrape with Rod engine")
+	h.logger.Info("Attempting scrape with Rod engine", map[string]interface{}{
+		"url": url,
+	})
 
 	// Mark Rod as used
 	h.usedRod = true
@@ -116,28 +130,33 @@ func (h *HybridScraper) ScrapeJob(ctx context.Context, url string, options *mode
 	// Check if it's a captcha error - if so, fallback to Firecrawl
 	if err != nil {
 		if customErr, ok := err.(*utils.CustomError); ok && customErr.Code == http.StatusTemporaryRedirect {
-			h.logger.WithFields(logrus.Fields{
+			h.logger.Info("Rod scraper detected captcha, adding domain to captcha list and falling back to Firecrawl", map[string]interface{}{
 				"url":    url,
 				"reason": customErr.Detail,
-			}).Info("Rod scraper detected captcha, adding domain to captcha list and falling back to Firecrawl")
+			})
 
 			// Add this domain to the captcha domains list for future optimization
 			if addErr := h.captchaDomainMgr.AddCaptchaDomain(url); addErr != nil {
-				h.logger.WithError(addErr).WithField("url", url).Warn("Failed to add domain to captcha list")
+				h.logger.Warn("Failed to add domain to captcha list", map[string]interface{}{
+					"url":   url,
+					"error": addErr.Error(),
+				})
 			}
 
 			// Mark Firecrawl as used for fallback
 			h.usedFirecrawl = true
 
 			// Fallback to Firecrawl
-			h.logger.WithField("url", url).Info("Attempting scrape with Firecrawl engine")
+			h.logger.Info("Attempting scrape with Firecrawl engine", map[string]interface{}{
+				"url": url,
+			})
 			job, err = h.firecrawlScraper.ScrapeJob(ctx, url, options)
 
 			if err != nil {
-				h.logger.WithFields(logrus.Fields{
+				h.logger.Error("Firecrawl fallback also failed", map[string]interface{}{
 					"url":   url,
 					"error": err.Error(),
-				}).Error("Firecrawl fallback also failed")
+				})
 
 				// Don't wrap CustomError types so they can be properly handled upstream
 				if _, ok := err.(*utils.CustomError); ok {
@@ -146,20 +165,20 @@ func (h *HybridScraper) ScrapeJob(ctx context.Context, url string, options *mode
 				return nil, fmt.Errorf("hybrid scraping failed - Rod: captcha detected, Firecrawl: %w", err)
 			}
 
-			h.logger.WithFields(logrus.Fields{
+			h.logger.Info("Successfully scraped job using Firecrawl fallback", map[string]interface{}{
 				"url":       url,
 				"job_title": job.Title,
 				"company":   job.CompanyName,
 				"engine":    "firecrawl_fallback",
-			}).Info("Successfully scraped job using Firecrawl fallback")
+			})
 			return job, nil
 		}
 
 		// Non-captcha error from Rod scraper - preserve CustomError types
-		h.logger.WithFields(logrus.Fields{
+		h.logger.Error("Rod scraper failed with non-captcha error", map[string]interface{}{
 			"url":   url,
 			"error": err.Error(),
-		}).Error("Rod scraper failed with non-captcha error")
+		})
 
 		// Don't wrap CustomError types so they can be properly handled upstream
 		if _, ok := err.(*utils.CustomError); ok {
@@ -169,18 +188,20 @@ func (h *HybridScraper) ScrapeJob(ctx context.Context, url string, options *mode
 	}
 
 	// Rod scraper succeeded without captcha
-	h.logger.WithFields(logrus.Fields{
+	h.logger.Info("Successfully scraped job using Rod engine (no captcha)", map[string]interface{}{
 		"url":       url,
 		"job_title": job.Title,
 		"company":   job.CompanyName,
 		"engine":    "rod_primary",
-	}).Info("Successfully scraped job using Rod engine (no captcha)")
+	})
 	return job, nil
 }
 
 // ScrapeJobLegacy scrapes a job posting using legacy approach
 func (h *HybridScraper) ScrapeJobLegacy(ctx context.Context, url string, options *models.ScrapeOptions) (*models.JobPosting, error) {
-	h.logger.WithField("url", url).Info("Starting hybrid legacy job scraping")
+	h.logger.Info("Starting hybrid legacy job scraping", map[string]interface{}{
+		"url": url,
+	})
 
 	// Reset usage tracking for this job
 	h.usedRod = false
@@ -188,7 +209,9 @@ func (h *HybridScraper) ScrapeJobLegacy(ctx context.Context, url string, options
 
 	// For legacy scraping, also check captcha domains but don't add new ones since legacy doesn't detect captcha
 	if h.captchaDomainMgr.IsKnownCaptchaDomain(url) {
-		h.logger.WithField("url", url).Info("Domain is known to have captcha protection, using Firecrawl directly for legacy scraping")
+		h.logger.Info("Domain is known to have captcha protection, using Firecrawl directly for legacy scraping", map[string]interface{}{
+			"url": url,
+		})
 
 		// Mark Firecrawl as used
 		h.usedFirecrawl = true
@@ -202,7 +225,9 @@ func (h *HybridScraper) ScrapeJobLegacy(ctx context.Context, url string, options
 			return nil, fmt.Errorf("firecrawl legacy scraping failed for known captcha domain: %w", err)
 		}
 
-		h.logger.WithField("url", url).Info("Successfully scraped job using Firecrawl legacy (known captcha domain)")
+		h.logger.Info("Successfully scraped job using Firecrawl legacy (known captcha domain)", map[string]interface{}{
+			"url": url,
+		})
 		return jobPosting, nil
 	}
 
@@ -213,10 +238,10 @@ func (h *HybridScraper) ScrapeJobLegacy(ctx context.Context, url string, options
 	// For legacy scraping, we don't expect captcha errors since it doesn't use LLM
 	// But if there are issues, we can still fallback to Firecrawl
 	if err != nil {
-		h.logger.WithFields(logrus.Fields{
+		h.logger.Info("Rod legacy scraper failed, falling back to Firecrawl", map[string]interface{}{
 			"url":   url,
 			"error": err.Error(),
-		}).Info("Rod legacy scraper failed, falling back to Firecrawl")
+		})
 
 		// Mark Firecrawl as used for fallback
 		h.usedFirecrawl = true
@@ -231,9 +256,13 @@ func (h *HybridScraper) ScrapeJobLegacy(ctx context.Context, url string, options
 			return nil, fmt.Errorf("hybrid legacy scraping failed - both Rod and Firecrawl failed: %w", err)
 		}
 
-		h.logger.WithField("url", url).Info("Successfully scraped job using Firecrawl legacy fallback")
+		h.logger.Info("Successfully scraped job using Firecrawl legacy fallback", map[string]interface{}{
+			"url": url,
+		})
 	} else {
-		h.logger.WithField("url", url).Info("Successfully scraped job using Rod legacy")
+		h.logger.Info("Successfully scraped job using Rod legacy", map[string]interface{}{
+			"url": url,
+		})
 	}
 
 	return jobPosting, nil
@@ -241,10 +270,10 @@ func (h *HybridScraper) ScrapeJobLegacy(ctx context.Context, url string, options
 
 // Cleanup releases any resources used by scrapers that were actually used
 func (h *HybridScraper) Cleanup() {
-	h.logger.WithFields(logrus.Fields{
+	h.logger.Info("Cleaning up hybrid scraper resources", map[string]interface{}{
 		"used_rod":       h.usedRod,
 		"used_firecrawl": h.usedFirecrawl,
-	}).Info("Cleaning up hybrid scraper resources")
+	})
 
 	// Only cleanup Rod if it was actually used
 	if h.usedRod && h.rodScraper != nil {
@@ -268,11 +297,11 @@ func (h *HybridScraper) IsHealthy() bool {
 	rodHealthy := h.rodScraper != nil && h.rodScraper.IsHealthy()
 	firecrawlHealthy := h.firecrawlScraper != nil && h.firecrawlScraper.IsHealthy()
 
-	h.logger.WithFields(logrus.Fields{
+	h.logger.Debug("Hybrid scraper health check", map[string]interface{}{
 		"rod_healthy":           rodHealthy,
 		"firecrawl_healthy":     firecrawlHealthy,
 		"known_captcha_domains": h.captchaDomainMgr.GetDomainsCount(),
-	}).Debug("Hybrid scraper health check")
+	})
 
 	// As long as at least one scraper is healthy, we consider the hybrid healthy
 	// Firecrawl is more critical since it's our fallback

@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/2captcha/2captcha-go"
-	"github.com/sirupsen/logrus"
 	"letraz-utils/internal/config"
+	"letraz-utils/internal/logging"
 	"letraz-utils/pkg/utils"
 )
 
@@ -23,17 +23,19 @@ type CaptchaSolver interface {
 type TwoCaptchaSolver struct {
 	config *config.Config
 	client *api2captcha.Client
-	logger *logrus.Logger
+	logger logging.Logger
 }
 
 // NewTwoCaptchaSolver creates a new 2CAPTCHA solver instance
 func NewTwoCaptchaSolver(cfg *config.Config) *TwoCaptchaSolver {
-	logger := utils.GetLogger().WithField("component", "2captcha").Logger
+	logger := logging.GetGlobalLogger()
 
 	if cfg.Scraper.Captcha.APIKey == "" {
-		logger.Warn("2CAPTCHA API key not configured - captcha solving will be disabled")
+		logger.Warn("2CAPTCHA API key not configured - captcha solving will be disabled", nil)
 	} else {
-		logger.WithField("api_key_length", len(cfg.Scraper.Captcha.APIKey)).Info("2CAPTCHA solver initialized with API key")
+		logger.Info("2CAPTCHA solver initialized with API key", map[string]interface{}{
+			"api_key_length": len(cfg.Scraper.Captcha.APIKey),
+		})
 	}
 
 	client := api2captcha.NewClient(cfg.Scraper.Captcha.APIKey)
@@ -43,12 +45,12 @@ func NewTwoCaptchaSolver(cfg *config.Config) *TwoCaptchaSolver {
 	client.RecaptchaTimeout = int(cfg.Scraper.Captcha.Timeout.Seconds())
 	client.PollingInterval = 5 // Check every 5 seconds
 
-	logger.WithFields(logrus.Fields{
+	logger.Info("2CAPTCHA client configured", map[string]interface{}{
 		"default_timeout":   client.DefaultTimeout,
 		"recaptcha_timeout": client.RecaptchaTimeout,
 		"polling_interval":  client.PollingInterval,
 		"enable_auto_solve": cfg.Scraper.Captcha.EnableAutoSolve,
-	}).Info("2CAPTCHA client configured")
+	})
 
 	return &TwoCaptchaSolver{
 		config: cfg,
@@ -67,10 +69,10 @@ func (tcs *TwoCaptchaSolver) SolveRecaptcha(ctx context.Context, siteKey, pageUR
 		return "", fmt.Errorf("2CAPTCHA API key not configured")
 	}
 
-	tcs.logger.WithFields(logrus.Fields{
+	tcs.logger.Info("Starting reCAPTCHA solving with 2CAPTCHA", map[string]interface{}{
 		"site_key": siteKey,
 		"page_url": pageURL,
-	}).Info("Starting reCAPTCHA solving with 2CAPTCHA")
+	})
 
 	startTime := time.Now()
 
@@ -84,20 +86,20 @@ func (tcs *TwoCaptchaSolver) SolveRecaptcha(ctx context.Context, siteKey, pageUR
 	req := captcha.ToRequest()
 	code, _, err := tcs.client.Solve(req)
 	if err != nil {
-		tcs.logger.WithFields(logrus.Fields{
+		tcs.logger.Error("Failed to solve reCAPTCHA", map[string]interface{}{
 			"site_key": siteKey,
 			"page_url": pageURL,
 			"error":    err.Error(),
-		}).Error("Failed to solve reCAPTCHA")
+		})
 		return "", fmt.Errorf("failed to solve reCAPTCHA: %w", err)
 	}
 
 	solvingTime := time.Since(startTime)
-	tcs.logger.WithFields(logrus.Fields{
+	tcs.logger.Info("Successfully solved reCAPTCHA", map[string]interface{}{
 		"site_key":     siteKey,
 		"page_url":     pageURL,
 		"solving_time": solvingTime,
-	}).Info("Successfully solved reCAPTCHA")
+	})
 
 	return code, nil
 }
@@ -112,10 +114,10 @@ func (tcs *TwoCaptchaSolver) SolveTurnstile(ctx context.Context, siteKey, pageUR
 		return "", fmt.Errorf("2CAPTCHA API key not configured")
 	}
 
-	tcs.logger.WithFields(logrus.Fields{
+	tcs.logger.Info("Starting Cloudflare Turnstile solving with 2CAPTCHA", map[string]interface{}{
 		"site_key": siteKey,
 		"page_url": pageURL,
-	}).Info("Starting Cloudflare Turnstile solving with 2CAPTCHA")
+	})
 
 	startTime := time.Now()
 
@@ -129,22 +131,22 @@ func (tcs *TwoCaptchaSolver) SolveTurnstile(ctx context.Context, siteKey, pageUR
 	req := captcha.ToRequest()
 	code, captchaId, err := tcs.client.Solve(req)
 	if err != nil {
-		tcs.logger.WithFields(logrus.Fields{
+		tcs.logger.Error("Failed to solve Cloudflare Turnstile", map[string]interface{}{
 			"site_key":   siteKey,
 			"page_url":   pageURL,
 			"captcha_id": captchaId,
 			"error":      err.Error(),
 			"error_type": fmt.Sprintf("%T", err),
-		}).Error("Failed to solve Cloudflare Turnstile")
+		})
 		return "", fmt.Errorf("failed to solve Cloudflare Turnstile: %w", err)
 	}
 
 	solvingTime := time.Since(startTime)
-	tcs.logger.WithFields(logrus.Fields{
+	tcs.logger.Info("Successfully solved Cloudflare Turnstile", map[string]interface{}{
 		"site_key":     siteKey,
 		"page_url":     pageURL,
 		"solving_time": solvingTime,
-	}).Info("Successfully solved Cloudflare Turnstile")
+	})
 
 	return code, nil
 }
@@ -152,21 +154,23 @@ func (tcs *TwoCaptchaSolver) SolveTurnstile(ctx context.Context, siteKey, pageUR
 // IsHealthy checks if the 2CAPTCHA service is available
 func (tcs *TwoCaptchaSolver) IsHealthy() bool {
 	if tcs.config.Scraper.Captcha.APIKey == "" {
-		tcs.logger.Debug("2CAPTCHA health check failed: no API key configured")
+		tcs.logger.Debug("2CAPTCHA health check failed: no API key configured", nil)
 		return false
 	}
 
 	// Check balance to verify API key is working
 	balance, err := tcs.client.GetBalance()
 	if err != nil {
-		tcs.logger.WithFields(logrus.Fields{
+		tcs.logger.Error("2CAPTCHA health check failed - API call error", map[string]interface{}{
 			"error":          err.Error(),
 			"api_key_length": len(tcs.config.Scraper.Captcha.APIKey),
-		}).Error("2CAPTCHA health check failed - API call error")
+		})
 		return false
 	}
 
-	tcs.logger.WithField("balance", balance).Info("2CAPTCHA health check successful")
+	tcs.logger.Info("2CAPTCHA health check successful", map[string]interface{}{
+		"balance": balance,
+	})
 	return balance >= 0 // Allow zero balance for now
 }
 

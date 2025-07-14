@@ -6,9 +6,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"letraz-utils/internal/config"
 	"letraz-utils/internal/llm"
+	"letraz-utils/internal/logging"
+	"letraz-utils/internal/logging/types"
 	"letraz-utils/internal/scraper/workers"
 	"letraz-utils/pkg/models"
 	"letraz-utils/pkg/utils"
@@ -61,7 +62,7 @@ type TaskManagerImpl struct {
 	config       *config.Config
 	store        TaskStore
 	logger       *TaskCompletionLogger
-	appLogger    *logrus.Logger
+	appLogger    types.Logger
 	workerPool   chan struct{}
 	ctx          context.Context
 	cancel       context.CancelFunc
@@ -110,23 +111,25 @@ func validateTaskManagerConfig(cfg *config.Config) (maxWorkers, maxQueueSize int
 
 // NewTaskManager creates a new task manager
 func NewTaskManager(cfg *config.Config) *TaskManagerImpl {
-	logger := utils.GetLogger()
+	logger := logging.GetGlobalLogger()
 
 	// Validate configuration and get safe values
 	maxWorkers, maxQueueSize, err := validateTaskManagerConfig(cfg)
 	if err != nil {
 		// Log validation error and fall back to defaults
-		logger.WithError(err).Warn("Task manager configuration validation failed, using defaults")
+		logger.Warn("Task manager configuration validation failed, using defaults", map[string]interface{}{
+			"error": err.Error(),
+		})
 		maxWorkers = DefaultMaxWorkers
 		maxQueueSize = DefaultMaxQueueSize
 	}
 
 	// Log final configuration values
-	logger.WithFields(map[string]interface{}{
+	logger.Info("Task manager configuration initialized", map[string]interface{}{
 		"max_workers":    maxWorkers,
 		"max_queue_size": maxQueueSize,
 		"using_defaults": err != nil,
-	}).Info("Task manager configuration initialized")
+	})
 
 	return &TaskManagerImpl{
 		config:       cfg,
@@ -162,7 +165,9 @@ func (tm *TaskManagerImpl) Start(ctx context.Context) error {
 	tm.wg.Add(1)
 	go tm.cleanupRoutine()
 
-	tm.appLogger.WithField("max_workers", tm.maxWorkers).Info("Task manager started")
+	tm.appLogger.Info("Task manager started", map[string]interface{}{
+		"max_workers": tm.maxWorkers,
+	})
 	return nil
 }
 
@@ -175,7 +180,7 @@ func (tm *TaskManagerImpl) Stop(ctx context.Context) error {
 		return nil
 	}
 
-	tm.appLogger.Info("Stopping task manager...")
+	tm.appLogger.Info("Stopping task manager...", map[string]interface{}{})
 
 	// Cancel context to signal workers to stop
 	tm.cancel()
@@ -192,9 +197,9 @@ func (tm *TaskManagerImpl) Stop(ctx context.Context) error {
 
 	select {
 	case <-done:
-		tm.appLogger.Info("Task manager stopped gracefully")
+		tm.appLogger.Info("Task manager stopped gracefully", map[string]interface{}{})
 	case <-ctx.Done():
-		tm.appLogger.Warn("Task manager shutdown timed out")
+		tm.appLogger.Warn("Task manager shutdown timed out", map[string]interface{}{})
 	}
 
 	tm.running = false
@@ -332,16 +337,22 @@ func (tm *TaskManagerImpl) IsHealthy() bool {
 func (tm *TaskManagerImpl) worker(workerID int) {
 	defer tm.wg.Done()
 
-	tm.appLogger.WithField("worker_id", workerID).Info("Task worker started")
+	tm.appLogger.Info("Task worker started", map[string]interface{}{
+		"worker_id": workerID,
+	})
 
 	for {
 		select {
 		case <-tm.ctx.Done():
-			tm.appLogger.WithField("worker_id", workerID).Info("Task worker stopping")
+			tm.appLogger.Info("Task worker stopping", map[string]interface{}{
+				"worker_id": workerID,
+			})
 			return
 		case task, ok := <-tm.taskChan:
 			if !ok {
-				tm.appLogger.WithField("worker_id", workerID).Info("Task channel closed, worker stopping")
+				tm.appLogger.Info("Task channel closed, worker stopping", map[string]interface{}{
+					"worker_id": workerID,
+				})
 				return
 			}
 
@@ -354,15 +365,17 @@ func (tm *TaskManagerImpl) worker(workerID int) {
 func (tm *TaskManagerImpl) processTask(workerID int, task *TaskExecution) {
 	startTime := time.Now()
 
-	tm.appLogger.WithFields(map[string]interface{}{
+	tm.appLogger.Info("Processing task", map[string]interface{}{
 		"worker_id":  workerID,
 		"process_id": task.ProcessID,
 		"task_type":  task.Type,
-	}).Info("Processing task")
+	})
 
 	// Update task status to processing
 	if err := tm.updateTaskStatus(task.ProcessID, TaskStatusProcessing); err != nil {
-		tm.appLogger.WithError(err).Error("Failed to update task status to processing")
+		tm.appLogger.Error("Failed to update task status to processing", map[string]interface{}{
+			"error": err.Error(),
+		})
 	}
 
 	// Log task start
@@ -374,18 +387,20 @@ func (tm *TaskManagerImpl) processTask(workerID int, task *TaskExecution) {
 
 	if err != nil {
 		// Task failed
-		tm.appLogger.WithFields(map[string]interface{}{
+		tm.appLogger.Error("Task execution failed", map[string]interface{}{
 			"worker_id":       workerID,
 			"process_id":      task.ProcessID,
 			"task_type":       task.Type,
 			"processing_time": processingTime,
 			"error":           err.Error(),
-		}).Error("Task execution failed")
+		})
 
 		// Retrieve existing task result to preserve original CreatedAt
 		existingResult, getErr := tm.store.Get(task.Context, task.ProcessID)
 		if getErr != nil {
-			tm.appLogger.WithError(getErr).Error("Failed to retrieve existing task result for failure update")
+			tm.appLogger.Error("Failed to retrieve existing task result for failure update", map[string]interface{}{
+				"error": getErr.Error(),
+			})
 			// Fallback: create new result (preserving old behavior)
 			result = &TaskResult{
 				ProcessID:      task.ProcessID,
@@ -406,12 +421,12 @@ func (tm *TaskManagerImpl) processTask(workerID int, task *TaskExecution) {
 		tm.logger.LogTaskError(task.ProcessID, task.Type, err)
 	} else {
 		// Task succeeded
-		tm.appLogger.WithFields(map[string]interface{}{
+		tm.appLogger.Info("Task execution completed successfully", map[string]interface{}{
 			"worker_id":       workerID,
 			"process_id":      task.ProcessID,
 			"task_type":       task.Type,
 			"processing_time": processingTime,
-		}).Info("Task execution completed successfully")
+		})
 
 		result.Status = TaskStatusSuccess
 		result.ProcessingTime = &processingTime
@@ -423,12 +438,16 @@ func (tm *TaskManagerImpl) processTask(workerID int, task *TaskExecution) {
 
 	// Store the final result
 	if err := tm.store.Update(task.Context, result); err != nil {
-		tm.appLogger.WithError(err).Error("Failed to store task result")
+		tm.appLogger.Error("Failed to store task result", map[string]interface{}{
+			"error": err.Error(),
+		})
 	}
 
 	// Log structured completion to stdout
 	if err := tm.logger.LogTaskCompletion(result); err != nil {
-		tm.appLogger.WithError(err).Error("Failed to log task completion")
+		tm.appLogger.Error("Failed to log task completion", map[string]interface{}{
+			"error": err.Error(),
+		})
 	}
 
 	// Cancel the task context to prevent context leaks
@@ -462,7 +481,9 @@ func (tm *TaskManagerImpl) cleanupRoutine() {
 		case <-ticker.C:
 			maxAge := 24 * time.Hour // Keep results for 24 hours
 			if err := tm.store.Cleanup(context.Background(), maxAge); err != nil {
-				tm.appLogger.WithError(err).Error("Failed to cleanup old task results")
+				tm.appLogger.Error("Failed to cleanup old task results", map[string]interface{}{
+					"error": err.Error(),
+				})
 			}
 		}
 	}
@@ -550,28 +571,28 @@ func (tm *TaskManagerImpl) executeTailorTask(ctx context.Context, processID stri
 	func() {
 		defer func() {
 			if r := recover(); r != nil {
-				tm.appLogger.WithFields(map[string]interface{}{
+				tm.appLogger.Warn("Redis initialization failed - continuing without conversation history", map[string]interface{}{
 					"process_id": processID,
 					"error":      fmt.Sprintf("%v", r),
-				}).Warn("Redis initialization failed - continuing without conversation history")
+				})
 			}
 		}()
 
 		redisClient = utils.NewRedisClient(cfg)
 		if err := redisClient.Ping(ctx); err != nil {
-			tm.appLogger.WithFields(map[string]interface{}{
+			tm.appLogger.Warn("Redis connection failed - conversation history will not be saved", map[string]interface{}{
 				"process_id": processID,
 				"error":      err.Error(),
-			}).Warn("Redis connection failed - conversation history will not be saved")
+			})
 			if redisClient != nil {
 				redisClient.Close()
 				redisClient = nil
 			}
 		} else {
 			redisAvailable = true
-			tm.appLogger.WithFields(map[string]interface{}{
+			tm.appLogger.Debug("Redis connection successful", map[string]interface{}{
 				"process_id": processID,
-			}).Debug("Redis connection successful")
+			})
 		}
 	}()
 
@@ -581,11 +602,11 @@ func (tm *TaskManagerImpl) executeTailorTask(ctx context.Context, processID stri
 
 		// Create conversation thread with resumeID as threadID
 		if err := redisClient.CreateConversationThread(ctx, request.ResumeID); err != nil {
-			tm.appLogger.WithFields(map[string]interface{}{
+			tm.appLogger.Warn("Failed to create conversation thread - continuing without history", map[string]interface{}{
 				"process_id": processID,
 				"resume_id":  request.ResumeID,
 				"error":      err.Error(),
-			}).Warn("Failed to create conversation thread - continuing without history")
+			})
 		}
 
 		// Store conversation history entries...
@@ -601,10 +622,10 @@ func (tm *TaskManagerImpl) executeTailorTask(ctx context.Context, processID stri
 	// Store AI response in conversation history (if Redis is available)
 	if redisAvailable && redisClient != nil {
 		// TODO: Implement conversation history storage in background task
-		tm.appLogger.WithFields(map[string]interface{}{
+		tm.appLogger.Debug("Conversation history storage not yet implemented in background task", map[string]interface{}{
 			"process_id": processID,
 			"resume_id":  request.ResumeID,
-		}).Debug("Conversation history storage not yet implemented in background task")
+		})
 	}
 
 	// Create task data

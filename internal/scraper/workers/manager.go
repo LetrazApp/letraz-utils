@@ -7,11 +7,9 @@ import (
 
 	"letraz-utils/internal/config"
 	"letraz-utils/internal/llm"
+	"letraz-utils/internal/logging"
 	"letraz-utils/internal/scraper"
 	"letraz-utils/pkg/models"
-	"letraz-utils/pkg/utils"
-
-	"github.com/sirupsen/logrus"
 )
 
 // PoolManager manages the worker pool lifecycle
@@ -20,7 +18,7 @@ type PoolManager struct {
 	pool           *WorkerPool
 	scraperFactory scraper.ScraperFactory
 	llmManager     *llm.Manager
-	logger         *logrus.Logger
+	logger         logging.Logger
 	mu             sync.RWMutex
 	initialized    bool
 }
@@ -31,7 +29,7 @@ func NewPoolManager(cfg *config.Config, llmManager *llm.Manager) *PoolManager {
 		config:         cfg,
 		scraperFactory: scraper.NewScraperFactory(cfg, llmManager),
 		llmManager:     llmManager,
-		logger:         utils.GetLogger().WithField("component", "pool_manager").Logger,
+		logger:         logging.GetGlobalLogger(),
 	}
 }
 
@@ -44,26 +42,28 @@ func (pm *PoolManager) Initialize() error {
 		return fmt.Errorf("worker pool already initialized")
 	}
 
-	pm.logger.Info("Initializing worker pool")
-	pm.logger.Debug("DEBUG: PoolManager.Initialize() started")
+	pm.logger.Info("Initializing worker pool", nil)
+	pm.logger.Debug("DEBUG: PoolManager.Initialize() started", nil)
 
 	// Create the worker pool
-	pm.logger.Debug("DEBUG: About to create worker pool")
+	pm.logger.Debug("DEBUG: About to create worker pool", nil)
 	pm.pool = NewWorkerPool(pm.config, pm.scraperFactory)
-	pm.logger.Debug("DEBUG: Worker pool created successfully")
+	pm.logger.Debug("DEBUG: Worker pool created successfully", nil)
 
 	// Start the worker pool
-	pm.logger.Debug("DEBUG: About to start worker pool")
+	pm.logger.Debug("DEBUG: About to start worker pool", nil)
 	err := pm.pool.Start()
 	if err != nil {
-		pm.logger.WithError(err).Error("DEBUG: Worker pool start failed")
+		pm.logger.Error("DEBUG: Worker pool start failed", map[string]interface{}{
+			"error": err.Error(),
+		})
 		return fmt.Errorf("failed to start worker pool: %w", err)
 	}
-	pm.logger.Debug("DEBUG: Worker pool start returned successfully")
+	pm.logger.Debug("DEBUG: Worker pool start returned successfully", nil)
 
 	pm.initialized = true
-	pm.logger.Info("Worker pool initialized successfully")
-	pm.logger.Debug("DEBUG: PoolManager.Initialize() completed")
+	pm.logger.Info("Worker pool initialized successfully", nil)
+	pm.logger.Debug("DEBUG: PoolManager.Initialize() completed", nil)
 	return nil
 }
 
@@ -76,11 +76,13 @@ func (pm *PoolManager) Shutdown() error {
 		return nil
 	}
 
-	pm.logger.Info("Shutting down worker pool")
+	pm.logger.Info("Shutting down worker pool", nil)
 
 	err := pm.pool.Stop()
 	if err != nil {
-		pm.logger.WithError(err).Error("Error stopping worker pool")
+		pm.logger.Error("Error stopping worker pool", map[string]interface{}{
+			"error": err.Error(),
+		})
 		return err
 	}
 
@@ -88,7 +90,7 @@ func (pm *PoolManager) Shutdown() error {
 	pm.pool.rateLimiter.Stop()
 
 	pm.initialized = false
-	pm.logger.Info("Worker pool shutdown complete")
+	pm.logger.Info("Worker pool shutdown complete", nil)
 	return nil
 }
 

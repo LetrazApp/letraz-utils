@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"letraz-utils/internal/logging"
 	"letraz-utils/pkg/utils"
 )
 
@@ -27,13 +28,13 @@ func RecoveryInterceptor() grpc.UnaryServerInterceptor {
 				stackTrace := string(debug.Stack())
 
 				// Log the panic
-				logger := utils.GetLogger()
-				logger.WithFields(map[string]interface{}{
+				logger := logging.GetGlobalLogger()
+				logger.Error("gRPC handler panic recovered", map[string]interface{}{
 					"method":      info.FullMethod,
 					"panic":       fmt.Sprintf("%v", r),
 					"stack_trace": stackTrace,
 					"type":        "grpc_panic",
-				}).Error("gRPC handler panic recovered")
+				})
 
 				// Convert panic to gRPC error
 				err = status.Errorf(codes.Internal, "internal server error: %v", r)
@@ -60,13 +61,13 @@ func StreamRecoveryInterceptor() grpc.StreamServerInterceptor {
 				stackTrace := string(debug.Stack())
 
 				// Log the panic
-				logger := utils.GetLogger()
-				logger.WithFields(map[string]interface{}{
+				logger := logging.GetGlobalLogger()
+				logger.Error("gRPC stream handler panic recovered", map[string]interface{}{
 					"method":      info.FullMethod,
 					"panic":       fmt.Sprintf("%v", r),
 					"stack_trace": stackTrace,
 					"type":        "grpc_stream_panic",
-				}).Error("gRPC stream handler panic recovered")
+				})
 
 				// Convert panic to gRPC error
 				err = status.Errorf(codes.Internal, "internal server error: %v", r)
@@ -95,13 +96,13 @@ func RecoveryInterceptorWithHandler(recoveryHandler PanicRecoveryHandler) grpc.U
 				stackTrace := string(debug.Stack())
 
 				// Log the panic
-				logger := utils.GetLogger()
-				logger.WithFields(map[string]interface{}{
+				logger := logging.GetGlobalLogger()
+				logger.Error("gRPC handler panic recovered", map[string]interface{}{
 					"method":      info.FullMethod,
 					"panic":       fmt.Sprintf("%v", r),
 					"stack_trace": stackTrace,
 					"type":        "grpc_panic",
-				}).Error("gRPC handler panic recovered")
+				})
 
 				// Use custom recovery handler if provided
 				if recoveryHandler != nil {

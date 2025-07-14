@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"letraz-utils/internal/logging"
 	"letraz-utils/internal/scraper/workers"
 	"letraz-utils/pkg/models"
 	"letraz-utils/pkg/utils"
@@ -15,13 +16,16 @@ import (
 func WorkerStatsHandler(poolManager *workers.PoolManager) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		requestID := utils.GenerateRequestID()
-		logger := utils.LogWithRequestID(requestID)
+		logger := logging.GetGlobalLogger()
 
-		logger.Info("Worker stats request received")
+		logger.Info("Worker stats request received", map[string]interface{}{"request_id": requestID})
 
 		stats, err := poolManager.GetStats()
 		if err != nil {
-			logger.WithError(err).Error("Failed to get worker stats")
+			logger.Error("Failed to get worker stats", map[string]interface{}{
+				"request_id": requestID,
+				"error":      err,
+			})
 			return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
 				Error:     "stats_unavailable",
 				Message:   "Worker pool statistics are not available",
@@ -37,7 +41,9 @@ func WorkerStatsHandler(poolManager *workers.PoolManager) echo.HandlerFunc {
 			"timestamp":  time.Now(),
 		}
 
-		logger.WithField("worker_count", stats.WorkerCount).Info("Worker stats retrieved successfully")
+		logger.Info("Worker stats retrieved successfully", map[string]interface{}{
+			"worker_count": stats.WorkerCount,
+		})
 		return c.JSON(http.StatusOK, response)
 	}
 }
@@ -71,7 +77,7 @@ func WorkerHealthHandler(poolManager *workers.PoolManager) echo.HandlerFunc {
 func DomainStatsHandler(poolManager *workers.PoolManager) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		requestID := utils.GenerateRequestID()
-		logger := utils.LogWithRequestID(requestID)
+		logger := logging.GetGlobalLogger()
 
 		domain := c.Param("domain")
 		if domain == "" {
@@ -83,11 +89,11 @@ func DomainStatsHandler(poolManager *workers.PoolManager) echo.HandlerFunc {
 			})
 		}
 
-		logger.WithField("domain", domain).Info("Domain stats request received")
+		logger.Info("Domain stats request received", map[string]interface{}{"domain": domain})
 
 		stats, err := poolManager.GetDomainStats(domain)
 		if err != nil {
-			logger.WithError(err).Error("Failed to get domain stats")
+			logger.Error("Failed to get domain stats", map[string]interface{}{"error": err})
 			return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
 				Error:     "stats_unavailable",
 				Message:   "Domain statistics are not available",
@@ -104,7 +110,9 @@ func DomainStatsHandler(poolManager *workers.PoolManager) echo.HandlerFunc {
 			"timestamp":  time.Now(),
 		}
 
-		logger.WithField("domain", domain).Info("Domain stats retrieved successfully")
+		logger.Info("Domain stats retrieved successfully", map[string]interface{}{
+			"domain": domain,
+		})
 		return c.JSON(http.StatusOK, response)
 	}
 }
@@ -129,13 +137,16 @@ type WorkerStatusResponse struct {
 func DetailedWorkerStatusHandler(poolManager *workers.PoolManager) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		requestID := utils.GenerateRequestID()
-		logger := utils.LogWithRequestID(requestID)
+		logger := logging.GetGlobalLogger()
 
-		logger.Info("Detailed worker status request received")
+		logger.Info("Detailed worker status request received", map[string]interface{}{"request_id": requestID})
 
 		stats, err := poolManager.GetStats()
 		if err != nil {
-			logger.WithError(err).Error("Failed to get detailed worker stats")
+			logger.Error("Failed to get detailed worker stats", map[string]interface{}{
+				"request_id": requestID,
+				"error":      err,
+			})
 			return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
 				Error:     "stats_unavailable",
 				Message:   "Detailed worker statistics are not available",
@@ -168,12 +179,12 @@ func DetailedWorkerStatusHandler(poolManager *workers.PoolManager) echo.HandlerF
 			Timestamp: time.Now(),
 		}
 
-		logger.WithFields(map[string]interface{}{
+		logger.Info("Detailed worker status retrieved successfully", map[string]interface{}{
 			"worker_count":    stats.WorkerCount,
 			"jobs_processed":  stats.PoolStats.JobsProcessed,
 			"jobs_successful": stats.PoolStats.JobsSuccessful,
 			"jobs_failed":     stats.PoolStats.JobsFailed,
-		}).Info("Detailed worker status retrieved successfully")
+		})
 
 		return c.JSON(http.StatusOK, response)
 	}

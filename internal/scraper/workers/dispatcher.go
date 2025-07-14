@@ -3,8 +3,7 @@ package workers
 import (
 	"sync"
 
-	"github.com/sirupsen/logrus"
-	"letraz-utils/pkg/utils"
+	"letraz-utils/internal/logging"
 )
 
 // Dispatcher manages job distribution to workers
@@ -13,7 +12,7 @@ type Dispatcher struct {
 	workers     []*Worker
 	workerQueue chan chan ScrapeJob
 	quit        chan bool
-	logger      *logrus.Logger
+	logger      logging.Logger
 	mu          sync.RWMutex
 	running     bool
 }
@@ -27,7 +26,7 @@ func NewDispatcher(jobQueue chan ScrapeJob, workers []*Worker) *Dispatcher {
 		workers:     workers,
 		workerQueue: workerQueue,
 		quit:        make(chan bool),
-		logger:      utils.GetLogger().WithField("component", "dispatcher").Logger,
+		logger:      logging.GetGlobalLogger(),
 	}
 }
 
@@ -40,15 +39,17 @@ func (d *Dispatcher) Start() {
 		return
 	}
 
-	d.logger.Info("Starting job dispatcher")
-	d.logger.Debug("DEBUG: About to start dispatch goroutine")
+	d.logger.Info("Starting job dispatcher", nil)
+	d.logger.Debug("DEBUG: About to start dispatch goroutine", nil)
 
 	// Start job dispatching
 	go d.dispatch()
 
 	d.running = true
-	d.logger.WithField("workers", len(d.workers)).Info("Job dispatcher started")
-	d.logger.Debug("DEBUG: Dispatcher Start method completed")
+	d.logger.Info("Job dispatcher started", map[string]interface{}{
+		"workers": len(d.workers),
+	})
+	d.logger.Debug("DEBUG: Dispatcher Start method completed", nil)
 }
 
 // Stop stops the dispatcher
@@ -60,13 +61,13 @@ func (d *Dispatcher) Stop() {
 		return
 	}
 
-	d.logger.Info("Stopping job dispatcher")
+	d.logger.Info("Stopping job dispatcher", nil)
 
 	// Send quit signal
 	d.quit <- true
 
 	d.running = false
-	d.logger.Info("Job dispatcher stopped")
+	d.logger.Info("Job dispatcher stopped", nil)
 }
 
 // dispatch handles the main job dispatching logic

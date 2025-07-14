@@ -9,10 +9,10 @@ import (
 	"letraz-utils/internal/config"
 	"letraz-utils/internal/grpc/interceptors"
 	"letraz-utils/internal/llm"
+	"letraz-utils/internal/logging"
+	"letraz-utils/internal/logging/types"
 	"letraz-utils/internal/scraper/workers"
-	"letraz-utils/pkg/utils"
 
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
@@ -23,7 +23,7 @@ type Server struct {
 	poolManager *workers.PoolManager
 	llmManager  *llm.Manager
 	taskManager background.TaskManager
-	logger      *logrus.Logger
+	logger      types.Logger
 	grpcServer  *grpc.Server
 
 	// Embed the unimplemented server methods
@@ -37,7 +37,7 @@ func NewServer(cfg *config.Config, poolManager *workers.PoolManager, llmManager 
 		poolManager: poolManager,
 		llmManager:  llmManager,
 		taskManager: taskManager,
-		logger:      utils.GetLogger(),
+		logger:      logging.GetGlobalLogger(),
 	}
 }
 
@@ -72,13 +72,15 @@ func (s *Server) Start(lis net.Listener) error {
 	// Enable reflection for debugging
 	reflection.Register(s.grpcServer)
 
-	s.logger.WithField("address", lis.Addr().String()).Info("Starting gRPC server")
+	s.logger.Info("Starting gRPC server", map[string]interface{}{
+		"address": lis.Addr().String(),
+	})
 
 	return s.grpcServer.Serve(lis)
 }
 
 func (s *Server) Stop() {
-	s.logger.Info("Shutting down gRPC server...")
+	s.logger.Info("Shutting down gRPC server...", map[string]interface{}{})
 	if s.grpcServer != nil {
 		s.grpcServer.GracefulStop()
 	}
@@ -96,6 +98,6 @@ func (s *Server) GetLLMManager() *llm.Manager {
 	return s.llmManager
 }
 
-func (s *Server) GetLogger() *logrus.Logger {
+func (s *Server) GetLogger() types.Logger {
 	return s.logger
 }
