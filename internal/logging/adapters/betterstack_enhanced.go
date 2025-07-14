@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"sync"
 	"time"
@@ -292,8 +293,8 @@ func (a *BetterstackEnhancedAdapter) sendToBetterstack(entry BetterstackLogEntry
 func (a *BetterstackEnhancedAdapter) handleResponse(resp *http.Response) error {
 	defer resp.Body.Close()
 
-	// Read response body
-	body, err := io.ReadAll(resp.Body)
+	// Read response body with size limit to prevent memory exhaustion
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20)) // Limit to 1MB
 	if err != nil {
 		return fmt.Errorf("failed to read response body: %w", err)
 	}
@@ -330,8 +331,10 @@ func (a *BetterstackEnhancedAdapter) shouldRetry(err error) bool {
 
 // addJitter adds random jitter to the interval
 func (a *BetterstackEnhancedAdapter) addJitter(interval time.Duration) time.Duration {
-	jitter := time.Duration(float64(interval) * 0.1)           // 10% jitter
-	return interval + time.Duration(float64(jitter)*(2*0.5-1)) // Random between -jitter and +jitter
+	// Add random jitter between -10% and +10%
+	jitterRange := float64(interval) * 0.1
+	jitter := time.Duration((rand.Float64()*2 - 1) * jitterRange)
+	return interval + jitter
 }
 
 // Close closes the adapter
@@ -388,16 +391,25 @@ func (a *BetterstackEnhancedAdapter) GetStats() map[string]interface{} {
 
 // CanCall checks if the circuit breaker allows the call
 func (cb *CircuitBreaker) CanCall() bool {
-	cb.mu.RLock()
-	defer cb.mu.RUnlock()
+	cb.mu.Lock()
+	defer cb.mu.Unlock()
 
 	switch cb.state {
 	case CircuitClosed:
 		return true
 	case CircuitOpen:
-		return time.Since(cb.lastFailureTime) > cb.resetTimeout
+		if time.Since(cb.lastFailureTime) > cb.resetTimeout {
+			cb.state = CircuitHalfOpen
+			cb.halfOpenCalls = 0
+			return true
+		}
+		return false
 	case CircuitHalfOpen:
-		return cb.halfOpenCalls < cb.halfOpenMaxCalls
+		if cb.halfOpenCalls < cb.halfOpenMaxCalls {
+			cb.halfOpenCalls++
+			return true
+		}
+		return false
 	default:
 		return false
 	}
@@ -467,10 +479,10 @@ func (s *AdapterStats) recordRequest(duration time.Duration, success bool) {
 	}
 
 	// Update average response time
-	s.responseTimeCount++
 	s.averageResponseTime = time.Duration(
 		(int64(s.averageResponseTime)*s.responseTimeCount + int64(duration)) / (s.responseTimeCount + 1),
 	)
+	s.responseTimeCount++
 }
 
 // recordCircuitBreakerTrip records a circuit breaker trip

@@ -85,6 +85,8 @@ func (l *MultiLogger) Log(level LogLevel, message string, fields ...map[string]i
 
 // WithContext returns a new logger with the specified context
 func (l *MultiLogger) WithContext(ctx context.Context) Logger {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
 	return &MultiLogger{
 		adapters: l.adapters,
 		level:    l.level,
@@ -95,6 +97,9 @@ func (l *MultiLogger) WithContext(ctx context.Context) Logger {
 
 // WithField returns a new logger with the specified field
 func (l *MultiLogger) WithField(key string, value interface{}) Logger {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+
 	fields := l.copyFields()
 	fields[key] = value
 
@@ -108,6 +113,9 @@ func (l *MultiLogger) WithField(key string, value interface{}) Logger {
 
 // WithFields returns a new logger with the specified fields
 func (l *MultiLogger) WithFields(fields map[string]interface{}) Logger {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+
 	mergedFields := l.copyFields()
 	for k, v := range fields {
 		mergedFields[k] = v

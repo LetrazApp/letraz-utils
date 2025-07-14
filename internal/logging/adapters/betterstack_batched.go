@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"sync"
 	"time"
@@ -353,8 +354,8 @@ func (a *BetterstackBatchedAdapter) sendPayload(payload []byte) error {
 func (a *BetterstackBatchedAdapter) handleResponse(resp *http.Response) error {
 	defer resp.Body.Close()
 
-	// Read response body
-	body, err := io.ReadAll(resp.Body)
+	// Read response body with size limit to prevent memory exhaustion
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20)) // Limit to 1MB
 	if err != nil {
 		return fmt.Errorf("failed to read response body: %w", err)
 	}
@@ -391,8 +392,10 @@ func (a *BetterstackBatchedAdapter) shouldRetry(err error) bool {
 
 // addJitter adds random jitter to the interval
 func (a *BetterstackBatchedAdapter) addJitter(interval time.Duration) time.Duration {
-	jitter := time.Duration(float64(interval) * 0.1)           // 10% jitter
-	return interval + time.Duration(float64(jitter)*(2*0.5-1)) // Random between -jitter and +jitter
+	// Add random jitter between -10% and +10%
+	jitterRange := float64(interval) * 0.1
+	jitter := time.Duration((rand.Float64()*2 - 1) * jitterRange)
+	return interval + jitter
 }
 
 // resetFlushTimer resets the flush timer
@@ -488,7 +491,7 @@ func (lb *LogBuffer) Add(entry BetterstackLogEntry) bool {
 	defer lb.mu.Unlock()
 
 	lb.entries = append(lb.entries, entry)
-	return len(lb.entries) >= cap(lb.entries)
+	return len(lb.entries) >= lb.maxSize
 }
 
 // AddMultiple adds multiple entries to the buffer
@@ -534,10 +537,10 @@ func (s *BatchedAdapterStats) recordBatch(batchSize int, duration time.Duration,
 	}
 
 	// Update average response time
-	s.responseTimeCount++
 	s.averageResponseTime = time.Duration(
 		(int64(s.averageResponseTime)*s.responseTimeCount + int64(duration)) / (s.responseTimeCount + 1),
 	)
+	s.responseTimeCount++
 
 	s.totalRequests++
 }

@@ -1,8 +1,10 @@
 package adapters
 
 import (
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -243,9 +245,40 @@ func (a *FileAdapter) rotate() error {
 
 // compressFile compresses a file using gzip
 func (a *FileAdapter) compressFile(filePath string) error {
-	// This is a placeholder - actual compression would require importing compress/gzip
-	// For now, just rename with .gz extension to indicate it should be compressed
-	return os.Rename(filePath, filePath+".gz")
+	// Open the source file
+	src, err := os.Open(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to open source file: %w", err)
+	}
+	defer src.Close()
+
+	// Create the compressed file
+	dst, err := os.Create(filePath + ".gz")
+	if err != nil {
+		return fmt.Errorf("failed to create compressed file: %w", err)
+	}
+	defer dst.Close()
+
+	// Create gzip writer
+	gz := gzip.NewWriter(dst)
+	defer gz.Close()
+
+	// Copy the data through gzip compression
+	if _, err := io.Copy(gz, src); err != nil {
+		return fmt.Errorf("failed to compress data: %w", err)
+	}
+
+	// Close gzip writer to flush any remaining data
+	if err := gz.Close(); err != nil {
+		return fmt.Errorf("failed to close gzip writer: %w", err)
+	}
+
+	// Remove the original file after successful compression
+	if err := os.Remove(filePath); err != nil {
+		return fmt.Errorf("failed to remove original file: %w", err)
+	}
+
+	return nil
 }
 
 // cleanupOldBackups removes old backup files
@@ -302,9 +335,7 @@ func (a *FileAdapter) formatJSON(entry *types.LogEntry) (string, error) {
 
 	// Add fields if they exist
 	if len(entry.Fields) > 0 {
-		for k, v := range entry.Fields {
-			logData[k] = v
-		}
+		logData["fields"] = entry.Fields
 	}
 
 	data, err := json.Marshal(logData)

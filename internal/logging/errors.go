@@ -157,8 +157,10 @@ type ErrorRecovery struct {
 type CircuitBreaker struct {
 	failureThreshold int
 	resetTimeout     time.Duration
+	halfOpenMaxCalls int
 	failures         int
 	lastFailureTime  time.Time
+	halfOpenCalls    int
 	state            CircuitState
 	mu               sync.RWMutex
 }
@@ -191,22 +193,32 @@ func NewCircuitBreaker(failureThreshold int, resetTimeout time.Duration) *Circui
 	return &CircuitBreaker{
 		failureThreshold: failureThreshold,
 		resetTimeout:     resetTimeout,
+		halfOpenMaxCalls: 3, // Default to 3 test calls in half-open state
 		state:            CircuitClosed,
 	}
 }
 
 // CanCall checks if the circuit breaker allows the call
 func (cb *CircuitBreaker) CanCall() bool {
-	cb.mu.RLock()
-	defer cb.mu.RUnlock()
+	cb.mu.Lock()
+	defer cb.mu.Unlock()
 
 	switch cb.state {
 	case CircuitClosed:
 		return true
 	case CircuitOpen:
-		return time.Since(cb.lastFailureTime) > cb.resetTimeout
+		if time.Since(cb.lastFailureTime) > cb.resetTimeout {
+			cb.state = CircuitHalfOpen
+			cb.halfOpenCalls = 0
+			return true
+		}
+		return false
 	case CircuitHalfOpen:
-		return true
+		if cb.halfOpenCalls < cb.halfOpenMaxCalls {
+			cb.halfOpenCalls++
+			return true
+		}
+		return false
 	default:
 		return false
 	}
@@ -219,6 +231,7 @@ func (cb *CircuitBreaker) RecordSuccess() {
 
 	cb.failures = 0
 	cb.state = CircuitClosed
+	cb.halfOpenCalls = 0
 }
 
 // RecordFailure records a failed call
@@ -229,7 +242,10 @@ func (cb *CircuitBreaker) RecordFailure() {
 	cb.failures++
 	cb.lastFailureTime = time.Now()
 
-	if cb.failures >= cb.failureThreshold {
+	if cb.state == CircuitHalfOpen {
+		cb.state = CircuitOpen
+		cb.halfOpenCalls = 0
+	} else if cb.failures >= cb.failureThreshold {
 		cb.state = CircuitOpen
 	}
 }

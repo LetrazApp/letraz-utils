@@ -84,9 +84,7 @@ func (a *StdoutAdapter) formatJSON(entry *types.LogEntry) (string, error) {
 
 	// Add fields if they exist
 	if len(entry.Fields) > 0 {
-		for k, v := range entry.Fields {
-			logData[k] = v
-		}
+		logData["fields"] = entry.Fields
 	}
 
 	data, err := json.Marshal(logData)

@@ -208,8 +208,8 @@ func (a *BetterstackAdapter) sendToBetterstack(entry BetterstackLogEntry) error 
 func (a *BetterstackAdapter) handleResponse(resp *http.Response) error {
 	defer resp.Body.Close()
 
-	// Read response body
-	body, err := io.ReadAll(resp.Body)
+	// Read response body with size limit to prevent memory exhaustion
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20)) // Limit to 1MB
 	if err != nil {
 		return fmt.Errorf("failed to read response body: %w", err)
 	}

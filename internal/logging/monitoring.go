@@ -533,13 +533,26 @@ func (ms *MonitoringService) startHTTPServer() error {
 		Handler: mux,
 	}
 
+	errCh := make(chan error, 1)
 	go func() {
 		if err := ms.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			ms.logger.Error("HTTP server error", map[string]interface{}{
 				"error": err.Error(),
 			})
+			select {
+			case errCh <- err:
+			default:
+			}
 		}
 	}()
+
+	// Wait briefly for startup errors
+	select {
+	case err := <-errCh:
+		return fmt.Errorf("failed to start HTTP server: %w", err)
+	case <-time.After(100 * time.Millisecond):
+		// Server started successfully
+	}
 
 	return nil
 }
@@ -660,7 +673,18 @@ func (am *AlertManager) createAlert(adapterName string, alertType AlertType, sev
 
 	// Trigger alert handlers
 	for _, handler := range am.alertHandlers {
-		go handler.HandleAlert(*alert)
+		go func(h AlertHandler, a Alert) {
+			defer func() {
+				if r := recover(); r != nil {
+					// Log the panic - using fmt since AlertManager doesn't have access to logger
+					fmt.Printf("PANIC in alert handler: %v\n", r)
+				}
+			}()
+			if err := h.HandleAlert(a); err != nil {
+				// Log the error
+				fmt.Printf("ERROR in alert handler: %v\n", err)
+			}
+		}(handler, *alert)
 	}
 }
 
