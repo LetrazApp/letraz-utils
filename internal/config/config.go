@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -71,6 +72,14 @@ type Config struct {
 		Level  string `yaml:"level" default:"info"`
 		Format string `yaml:"format" default:"json"`
 		Output string `yaml:"output" default:"stdout"`
+
+		// New logging configuration
+		Adapters []struct {
+			Name    string                 `yaml:"name"`
+			Type    string                 `yaml:"type"`
+			Enabled bool                   `yaml:"enabled"`
+			Options map[string]interface{} `yaml:"options"`
+		} `yaml:"adapters"`
 	} `yaml:"logging"`
 
 	Redis struct {
@@ -79,6 +88,31 @@ type Config struct {
 		DB       int           `yaml:"db" default:"0"`
 		Timeout  time.Duration `yaml:"timeout" default:"5s"`
 	} `yaml:"redis"`
+}
+
+// expandEnvVars expands environment variables in a string using ${VAR} or $VAR syntax
+func expandEnvVars(s string) string {
+	// Expand ${VAR} syntax
+	re := regexp.MustCompile(`\$\{([^}]+)\}`)
+	s = re.ReplaceAllStringFunc(s, func(match string) string {
+		varName := match[2 : len(match)-1] // Remove ${ and }
+		if val := os.Getenv(varName); val != "" {
+			return val
+		}
+		return match // Return original if env var not found
+	})
+
+	// Expand $VAR syntax (but avoid replacing ${VAR} that was already processed)
+	re2 := regexp.MustCompile(`\$([A-Za-z_][A-Za-z0-9_]*)`)
+	s = re2.ReplaceAllStringFunc(s, func(match string) string {
+		varName := match[1:] // Remove $
+		if val := os.Getenv(varName); val != "" {
+			return val
+		}
+		return match // Return original if env var not found
+	})
+
+	return s
 }
 
 // LoadConfig loads configuration from file and environment variables
@@ -136,7 +170,10 @@ func LoadConfig(configPath string) (*Config, error) {
 	// Load from YAML file if it exists
 	if configPath != "" {
 		if data, err := os.ReadFile(configPath); err == nil {
-			if err := yaml.Unmarshal(data, config); err != nil {
+			// Expand environment variables in the YAML content
+			yamlContent := expandEnvVars(string(data))
+
+			if err := yaml.Unmarshal([]byte(yamlContent), config); err != nil {
 				return nil, err
 			}
 		}
@@ -218,6 +255,85 @@ func (c *Config) loadFromEnv() {
 	if redisTimeout := os.Getenv("REDIS_TIMEOUT"); redisTimeout != "" {
 		if timeout, err := time.ParseDuration(redisTimeout); err == nil {
 			c.Redis.Timeout = timeout
+		}
+	}
+
+	// Handle Betterstack adapter enabled/disabled via environment variable
+	if betterstackEnabled := os.Getenv("BETTERSTACK_ENABLED"); betterstackEnabled != "" {
+		enabled := betterstackEnabled == "true" || betterstackEnabled == "1"
+
+		// Find and update the Betterstack adapter
+		for i := range c.Logging.Adapters {
+			if c.Logging.Adapters[i].Name == "betterstack" || c.Logging.Adapters[i].Type == "betterstack" {
+				c.Logging.Adapters[i].Enabled = enabled
+				break
+			}
+		}
+	}
+
+	// Handle additional logging adapter options via environment variables
+	c.loadLoggingAdapterEnvVars()
+}
+
+// loadLoggingAdapterEnvVars loads environment variables for logging adapters
+func (c *Config) loadLoggingAdapterEnvVars() {
+	for i := range c.Logging.Adapters {
+		adapter := &c.Logging.Adapters[i]
+
+		switch adapter.Type {
+		case "betterstack":
+			if token := os.Getenv("BETTERSTACK_SOURCE_TOKEN"); token != "" {
+				if adapter.Options == nil {
+					adapter.Options = make(map[string]interface{})
+				}
+				adapter.Options["source_token"] = token
+			}
+
+			if endpoint := os.Getenv("BETTERSTACK_ENDPOINT"); endpoint != "" {
+				if adapter.Options == nil {
+					adapter.Options = make(map[string]interface{})
+				}
+				adapter.Options["endpoint"] = endpoint
+			}
+
+			if batchSize := os.Getenv("BETTERSTACK_BATCH_SIZE"); batchSize != "" {
+				if size, err := strconv.Atoi(batchSize); err == nil {
+					if adapter.Options == nil {
+						adapter.Options = make(map[string]interface{})
+					}
+					adapter.Options["batch_size"] = size
+				}
+			}
+
+			if flushInterval := os.Getenv("BETTERSTACK_FLUSH_INTERVAL"); flushInterval != "" {
+				if adapter.Options == nil {
+					adapter.Options = make(map[string]interface{})
+				}
+				adapter.Options["flush_interval"] = flushInterval
+			}
+
+			if maxRetries := os.Getenv("BETTERSTACK_MAX_RETRIES"); maxRetries != "" {
+				if retries, err := strconv.Atoi(maxRetries); err == nil {
+					if adapter.Options == nil {
+						adapter.Options = make(map[string]interface{})
+					}
+					adapter.Options["max_retries"] = retries
+				}
+			}
+
+			if timeout := os.Getenv("BETTERSTACK_TIMEOUT"); timeout != "" {
+				if adapter.Options == nil {
+					adapter.Options = make(map[string]interface{})
+				}
+				adapter.Options["timeout"] = timeout
+			}
+
+			if userAgent := os.Getenv("BETTERSTACK_USER_AGENT"); userAgent != "" {
+				if adapter.Options == nil {
+					adapter.Options = make(map[string]interface{})
+				}
+				adapter.Options["user_agent"] = userAgent
+			}
 		}
 	}
 }

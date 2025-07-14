@@ -6,7 +6,9 @@ import (
 	"letraz-utils/internal/background"
 	"letraz-utils/internal/config"
 	"letraz-utils/internal/llm"
+	"letraz-utils/internal/logging"
 	"letraz-utils/internal/scraper/workers"
+	"net/http"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -30,6 +32,21 @@ func SetupRoutes(e *echo.Echo, cfg *config.Config, poolManager *workers.PoolMana
 		health.GET("/ready", handlers.ReadinessHandler)
 		health.GET("/live", handlers.LivenessHandler)
 		health.GET("/workers", handlers.WorkerHealthHandler(poolManager))
+
+		// Logging system monitoring
+		health.GET("/logging", func(c echo.Context) error {
+			logger := logging.GetGlobalLogger()
+			logger.Info("Logging health check requested", map[string]interface{}{
+				"request_id": c.Response().Header().Get("X-Request-ID"),
+				"test_log":   "This log should appear in Betterstack if configured correctly",
+			})
+
+			return c.JSON(http.StatusOK, map[string]interface{}{
+				"status":   "ok",
+				"message":  "Logging test completed - check your Betterstack dashboard",
+				"adapters": "Logging system is active",
+			})
+		})
 	}
 
 	// Status route
