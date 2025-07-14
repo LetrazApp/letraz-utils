@@ -14,7 +14,6 @@ require (
 	github.com/labstack/echo/v4 v4.13.4
 	github.com/mendableai/firecrawl-go v1.0.0
 	github.com/redis/go-redis/v9 v9.7.0
-	github.com/sirupsen/logrus v1.9.3
 	github.com/soheilhy/cmux v0.1.5
 	golang.org/x/time v0.12.0
 	google.golang.org/grpc v1.73.0
