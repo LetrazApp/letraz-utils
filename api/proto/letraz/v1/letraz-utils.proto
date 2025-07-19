@@ -21,6 +21,11 @@ service ResumeService {
   rpc GenerateScreenshot(ResumeScreenshotRequest) returns (ResumeScreenshotResponse);
 }
 
+service HealthService {
+  // Health check endpoint
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
 // ===== SCRAPER MESSAGES =====
 
 message ScrapeJobRequest {
@@ -103,6 +108,20 @@ message ResumeScreenshotResponse {
   
   // Optional error fields (only for failures)
   string error = 6;           // Error code/type
+}
+
+// ===== HEALTH MESSAGES =====
+
+message HealthCheckRequest {
+  // Empty request message
+}
+
+message HealthCheckResponse {
+  string status = 1;                    // health status (healthy, unhealthy)
+  string timestamp = 2;                 // ISO timestamp string
+  string version = 3;                   // service version
+  int64 uptime_seconds = 4;             // uptime in seconds
+  map<string, string> checks = 5;       // health check results for various components
 }
 
 // ===== COMMON MESSAGES =====
