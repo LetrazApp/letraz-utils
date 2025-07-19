@@ -1,24 +1,23 @@
 package handlers
 
 import (
-	"context"
+	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 
+	"letraz-utils/internal/background"
 	"letraz-utils/internal/config"
 	"letraz-utils/internal/logging"
-	"letraz-utils/internal/scraper/engines/headed"
 	"letraz-utils/pkg/models"
 	"letraz-utils/pkg/utils"
 )
 
 var screenshotValidator = validator.New()
 
-// ResumeScreenshotHandler handles the POST /api/v1/resume/screenshot endpoint
-func ResumeScreenshotHandler(cfg *config.Config) echo.HandlerFunc {
+// ResumeScreenshotHandler handles the POST /api/v1/resume/screenshot endpoint (async)
+func ResumeScreenshotHandler(cfg *config.Config, taskManager background.TaskManager) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		requestID := utils.GenerateRequestID()
 		logger := logging.GetGlobalLogger()
@@ -26,7 +25,7 @@ func ResumeScreenshotHandler(cfg *config.Config) echo.HandlerFunc {
 		// Set request ID in context
 		c.Set("request_id", requestID)
 
-		logger.Info("Processing resume screenshot request", map[string]interface{}{
+		logger.Info("Processing async resume screenshot request", map[string]interface{}{
 			"request_id": requestID,
 			"endpoint":   "/api/v1/resume/screenshot",
 			"method":     "POST",
@@ -40,13 +39,10 @@ func ResumeScreenshotHandler(cfg *config.Config) echo.HandlerFunc {
 				"error":      err.Error(),
 			})
 
-			return c.JSON(http.StatusBadRequest, models.ResumeScreenshotResponse{
-				Status:    "FAILURE",
-				Message:   "Invalid request body: " + err.Error(),
-				Timestamp: time.Now(),
-				Error:     "INVALID_REQUEST",
-				RequestID: requestID,
-			})
+			return c.JSON(http.StatusBadRequest, models.CreateAsyncErrorResponse(
+				"invalid_request",
+				"Invalid request body: "+err.Error(),
+			))
 		}
 
 		// Validate request
@@ -56,13 +52,18 @@ func ResumeScreenshotHandler(cfg *config.Config) echo.HandlerFunc {
 				"error":      err.Error(),
 			})
 
-			return c.JSON(http.StatusBadRequest, models.ResumeScreenshotResponse{
-				Status:    "FAILURE",
-				Message:   "Validation failed: " + err.Error(),
-				Timestamp: time.Now(),
-				Error:     "VALIDATION_FAILED",
-				RequestID: requestID,
-			})
+			return c.JSON(http.StatusBadRequest, models.CreateAsyncErrorResponse(
+				"validation_failed",
+				"Request validation failed: "+err.Error(),
+			))
+		}
+
+		// Validate that required fields are present
+		if req.ResumeID == "" {
+			return c.JSON(http.StatusBadRequest, models.CreateAsyncErrorResponse(
+				"validation_failed",
+				"Resume ID is required",
+			))
 		}
 
 		// Validate configuration
@@ -71,130 +72,45 @@ func ResumeScreenshotHandler(cfg *config.Config) echo.HandlerFunc {
 				"request_id": requestID,
 			})
 
-			return c.JSON(http.StatusInternalServerError, models.ResumeScreenshotResponse{
-				Status:    "FAILURE",
-				Message:   "Resume preview service not configured",
-				Timestamp: time.Now(),
-				Error:     "CONFIGURATION_ERROR",
-				RequestID: requestID,
-			})
+			return c.JSON(http.StatusInternalServerError, models.CreateAsyncErrorResponse(
+				"configuration_error",
+				"Resume preview service not configured",
+			))
 		}
 
-		// Create screenshot service
-		screenshotService := headed.NewScreenshotService(cfg)
-		defer screenshotService.Cleanup()
+		// Generate process ID for background task
+		processID := utils.GenerateScreenshotProcessID()
 
-		// Check if screenshot service is healthy
-		if !screenshotService.IsHealthy() {
-			logger.Error("Screenshot service is not healthy", map[string]interface{}{
-				"request_id": requestID,
-			})
-
-			return c.JSON(http.StatusServiceUnavailable, models.ResumeScreenshotResponse{
-				Status:    "FAILURE",
-				Message:   "Screenshot service is not available",
-				Timestamp: time.Now(),
-				Error:     "SERVICE_UNAVAILABLE",
-				RequestID: requestID,
-			})
-		}
-
-		// Create DigitalOcean Spaces client
-		spacesClient, err := utils.NewSpacesClient(cfg)
-		if err != nil {
-			logger.Error("Failed to create DigitalOcean Spaces client", map[string]interface{}{
-				"request_id": requestID,
-				"error":      err.Error(),
-			})
-
-			return c.JSON(http.StatusInternalServerError, models.ResumeScreenshotResponse{
-				Status:    "FAILURE",
-				Message:   "Storage service not available",
-				Timestamp: time.Now(),
-				Error:     "STORAGE_ERROR",
-				RequestID: requestID,
-			})
-		}
-
-		// Check if Spaces client is healthy
-		if !spacesClient.IsHealthy() {
-			logger.Error("DigitalOcean Spaces is not healthy", map[string]interface{}{
-				"request_id": requestID,
-			})
-
-			return c.JSON(http.StatusServiceUnavailable, models.ResumeScreenshotResponse{
-				Status:    "FAILURE",
-				Message:   "Storage service is not available",
-				Timestamp: time.Now(),
-				Error:     "STORAGE_UNAVAILABLE",
-				RequestID: requestID,
-			})
-		}
-
-		// Create context with timeout for screenshot operation
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer cancel()
-
-		logger.Info("Capturing resume screenshot", map[string]interface{}{
+		logger.Info("Submitting screenshot task for background processing", map[string]interface{}{
 			"request_id": requestID,
+			"process_id": processID,
 			"resume_id":  req.ResumeID,
 		})
 
-		// Capture the screenshot
-		screenshotData, err := screenshotService.CaptureResumeScreenshot(ctx, req.ResumeID)
+		// Submit task to background task manager
+		ctx := c.Request().Context()
+		err := taskManager.SubmitScreenshotTask(ctx, processID, req, cfg)
 		if err != nil {
-			logger.Error("Failed to capture screenshot", map[string]interface{}{
+			logger.Error("Failed to submit background screenshot task", map[string]interface{}{
 				"request_id": requestID,
-				"resume_id":  req.ResumeID,
-				"error":      err.Error(),
+				"error":      err,
 			})
-
-			return c.JSON(http.StatusInternalServerError, models.ResumeScreenshotResponse{
-				Status:    "FAILURE",
-				Message:   "Failed to capture screenshot: " + err.Error(),
-				Timestamp: time.Now(),
-				Error:     "SCREENSHOT_FAILED",
-				RequestID: requestID,
-			})
+			return c.JSON(http.StatusInternalServerError, models.CreateAsyncErrorResponse(
+				"task_submission_failed",
+				fmt.Sprintf("Failed to submit screenshot task: %v", err),
+				processID,
+			))
 		}
 
-		logger.Info("Uploading screenshot to DigitalOcean Spaces", map[string]interface{}{
+		// Return immediate response with process ID
+		response := models.CreateAsyncScreenshotResponse(processID)
+
+		logger.Info("Screenshot task submitted successfully for background processing", map[string]interface{}{
 			"request_id": requestID,
+			"process_id": processID,
 			"resume_id":  req.ResumeID,
-			"size_bytes": len(screenshotData),
 		})
 
-		// Upload screenshot to DigitalOcean Spaces
-		screenshotURL, err := spacesClient.UploadScreenshot(req.ResumeID, screenshotData)
-		if err != nil {
-			logger.Error("Failed to upload screenshot", map[string]interface{}{
-				"request_id": requestID,
-				"resume_id":  req.ResumeID,
-				"error":      err.Error(),
-			})
-
-			return c.JSON(http.StatusInternalServerError, models.ResumeScreenshotResponse{
-				Status:    "FAILURE",
-				Message:   "Failed to upload screenshot: " + err.Error(),
-				Timestamp: time.Now(),
-				Error:     "UPLOAD_FAILED",
-				RequestID: requestID,
-			})
-		}
-
-		logger.Info("Resume screenshot generated successfully", map[string]interface{}{
-			"request_id":     requestID,
-			"resume_id":      req.ResumeID,
-			"screenshot_url": screenshotURL,
-		})
-
-		// Return success response
-		return c.JSON(http.StatusOK, models.ResumeScreenshotResponse{
-			Status:        "SUCCESS",
-			Message:       "Screenshot generated successfully",
-			Timestamp:     time.Now(),
-			ScreenshotURL: screenshotURL,
-			RequestID:     requestID,
-		})
+		return c.JSON(http.StatusAccepted, response)
 	}
 }

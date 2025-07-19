@@ -22,8 +22,9 @@ const (
 type TaskType string
 
 const (
-	TaskTypeScrape TaskType = "scrape"
-	TaskTypeTailor TaskType = "tailor"
+	TaskTypeScrape     TaskType = "scrape"
+	TaskTypeTailor     TaskType = "tailor"
+	TaskTypeScreenshot TaskType = "screenshot"
 )
 
 // TaskResult represents the result of a background task
@@ -52,6 +53,13 @@ type TailorTaskData struct {
 	TailoredResume *models.TailoredResume `json:"tailored_resume,omitempty"`
 	Suggestions    []models.Suggestion    `json:"suggestions,omitempty"`
 	ThreadID       string                 `json:"thread_id,omitempty"`
+}
+
+// ScreenshotTaskData represents the data structure for screenshot task results
+type ScreenshotTaskData struct {
+	ScreenshotURL string `json:"screenshot_url"`
+	ResumeID      string `json:"resume_id"`
+	FileSize      int    `json:"file_size_bytes"`
 }
 
 // TaskStore defines the interface for storing and retrieving task results

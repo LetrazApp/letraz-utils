@@ -10,6 +10,7 @@ import (
 	"letraz-utils/internal/llm"
 	"letraz-utils/internal/logging"
 	"letraz-utils/internal/logging/types"
+	"letraz-utils/internal/scraper/engines/headed"
 	"letraz-utils/internal/scraper/workers"
 	"letraz-utils/pkg/models"
 	"letraz-utils/pkg/utils"
@@ -43,6 +44,9 @@ type TaskManager interface {
 
 	// SubmitTailorTask submits a tailor task for background processing
 	SubmitTailorTask(ctx context.Context, processID string, request models.TailorResumeRequest, llmManager *llm.Manager, cfg *config.Config) error
+
+	// SubmitScreenshotTask submits a screenshot task for background processing
+	SubmitScreenshotTask(ctx context.Context, processID string, request models.ResumeScreenshotRequest, cfg *config.Config) error
 
 	// GetTaskResult retrieves the result of a task by process ID
 	GetTaskResult(ctx context.Context, processID string) (*TaskResult, error)
@@ -292,6 +296,55 @@ func (tm *TaskManagerImpl) SubmitTailorTask(ctx context.Context, processID strin
 		Cancel:    cancelFunc,
 		ExecuteFunc: func(execCtx context.Context) (*TaskResult, error) {
 			return tm.executeTailorTask(execCtx, processID, request, llmManager, cfg)
+		},
+		CompletedChan: make(chan *TaskResult, 1),
+	}
+
+	// Submit to worker pool
+	select {
+	case tm.taskChan <- execution:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+		return fmt.Errorf("task queue is full")
+	}
+}
+
+// SubmitScreenshotTask submits a screenshot task for background processing
+func (tm *TaskManagerImpl) SubmitScreenshotTask(ctx context.Context, processID string, request models.ResumeScreenshotRequest, cfg *config.Config) error {
+	if !tm.IsHealthy() {
+		return fmt.Errorf("task manager is not healthy")
+	}
+
+	// Create task result
+	result := &TaskResult{
+		ProcessID: processID,
+		Type:      TaskTypeScreenshot,
+		Status:    TaskStatusAccepted,
+		CreatedAt: time.Now(),
+		Metadata: map[string]interface{}{
+			"resume_id": request.ResumeID,
+		},
+	}
+
+	// Store initial task result
+	if err := tm.store.Store(ctx, result); err != nil {
+		return fmt.Errorf("failed to store task result: %w", err)
+	}
+
+	// Log task acceptance
+	tm.logger.LogTaskAccepted(processID, TaskTypeScreenshot)
+
+	// Create task execution with derived context for better isolation
+	taskCtx, cancelFunc := context.WithCancel(tm.ctx)
+	execution := &TaskExecution{
+		ProcessID: processID,
+		Type:      TaskTypeScreenshot,
+		Context:   taskCtx, // Use derived context for task isolation
+		Cancel:    cancelFunc,
+		ExecuteFunc: func(execCtx context.Context) (*TaskResult, error) {
+			return tm.executeScreenshotTask(execCtx, processID, request, cfg)
 		},
 		CompletedChan: make(chan *TaskResult, 1),
 	}
@@ -644,6 +697,81 @@ func (tm *TaskManagerImpl) executeTailorTask(ctx context.Context, processID stri
 		"resume_id": request.ResumeID,
 		"job_title": request.Job.Title,
 		"company":   request.Job.CompanyName,
+	}
+
+	return existingResult, nil
+}
+
+// executeScreenshotTask executes a screenshot task in the background
+func (tm *TaskManagerImpl) executeScreenshotTask(ctx context.Context, processID string, request models.ResumeScreenshotRequest, cfg *config.Config) (*TaskResult, error) {
+	startTime := time.Now()
+
+	// Retrieve the existing task result to preserve original CreatedAt
+	existingResult, err := tm.store.Get(ctx, processID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve existing task result: %w", err)
+	}
+
+	tm.appLogger.Info("Starting screenshot generation", map[string]interface{}{
+		"process_id": processID,
+		"resume_id":  request.ResumeID,
+	})
+
+	// Create screenshot service
+	screenshotService := headed.NewScreenshotService(cfg)
+	defer screenshotService.Cleanup()
+
+	// Check if screenshot service is healthy
+	if !screenshotService.IsHealthy() {
+		return nil, fmt.Errorf("screenshot service is not healthy")
+	}
+
+	// Create DigitalOcean Spaces client
+	spacesClient, err := utils.NewSpacesClient(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create DigitalOcean Spaces client: %w", err)
+	}
+
+	// Check if Spaces client is healthy
+	if !spacesClient.IsHealthy() {
+		return nil, fmt.Errorf("DigitalOcean Spaces is not healthy")
+	}
+
+	// Capture the screenshot
+	screenshotData, err := screenshotService.CaptureResumeScreenshot(ctx, request.ResumeID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to capture screenshot: %w", err)
+	}
+
+	// Upload screenshot to DigitalOcean Spaces
+	screenshotURL, err := spacesClient.UploadScreenshot(request.ResumeID, screenshotData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to upload screenshot: %w", err)
+	}
+
+	tm.appLogger.Info("Screenshot generated successfully", map[string]interface{}{
+		"process_id":     processID,
+		"resume_id":      request.ResumeID,
+		"screenshot_url": screenshotURL,
+		"file_size":      len(screenshotData),
+	})
+
+	// Create task data
+	taskData := &ScreenshotTaskData{
+		ScreenshotURL: screenshotURL,
+		ResumeID:      request.ResumeID,
+		FileSize:      len(screenshotData),
+	}
+
+	// Update the existing task result with success data
+	processingTime := time.Since(startTime)
+	existingResult.Status = TaskStatusSuccess
+	existingResult.Data = taskData
+	existingResult.ProcessingTime = &processingTime
+	existingResult.Metadata = map[string]interface{}{
+		"resume_id":      request.ResumeID,
+		"screenshot_url": screenshotURL,
+		"file_size":      len(screenshotData),
 	}
 
 	return existingResult, nil

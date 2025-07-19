@@ -22,24 +22,24 @@ body:json {
 }
 
 tests {
-  test("Response status is 200", function() {
-    expect(res.getStatus()).to.equal(200);
+  test("Response status is 202 (Accepted)", function() {
+    expect(res.getStatus()).to.equal(202);
   });
   
   test("Response has status field", function() {
     expect(res.getBody()).to.have.property('status');
   });
   
-  test("Response status is SUCCESS", function() {
+  test("Response status is ACCEPTED", function() {
     const body = res.getBody();
-    expect(body.status).to.equal('SUCCESS');
+    expect(body.status).to.equal('ACCEPTED');
   });
   
-  test("Response has screenshot_url", function() {
+  test("Response has processId", function() {
     const body = res.getBody();
-    expect(body).to.have.property('screenshot_url');
-    expect(body.screenshot_url).to.be.a('string');
-    expect(body.screenshot_url).to.include('resumes/thumbnails/');
+    expect(body).to.have.property('processId');
+    expect(body.processId).to.be.a('string');
+    expect(body.processId).to.include('screenshot_');
   });
   
   test("Response has timestamp", function() {
@@ -47,58 +47,58 @@ tests {
     expect(body).to.have.property('timestamp');
   });
   
-  test("Response has request_id", function() {
+  test("Response has background processing message", function() {
     const body = res.getBody();
-    expect(body).to.have.property('request_id');
+    expect(body).to.have.property('message');
+    expect(body.message).to.include('background processing');
   });
 }
 
 docs {
-  # Resume Screenshot API
+  # Resume Screenshot API (Async)
   
-  This endpoint generates a screenshot of a resume by:
-  1. Making an HTTP request to the letraz-client to render the resume
-  2. Using Rod browser automation to capture a screenshot
-  3. Uploading the screenshot to DigitalOcean Spaces
-  4. Returning the CDN URL of the screenshot
+  This endpoint **asynchronously** generates a screenshot of a resume by:
+  1. Accepting the request and returning immediately with a process ID
+  2. Processing in background: connecting to letraz-client, capturing screenshot, uploading to DigitalOcean Spaces
+  3. Logging the final result to console when complete
+  
+  **⚡ Fast Response**: Returns in ~1ms with process ID for tracking.
   
   ## Request Body
   ```json
   {
-    "resume_id": "123e4567-e89b-12d3-a456-426614174000"
+    "resume_id": "rsm_pCOywDN3MwEyJPjfLt-bn"
   }
   ```
   
-  ## Success Response (200)
+  ## Immediate Response (202 Accepted)
   ```json
   {
-    "status": "SUCCESS",
-    "message": "Screenshot generated successfully",
-    "timestamp": "2024-01-01T12:00:00Z",
-    "screenshot_url": "https://letraz-all-purpose.blr1.cdn.digitaloceanspaces.com/resumes/thumbnails/123e4567-e89b-12d3-a456-426614174000.jpg",
-    "request_id": "req_abc123"
+    "processId": "screenshot_20250719_cfebe539-4bef-4107-ac30-fdec5598d331",
+    "status": "ACCEPTED",
+    "message": "Resume screenshot request accepted for background processing",
+    "timestamp": "2025-07-19T12:24:03.230158+05:30"
   }
   ```
+  
+  ## Background Processing
+  The actual screenshot generation happens in the background (~15 seconds).
+  Monitor the console logs to see completion status and final screenshot URL.
   
   ## Error Response (400/500)
   ```json
   {
-    "status": "FAILURE",
-    "message": "Error description",
-    "timestamp": "2024-01-01T12:00:00Z",
-    "error": "ERROR_CODE",
-    "request_id": "req_abc123"
+    "error": "validation_failed",
+    "message": "Resume ID is required",
+    "timestamp": "2025-07-19T12:24:03.230158+05:30"
   }
   ```
   
   ## Error Codes
-  - `INVALID_REQUEST`: Invalid request body
-  - `VALIDATION_FAILED`: Resume ID validation failed
-  - `CONFIGURATION_ERROR`: Service not properly configured
-  - `SERVICE_UNAVAILABLE`: Screenshot service not available
-  - `STORAGE_ERROR`: DigitalOcean Spaces not available
-  - `SCREENSHOT_FAILED`: Failed to capture screenshot
-  - `UPLOAD_FAILED`: Failed to upload to storage
+  - `invalid_request`: Invalid request body
+  - `validation_failed`: Resume ID validation failed
+  - `configuration_error`: Service not properly configured
+  - `task_submission_failed`: Failed to submit to background queue
   
   ## Environment Variables Required
   - `RESUME_PREVIEW_URL`: Full URL for resume preview endpoint (e.g., "https://letraz.app/admin/resumes")
@@ -107,4 +107,7 @@ docs {
   - `BUCKET_CDN_ENDPOINT`: CDN endpoint for public access
   - `BUCKET_ACCESS_KEY_ID`: Spaces access key ID
   - `BUCKET_ACCESS_KEY_SECRET`: Spaces access key secret
+  
+  ## Process ID Format
+  `screenshot_YYYYMMDD_uuid` - Use this to track the background task progress.
 }
