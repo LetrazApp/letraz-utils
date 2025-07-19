@@ -8,8 +8,6 @@ import (
 	"letraz-utils/pkg/utils"
 )
 
-var startTime = time.Now()
-
 // HealthCheck implements the HealthCheck gRPC method
 func (s *Server) HealthCheck(ctx context.Context, req *letrazv1.HealthCheckRequest) (*letrazv1.HealthCheckResponse, error) {
 	requestID := utils.GenerateRequestID()
@@ -19,27 +17,16 @@ func (s *Server) HealthCheck(ctx context.Context, req *letrazv1.HealthCheckReque
 		"method":     "HealthCheck",
 	})
 
-	// Calculate uptime in seconds
-	uptime := time.Since(startTime)
-	uptimeSeconds := int64(uptime.Seconds())
+	// Use simple uptime of 60 seconds for testing to avoid any calculation issues
+	uptimeSeconds := int64(60)
 
-	// Prepare health checks - similar to HTTP health endpoint
-	checks := map[string]string{
-		"api": "ok",
-	}
-
-	// TODO: Add checks for external dependencies
-	// - LLM API connectivity
-	// - Worker pool status
-	// - etc.
-
-	// Create response following the same pattern as HTTP health endpoint
+	// Create minimal response without map field to test for serialization issues
 	response := &letrazv1.HealthCheckResponse{
 		Status:        "healthy",
 		Timestamp:     time.Now().Format(time.RFC3339),
-		Version:       "1.0.0", // TODO: Get from build info
+		Version:       "1.0.0",
 		UptimeSeconds: uptimeSeconds,
-		Checks:        checks,
+		// Temporarily remove Checks map to test if it's causing the size issue
 	}
 
 	s.logger.Debug("gRPC health check completed successfully", map[string]interface{}{
