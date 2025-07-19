@@ -16,6 +16,9 @@ service ScraperService {
 service ResumeService {
   // Tailor a resume for a specific job posting
   rpc TailorResume(TailorResumeRequest) returns (TailorResumeResponse);
+  
+  // Generate a screenshot of a resume
+  rpc GenerateScreenshot(ResumeScreenshotRequest) returns (ResumeScreenshotResponse);
 }
 
 // ===== SCRAPER MESSAGES =====
@@ -82,6 +85,20 @@ message TailorResumeResponse {
   string status = 2;          // ACCEPTED, FAILURE
   string message = 3;         // Status message
   string timestamp = 4;       // ISO timestamp string (to match REST format)
+  
+  // Optional error fields (only for failures)
+  string error = 5;           // Error code/type
+}
+
+message ResumeScreenshotRequest {
+  string resume_id = 1;       // Resume ID to generate screenshot for
+}
+
+message ResumeScreenshotResponse {
+  string status = 1;          // SUCCESS, FAILURE
+  string message = 2;         // Status message
+  string timestamp = 3;       // ISO timestamp string
+  string screenshot_url = 4;  // CDN URL of the generated screenshot (only for success)
   
   // Optional error fields (only for failures)
   string error = 5;           // Error code/type

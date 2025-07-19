@@ -88,6 +88,25 @@ type Config struct {
 		DB       int           `yaml:"db" default:"0"`
 		Timeout  time.Duration `yaml:"timeout" default:"5s"`
 	} `yaml:"redis"`
+
+	DigitalOcean struct {
+		Spaces struct {
+			BucketURL       string `yaml:"bucket_url"`
+			CDNEndpoint     string `yaml:"cdn_endpoint"`
+			AccessKeyID     string `yaml:"access_key_id"`
+			AccessKeySecret string `yaml:"access_key_secret"`
+			Region          string `yaml:"region" default:"blr1"`
+			BucketName      string `yaml:"bucket_name" default:"letraz-all-purpose"`
+		} `yaml:"spaces"`
+	} `yaml:"digitalocean"`
+
+	Resume struct {
+		Client struct {
+			BaseURL      string `yaml:"base_url" default:"http://localhost:3000"`
+			PreviewURL   string `yaml:"preview_url" default:"http://localhost:3000/admin/resumes"`
+			PreviewToken string `yaml:"preview_token"`
+		} `yaml:"client"`
+	} `yaml:"resume"`
 }
 
 // expandEnvVars expands environment variables in a string using ${VAR} or $VAR syntax
@@ -269,6 +288,44 @@ func (c *Config) loadFromEnv() {
 				break
 			}
 		}
+	}
+
+	// DigitalOcean Spaces configuration
+	if bucketURL := os.Getenv("BUCKET_URL"); bucketURL != "" {
+		c.DigitalOcean.Spaces.BucketURL = bucketURL
+	}
+
+	if cdnEndpoint := os.Getenv("BUCKET_CDN_ENDPOINT"); cdnEndpoint != "" {
+		c.DigitalOcean.Spaces.CDNEndpoint = cdnEndpoint
+	}
+
+	if accessKeyID := os.Getenv("BUCKET_ACCESS_KEY_ID"); accessKeyID != "" {
+		c.DigitalOcean.Spaces.AccessKeyID = accessKeyID
+	}
+
+	if accessKeySecret := os.Getenv("BUCKET_ACCESS_KEY_SECRET"); accessKeySecret != "" {
+		c.DigitalOcean.Spaces.AccessKeySecret = accessKeySecret
+	}
+
+	if region := os.Getenv("BUCKET_REGION"); region != "" {
+		c.DigitalOcean.Spaces.Region = region
+	}
+
+	if bucketName := os.Getenv("BUCKET_NAME"); bucketName != "" {
+		c.DigitalOcean.Spaces.BucketName = bucketName
+	}
+
+	// Resume client configuration
+	if clientBaseURL := os.Getenv("RESUME_CLIENT_BASE_URL"); clientBaseURL != "" {
+		c.Resume.Client.BaseURL = clientBaseURL
+	}
+
+	if previewURL := os.Getenv("RESUME_PREVIEW_URL"); previewURL != "" {
+		c.Resume.Client.PreviewURL = previewURL
+	}
+
+	if previewToken := os.Getenv("RESUME_PREVIEW_TOKEN"); previewToken != "" {
+		c.Resume.Client.PreviewToken = previewToken
 	}
 
 	// Handle additional logging adapter options via environment variables

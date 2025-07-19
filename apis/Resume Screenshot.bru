@@ -1,0 +1,110 @@
+meta {
+  name: Resume Screenshot
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{host}}/api/v1/resume/screenshot
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  Accept: application/json
+}
+
+body:json {
+  {
+    "resume_id": "rsm_pCOywDN3MwEyJPjfLt-bn"
+  }
+}
+
+tests {
+  test("Response status is 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Response has status field", function() {
+    expect(res.getBody()).to.have.property('status');
+  });
+  
+  test("Response status is SUCCESS", function() {
+    const body = res.getBody();
+    expect(body.status).to.equal('SUCCESS');
+  });
+  
+  test("Response has screenshot_url", function() {
+    const body = res.getBody();
+    expect(body).to.have.property('screenshot_url');
+    expect(body.screenshot_url).to.be.a('string');
+    expect(body.screenshot_url).to.include('resumes/thumbnails/');
+  });
+  
+  test("Response has timestamp", function() {
+    const body = res.getBody();
+    expect(body).to.have.property('timestamp');
+  });
+  
+  test("Response has request_id", function() {
+    const body = res.getBody();
+    expect(body).to.have.property('request_id');
+  });
+}
+
+docs {
+  # Resume Screenshot API
+  
+  This endpoint generates a screenshot of a resume by:
+  1. Making an HTTP request to the letraz-client to render the resume
+  2. Using Rod browser automation to capture a screenshot
+  3. Uploading the screenshot to DigitalOcean Spaces
+  4. Returning the CDN URL of the screenshot
+  
+  ## Request Body
+  ```json
+  {
+    "resume_id": "123e4567-e89b-12d3-a456-426614174000"
+  }
+  ```
+  
+  ## Success Response (200)
+  ```json
+  {
+    "status": "SUCCESS",
+    "message": "Screenshot generated successfully",
+    "timestamp": "2024-01-01T12:00:00Z",
+    "screenshot_url": "https://letraz-all-purpose.blr1.cdn.digitaloceanspaces.com/resumes/thumbnails/123e4567-e89b-12d3-a456-426614174000.jpg",
+    "request_id": "req_abc123"
+  }
+  ```
+  
+  ## Error Response (400/500)
+  ```json
+  {
+    "status": "FAILURE",
+    "message": "Error description",
+    "timestamp": "2024-01-01T12:00:00Z",
+    "error": "ERROR_CODE",
+    "request_id": "req_abc123"
+  }
+  ```
+  
+  ## Error Codes
+  - `INVALID_REQUEST`: Invalid request body
+  - `VALIDATION_FAILED`: Resume ID validation failed
+  - `CONFIGURATION_ERROR`: Service not properly configured
+  - `SERVICE_UNAVAILABLE`: Screenshot service not available
+  - `STORAGE_ERROR`: DigitalOcean Spaces not available
+  - `SCREENSHOT_FAILED`: Failed to capture screenshot
+  - `UPLOAD_FAILED`: Failed to upload to storage
+  
+  ## Environment Variables Required
+  - `RESUME_PREVIEW_URL`: Full URL for resume preview endpoint (e.g., "https://letraz.app/admin/resumes")
+  - `RESUME_PREVIEW_TOKEN`: Token for accessing letraz-client preview
+  - `BUCKET_URL`: DigitalOcean Spaces bucket URL
+  - `BUCKET_CDN_ENDPOINT`: CDN endpoint for public access
+  - `BUCKET_ACCESS_KEY_ID`: Spaces access key ID
+  - `BUCKET_ACCESS_KEY_SECRET`: Spaces access key secret
+}

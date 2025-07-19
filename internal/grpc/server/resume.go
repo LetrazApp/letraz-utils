@@ -8,6 +8,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	letrazv1 "letraz-utils/api/proto/letraz/v1"
+	"letraz-utils/internal/scraper/engines/headed"
 	"letraz-utils/pkg/models"
 	"letraz-utils/pkg/utils"
 )
@@ -200,6 +201,152 @@ func convertGRPCJobToModel(grpcJob *letrazv1.Job) *models.Job {
 		Responsibilities: grpcJob.GetResponsibilities(),
 		Benefits:         grpcJob.GetBenefits(),
 	}
+}
+
+// GenerateScreenshot implements the GenerateScreenshot gRPC method
+func (s *Server) GenerateScreenshot(ctx context.Context, req *letrazv1.ResumeScreenshotRequest) (*letrazv1.ResumeScreenshotResponse, error) {
+	requestID := utils.GenerateRequestID()
+
+	s.logger.Info("gRPC resume screenshot request received", map[string]interface{}{
+		"request_id": requestID,
+		"resume_id":  req.GetResumeId(),
+		"method":     "GenerateScreenshot",
+	})
+
+	// Validate request
+	if req.GetResumeId() == "" {
+		return &letrazv1.ResumeScreenshotResponse{
+			Status:    "FAILURE",
+			Message:   "Resume ID is required",
+			Timestamp: time.Now().Format(time.RFC3339Nano),
+			Error:     "INVALID_ARGUMENT",
+		}, nil
+	}
+
+	// Validate configuration
+	if s.cfg.Resume.Client.PreviewToken == "" {
+		s.logger.Error("Resume preview token not configured", map[string]interface{}{
+			"request_id": requestID,
+		})
+
+		return &letrazv1.ResumeScreenshotResponse{
+			Status:    "FAILURE",
+			Message:   "Resume preview service not configured",
+			Timestamp: time.Now().Format(time.RFC3339Nano),
+			Error:     "CONFIGURATION_ERROR",
+		}, nil
+	}
+
+	// Create screenshot service
+	screenshotService := headed.NewScreenshotService(s.cfg)
+	defer screenshotService.Cleanup()
+
+	// Check if screenshot service is healthy
+	if !screenshotService.IsHealthy() {
+		s.logger.Error("Screenshot service is not healthy", map[string]interface{}{
+			"request_id": requestID,
+		})
+
+		return &letrazv1.ResumeScreenshotResponse{
+			Status:    "FAILURE",
+			Message:   "Screenshot service is not available",
+			Timestamp: time.Now().Format(time.RFC3339Nano),
+			Error:     "SERVICE_UNAVAILABLE",
+		}, nil
+	}
+
+	// Create DigitalOcean Spaces client
+	spacesClient, err := utils.NewSpacesClient(s.cfg)
+	if err != nil {
+		s.logger.Error("Failed to create DigitalOcean Spaces client", map[string]interface{}{
+			"request_id": requestID,
+			"error":      err.Error(),
+		})
+
+		return &letrazv1.ResumeScreenshotResponse{
+			Status:    "FAILURE",
+			Message:   "Storage service not available",
+			Timestamp: time.Now().Format(time.RFC3339Nano),
+			Error:     "STORAGE_ERROR",
+		}, nil
+	}
+
+	// Check if Spaces client is healthy
+	if !spacesClient.IsHealthy() {
+		s.logger.Error("DigitalOcean Spaces is not healthy", map[string]interface{}{
+			"request_id": requestID,
+		})
+
+		return &letrazv1.ResumeScreenshotResponse{
+			Status:    "FAILURE",
+			Message:   "Storage service is not available",
+			Timestamp: time.Now().Format(time.RFC3339Nano),
+			Error:     "STORAGE_UNAVAILABLE",
+		}, nil
+	}
+
+	// Create context with timeout for screenshot operation
+	screenshotCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+
+	s.logger.Info("Capturing resume screenshot", map[string]interface{}{
+		"request_id": requestID,
+		"resume_id":  req.GetResumeId(),
+	})
+
+	// Capture the screenshot
+	screenshotData, err := screenshotService.CaptureResumeScreenshot(screenshotCtx, req.GetResumeId())
+	if err != nil {
+		s.logger.Error("Failed to capture screenshot", map[string]interface{}{
+			"request_id": requestID,
+			"resume_id":  req.GetResumeId(),
+			"error":      err.Error(),
+		})
+
+		return &letrazv1.ResumeScreenshotResponse{
+			Status:    "FAILURE",
+			Message:   "Failed to capture screenshot: " + err.Error(),
+			Timestamp: time.Now().Format(time.RFC3339Nano),
+			Error:     "SCREENSHOT_FAILED",
+		}, nil
+	}
+
+	s.logger.Info("Uploading screenshot to DigitalOcean Spaces", map[string]interface{}{
+		"request_id": requestID,
+		"resume_id":  req.GetResumeId(),
+		"size_bytes": len(screenshotData),
+	})
+
+	// Upload screenshot to DigitalOcean Spaces
+	screenshotURL, err := spacesClient.UploadScreenshot(req.GetResumeId(), screenshotData)
+	if err != nil {
+		s.logger.Error("Failed to upload screenshot", map[string]interface{}{
+			"request_id": requestID,
+			"resume_id":  req.GetResumeId(),
+			"error":      err.Error(),
+		})
+
+		return &letrazv1.ResumeScreenshotResponse{
+			Status:    "FAILURE",
+			Message:   "Failed to upload screenshot: " + err.Error(),
+			Timestamp: time.Now().Format(time.RFC3339Nano),
+			Error:     "UPLOAD_FAILED",
+		}, nil
+	}
+
+	s.logger.Info("Resume screenshot generated successfully", map[string]interface{}{
+		"request_id":     requestID,
+		"resume_id":      req.GetResumeId(),
+		"screenshot_url": screenshotURL,
+	})
+
+	// Return success response
+	return &letrazv1.ResumeScreenshotResponse{
+		Status:        "SUCCESS",
+		Message:       "Screenshot generated successfully",
+		Timestamp:     time.Now().Format(time.RFC3339Nano),
+		ScreenshotUrl: screenshotURL,
+	}, nil
 }
 
 // All conversion functions updated to match new proto structure

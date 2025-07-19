@@ -61,6 +61,7 @@ func SetupRoutes(e *echo.Echo, cfg *config.Config, poolManager *workers.PoolMana
 		resume := v1.Group("/resume")
 		{
 			resume.POST("/tailor", handlers.TailorResumeHandler(cfg, llmManager, taskManager))
+			resume.POST("/screenshot", handlers.ResumeScreenshotHandler(cfg))
 		}
 
 		// Proto file serving routes

@@ -123,7 +123,8 @@ var ScraperService_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	ResumeService_TailorResume_FullMethodName = "/letraz.v1.ResumeService/TailorResume"
+	ResumeService_TailorResume_FullMethodName       = "/letraz.v1.ResumeService/TailorResume"
+	ResumeService_GenerateScreenshot_FullMethodName = "/letraz.v1.ResumeService/GenerateScreenshot"
 )
 
 // ResumeServiceClient is the client API for ResumeService service.
@@ -132,6 +133,8 @@ const (
 type ResumeServiceClient interface {
 	// Tailor a resume for a specific job posting
 	TailorResume(ctx context.Context, in *TailorResumeRequest, opts ...grpc.CallOption) (*TailorResumeResponse, error)
+	// Generate a screenshot of a resume
+	GenerateScreenshot(ctx context.Context, in *ResumeScreenshotRequest, opts ...grpc.CallOption) (*ResumeScreenshotResponse, error)
 }
 
 type resumeServiceClient struct {
@@ -152,12 +155,24 @@ func (c *resumeServiceClient) TailorResume(ctx context.Context, in *TailorResume
 	return out, nil
 }
 
+func (c *resumeServiceClient) GenerateScreenshot(ctx context.Context, in *ResumeScreenshotRequest, opts ...grpc.CallOption) (*ResumeScreenshotResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ResumeScreenshotResponse)
+	err := c.cc.Invoke(ctx, ResumeService_GenerateScreenshot_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ResumeServiceServer is the server API for ResumeService service.
 // All implementations must embed UnimplementedResumeServiceServer
 // for forward compatibility.
 type ResumeServiceServer interface {
 	// Tailor a resume for a specific job posting
 	TailorResume(context.Context, *TailorResumeRequest) (*TailorResumeResponse, error)
+	// Generate a screenshot of a resume
+	GenerateScreenshot(context.Context, *ResumeScreenshotRequest) (*ResumeScreenshotResponse, error)
 	mustEmbedUnimplementedResumeServiceServer()
 }
 
@@ -170,6 +185,9 @@ type UnimplementedResumeServiceServer struct{}
 
 func (UnimplementedResumeServiceServer) TailorResume(context.Context, *TailorResumeRequest) (*TailorResumeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method TailorResume not implemented")
+}
+func (UnimplementedResumeServiceServer) GenerateScreenshot(context.Context, *ResumeScreenshotRequest) (*ResumeScreenshotResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GenerateScreenshot not implemented")
 }
 func (UnimplementedResumeServiceServer) mustEmbedUnimplementedResumeServiceServer() {}
 func (UnimplementedResumeServiceServer) testEmbeddedByValue()                       {}
@@ -210,6 +228,24 @@ func _ResumeService_TailorResume_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ResumeService_GenerateScreenshot_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ResumeScreenshotRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ResumeServiceServer).GenerateScreenshot(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ResumeService_GenerateScreenshot_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ResumeServiceServer).GenerateScreenshot(ctx, req.(*ResumeScreenshotRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ResumeService_ServiceDesc is the grpc.ServiceDesc for ResumeService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -220,6 +256,10 @@ var ResumeService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "TailorResume",
 			Handler:    _ResumeService_TailorResume_Handler,
+		},
+		{
+			MethodName: "GenerateScreenshot",
+			Handler:    _ResumeService_GenerateScreenshot_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
