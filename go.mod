@@ -6,6 +6,7 @@ require (
 	github.com/2captcha/2captcha-go v1.1.10
 	github.com/PuerkitoBio/goquery v1.10.3
 	github.com/anthropics/anthropic-sdk-go v1.4.0
+	github.com/aws/aws-sdk-go v1.55.7
 	github.com/go-playground/validator/v10 v10.26.0
 	github.com/go-rod/rod v0.114.5
 	github.com/go-rod/stealth v0.4.9
@@ -23,7 +24,6 @@ require (
 
 require (
 	github.com/andybalholm/cascadia v1.3.3 // indirect
-	github.com/aws/aws-sdk-go v1.55.7 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/gabriel-vasile/mimetype v1.4.9 // indirect
