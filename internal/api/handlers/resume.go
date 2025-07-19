@@ -3,11 +3,11 @@ package handlers
 import (
 	"fmt"
 	"net/http"
-	"regexp"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 
+	"letraz-utils/internal/api/validation"
 	"letraz-utils/internal/background"
 	"letraz-utils/internal/config"
 	"letraz-utils/internal/llm"
@@ -18,18 +18,9 @@ import (
 
 var resumeValidator = validator.New()
 
-// Resume ID validation pattern: rsm_ followed by alphanumeric chars, hyphens, and underscores
-var resumeIDPatternResume = regexp.MustCompile(`^rsm_[a-zA-Z0-9_-]{10,50}$`)
-
 func init() {
-	// Register custom resume_id validator
-	resumeValidator.RegisterValidation("resume_id", validateResumeIDResume)
-}
-
-// validateResumeIDResume validates that the resume ID follows the expected format
-func validateResumeIDResume(fl validator.FieldLevel) bool {
-	resumeID := fl.Field().String()
-	return resumeIDPatternResume.MatchString(resumeID)
+	// Register shared resume validators
+	validation.RegisterResumeValidators(resumeValidator)
 }
 
 // TailorResumeHandler handles the POST /api/v1/resume/tailor endpoint asynchronously

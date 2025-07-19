@@ -3,11 +3,11 @@ package handlers
 import (
 	"fmt"
 	"net/http"
-	"regexp"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 
+	"letraz-utils/internal/api/validation"
 	"letraz-utils/internal/background"
 	"letraz-utils/internal/config"
 	"letraz-utils/internal/logging"
@@ -17,18 +17,9 @@ import (
 
 var screenshotValidator = validator.New()
 
-// Resume ID validation pattern: rsm_ followed by alphanumeric chars, hyphens, and underscores
-var resumeIDPattern = regexp.MustCompile(`^rsm_[a-zA-Z0-9_-]{10,50}$`)
-
 func init() {
-	// Register custom resume_id validator
-	screenshotValidator.RegisterValidation("resume_id", validateResumeID)
-}
-
-// validateResumeID validates that the resume ID follows the expected format
-func validateResumeID(fl validator.FieldLevel) bool {
-	resumeID := fl.Field().String()
-	return resumeIDPattern.MatchString(resumeID)
+	// Register shared resume validators
+	validation.RegisterResumeValidators(screenshotValidator)
 }
 
 // ResumeScreenshotHandler handles the POST /api/v1/resume/screenshot endpoint (async)
