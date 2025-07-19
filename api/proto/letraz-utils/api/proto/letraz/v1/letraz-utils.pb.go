@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.6
 // 	protoc        v5.29.3
-// source: api/proto/letraz/v1/letraz-utils.proto
+// source: letraz/v1/letraz-utils.proto
 
 package letrazv1
 
@@ -32,7 +32,7 @@ type ScrapeJobRequest struct {
 
 func (x *ScrapeJobRequest) Reset() {
 	*x = ScrapeJobRequest{}
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[0]
+	mi := &file_letraz_v1_letraz_utils_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44,7 +44,7 @@ func (x *ScrapeJobRequest) String() string {
 func (*ScrapeJobRequest) ProtoMessage() {}
 
 func (x *ScrapeJobRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[0]
+	mi := &file_letraz_v1_letraz_utils_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -57,7 +57,7 @@ func (x *ScrapeJobRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScrapeJobRequest.ProtoReflect.Descriptor instead.
 func (*ScrapeJobRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{0}
+	return file_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *ScrapeJobRequest) GetUrl() string {
@@ -88,7 +88,7 @@ type ScrapeJobResponse struct {
 
 func (x *ScrapeJobResponse) Reset() {
 	*x = ScrapeJobResponse{}
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[1]
+	mi := &file_letraz_v1_letraz_utils_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -100,7 +100,7 @@ func (x *ScrapeJobResponse) String() string {
 func (*ScrapeJobResponse) ProtoMessage() {}
 
 func (x *ScrapeJobResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[1]
+	mi := &file_letraz_v1_letraz_utils_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -113,7 +113,7 @@ func (x *ScrapeJobResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScrapeJobResponse.ProtoReflect.Descriptor instead.
 func (*ScrapeJobResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{1}
+	return file_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *ScrapeJobResponse) GetProcessId() string {
@@ -163,7 +163,7 @@ type BaseResume struct {
 
 func (x *BaseResume) Reset() {
 	*x = BaseResume{}
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[2]
+	mi := &file_letraz_v1_letraz_utils_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -175,7 +175,7 @@ func (x *BaseResume) String() string {
 func (*BaseResume) ProtoMessage() {}
 
 func (x *BaseResume) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[2]
+	mi := &file_letraz_v1_letraz_utils_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -188,7 +188,7 @@ func (x *BaseResume) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BaseResume.ProtoReflect.Descriptor instead.
 func (*BaseResume) Descriptor() ([]byte, []int) {
-	return file_api_proto_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{2}
+	return file_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *BaseResume) GetId() string {
@@ -243,7 +243,7 @@ type User struct {
 
 func (x *User) Reset() {
 	*x = User{}
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[3]
+	mi := &file_letraz_v1_letraz_utils_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -255,7 +255,7 @@ func (x *User) String() string {
 func (*User) ProtoMessage() {}
 
 func (x *User) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[3]
+	mi := &file_letraz_v1_letraz_utils_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -268,7 +268,7 @@ func (x *User) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use User.ProtoReflect.Descriptor instead.
 func (*User) Descriptor() ([]byte, []int) {
-	return file_api_proto_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{3}
+	return file_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *User) GetId() string {
@@ -396,7 +396,7 @@ type ResumeSection struct {
 
 func (x *ResumeSection) Reset() {
 	*x = ResumeSection{}
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[4]
+	mi := &file_letraz_v1_letraz_utils_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -408,7 +408,7 @@ func (x *ResumeSection) String() string {
 func (*ResumeSection) ProtoMessage() {}
 
 func (x *ResumeSection) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[4]
+	mi := &file_letraz_v1_letraz_utils_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -421,7 +421,7 @@ func (x *ResumeSection) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResumeSection.ProtoReflect.Descriptor instead.
 func (*ResumeSection) Descriptor() ([]byte, []int) {
-	return file_api_proto_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{4}
+	return file_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ResumeSection) GetId() string {
@@ -470,7 +470,7 @@ type TailorResumeRequest struct {
 
 func (x *TailorResumeRequest) Reset() {
 	*x = TailorResumeRequest{}
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[5]
+	mi := &file_letraz_v1_letraz_utils_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -482,7 +482,7 @@ func (x *TailorResumeRequest) String() string {
 func (*TailorResumeRequest) ProtoMessage() {}
 
 func (x *TailorResumeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[5]
+	mi := &file_letraz_v1_letraz_utils_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -495,7 +495,7 @@ func (x *TailorResumeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TailorResumeRequest.ProtoReflect.Descriptor instead.
 func (*TailorResumeRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{5}
+	return file_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *TailorResumeRequest) GetBaseResume() *BaseResume {
@@ -533,7 +533,7 @@ type TailorResumeResponse struct {
 
 func (x *TailorResumeResponse) Reset() {
 	*x = TailorResumeResponse{}
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[6]
+	mi := &file_letraz_v1_letraz_utils_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -545,7 +545,7 @@ func (x *TailorResumeResponse) String() string {
 func (*TailorResumeResponse) ProtoMessage() {}
 
 func (x *TailorResumeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[6]
+	mi := &file_letraz_v1_letraz_utils_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -558,7 +558,7 @@ func (x *TailorResumeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TailorResumeResponse.ProtoReflect.Descriptor instead.
 func (*TailorResumeResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{6}
+	return file_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *TailorResumeResponse) GetProcessId() string {
@@ -605,7 +605,7 @@ type ResumeScreenshotRequest struct {
 
 func (x *ResumeScreenshotRequest) Reset() {
 	*x = ResumeScreenshotRequest{}
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[7]
+	mi := &file_letraz_v1_letraz_utils_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -617,7 +617,7 @@ func (x *ResumeScreenshotRequest) String() string {
 func (*ResumeScreenshotRequest) ProtoMessage() {}
 
 func (x *ResumeScreenshotRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[7]
+	mi := &file_letraz_v1_letraz_utils_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -630,7 +630,7 @@ func (x *ResumeScreenshotRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResumeScreenshotRequest.ProtoReflect.Descriptor instead.
 func (*ResumeScreenshotRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{7}
+	return file_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ResumeScreenshotRequest) GetResumeId() string {
@@ -655,7 +655,7 @@ type ResumeScreenshotResponse struct {
 
 func (x *ResumeScreenshotResponse) Reset() {
 	*x = ResumeScreenshotResponse{}
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[8]
+	mi := &file_letraz_v1_letraz_utils_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -667,7 +667,7 @@ func (x *ResumeScreenshotResponse) String() string {
 func (*ResumeScreenshotResponse) ProtoMessage() {}
 
 func (x *ResumeScreenshotResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[8]
+	mi := &file_letraz_v1_letraz_utils_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -680,7 +680,7 @@ func (x *ResumeScreenshotResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResumeScreenshotResponse.ProtoReflect.Descriptor instead.
 func (*ResumeScreenshotResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{8}
+	return file_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ResumeScreenshotResponse) GetStatus() string {
@@ -745,7 +745,7 @@ type Job struct {
 
 func (x *Job) Reset() {
 	*x = Job{}
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[9]
+	mi := &file_letraz_v1_letraz_utils_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -757,7 +757,7 @@ func (x *Job) String() string {
 func (*Job) ProtoMessage() {}
 
 func (x *Job) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[9]
+	mi := &file_letraz_v1_letraz_utils_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -770,7 +770,7 @@ func (x *Job) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Job.ProtoReflect.Descriptor instead.
 func (*Job) Descriptor() ([]byte, []int) {
-	return file_api_proto_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{9}
+	return file_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *Job) GetTitle() string {
@@ -868,7 +868,7 @@ type Salary struct {
 
 func (x *Salary) Reset() {
 	*x = Salary{}
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[10]
+	mi := &file_letraz_v1_letraz_utils_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -880,7 +880,7 @@ func (x *Salary) String() string {
 func (*Salary) ProtoMessage() {}
 
 func (x *Salary) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[10]
+	mi := &file_letraz_v1_letraz_utils_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -893,7 +893,7 @@ func (x *Salary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Salary.ProtoReflect.Descriptor instead.
 func (*Salary) Descriptor() ([]byte, []int) {
-	return file_api_proto_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{10}
+	return file_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *Salary) GetCurrency() string {
@@ -929,7 +929,7 @@ type SalaryRange struct {
 
 func (x *SalaryRange) Reset() {
 	*x = SalaryRange{}
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[11]
+	mi := &file_letraz_v1_letraz_utils_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -941,7 +941,7 @@ func (x *SalaryRange) String() string {
 func (*SalaryRange) ProtoMessage() {}
 
 func (x *SalaryRange) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[11]
+	mi := &file_letraz_v1_letraz_utils_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -954,7 +954,7 @@ func (x *SalaryRange) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SalaryRange.ProtoReflect.Descriptor instead.
 func (*SalaryRange) Descriptor() ([]byte, []int) {
-	return file_api_proto_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{11}
+	return file_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *SalaryRange) GetMin() int32 {
@@ -1009,7 +1009,7 @@ type JobPosting struct {
 
 func (x *JobPosting) Reset() {
 	*x = JobPosting{}
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[12]
+	mi := &file_letraz_v1_letraz_utils_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1021,7 +1021,7 @@ func (x *JobPosting) String() string {
 func (*JobPosting) ProtoMessage() {}
 
 func (x *JobPosting) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[12]
+	mi := &file_letraz_v1_letraz_utils_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1034,7 +1034,7 @@ func (x *JobPosting) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use JobPosting.ProtoReflect.Descriptor instead.
 func (*JobPosting) Descriptor() ([]byte, []int) {
-	return file_api_proto_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{12}
+	return file_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *JobPosting) GetId() string {
@@ -1162,7 +1162,7 @@ type ScrapeOptions struct {
 
 func (x *ScrapeOptions) Reset() {
 	*x = ScrapeOptions{}
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[13]
+	mi := &file_letraz_v1_letraz_utils_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1174,7 +1174,7 @@ func (x *ScrapeOptions) String() string {
 func (*ScrapeOptions) ProtoMessage() {}
 
 func (x *ScrapeOptions) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[13]
+	mi := &file_letraz_v1_letraz_utils_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1187,7 +1187,7 @@ func (x *ScrapeOptions) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScrapeOptions.ProtoReflect.Descriptor instead.
 func (*ScrapeOptions) Descriptor() ([]byte, []int) {
-	return file_api_proto_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{13}
+	return file_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ScrapeOptions) GetEngine() string {
@@ -1225,11 +1225,11 @@ func (x *ScrapeOptions) GetProxy() string {
 	return ""
 }
 
-var File_api_proto_letraz_v1_letraz_utils_proto protoreflect.FileDescriptor
+var File_letraz_v1_letraz_utils_proto protoreflect.FileDescriptor
 
-const file_api_proto_letraz_v1_letraz_utils_proto_rawDesc = "" +
+const file_letraz_v1_letraz_utils_proto_rawDesc = "" +
 	"\n" +
-	"&api/proto/letraz/v1/letraz-utils.proto\x12\tletraz.v1\x1a\x1cgoogle/protobuf/struct.proto\"X\n" +
+	"\x1cletraz/v1/letraz-utils.proto\x12\tletraz.v1\x1a\x1cgoogle/protobuf/struct.proto\"X\n" +
 	"\x10ScrapeJobRequest\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x122\n" +
 	"\aoptions\x18\x02 \x01(\v2\x18.letraz.v1.ScrapeOptionsR\aoptions\"\x97\x01\n" +
@@ -1355,19 +1355,19 @@ const file_api_proto_letraz_v1_letraz_utils_proto_rawDesc = "" +
 	"\x12GenerateScreenshot\x12\".letraz.v1.ResumeScreenshotRequest\x1a#.letraz.v1.ResumeScreenshotResponseB+Z)letraz-utils/api/proto/letraz/v1;letrazv1b\x06proto3"
 
 var (
-	file_api_proto_letraz_v1_letraz_utils_proto_rawDescOnce sync.Once
-	file_api_proto_letraz_v1_letraz_utils_proto_rawDescData []byte
+	file_letraz_v1_letraz_utils_proto_rawDescOnce sync.Once
+	file_letraz_v1_letraz_utils_proto_rawDescData []byte
 )
 
-func file_api_proto_letraz_v1_letraz_utils_proto_rawDescGZIP() []byte {
-	file_api_proto_letraz_v1_letraz_utils_proto_rawDescOnce.Do(func() {
-		file_api_proto_letraz_v1_letraz_utils_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_api_proto_letraz_v1_letraz_utils_proto_rawDesc), len(file_api_proto_letraz_v1_letraz_utils_proto_rawDesc)))
+func file_letraz_v1_letraz_utils_proto_rawDescGZIP() []byte {
+	file_letraz_v1_letraz_utils_proto_rawDescOnce.Do(func() {
+		file_letraz_v1_letraz_utils_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_letraz_v1_letraz_utils_proto_rawDesc), len(file_letraz_v1_letraz_utils_proto_rawDesc)))
 	})
-	return file_api_proto_letraz_v1_letraz_utils_proto_rawDescData
+	return file_letraz_v1_letraz_utils_proto_rawDescData
 }
 
-var file_api_proto_letraz_v1_letraz_utils_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
-var file_api_proto_letraz_v1_letraz_utils_proto_goTypes = []any{
+var file_letraz_v1_letraz_utils_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_letraz_v1_letraz_utils_proto_goTypes = []any{
 	(*ScrapeJobRequest)(nil),         // 0: letraz.v1.ScrapeJobRequest
 	(*ScrapeJobResponse)(nil),        // 1: letraz.v1.ScrapeJobResponse
 	(*BaseResume)(nil),               // 2: letraz.v1.BaseResume
@@ -1385,7 +1385,7 @@ var file_api_proto_letraz_v1_letraz_utils_proto_goTypes = []any{
 	nil,                              // 14: letraz.v1.JobPosting.MetadataEntry
 	(*structpb.Struct)(nil),          // 15: google.protobuf.Struct
 }
-var file_api_proto_letraz_v1_letraz_utils_proto_depIdxs = []int32{
+var file_letraz_v1_letraz_utils_proto_depIdxs = []int32{
 	13, // 0: letraz.v1.ScrapeJobRequest.options:type_name -> letraz.v1.ScrapeOptions
 	3,  // 1: letraz.v1.BaseResume.user:type_name -> letraz.v1.User
 	4,  // 2: letraz.v1.BaseResume.sections:type_name -> letraz.v1.ResumeSection
@@ -1408,26 +1408,26 @@ var file_api_proto_letraz_v1_letraz_utils_proto_depIdxs = []int32{
 	0,  // [0:9] is the sub-list for field type_name
 }
 
-func init() { file_api_proto_letraz_v1_letraz_utils_proto_init() }
-func file_api_proto_letraz_v1_letraz_utils_proto_init() {
-	if File_api_proto_letraz_v1_letraz_utils_proto != nil {
+func init() { file_letraz_v1_letraz_utils_proto_init() }
+func file_letraz_v1_letraz_utils_proto_init() {
+	if File_letraz_v1_letraz_utils_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_proto_letraz_v1_letraz_utils_proto_rawDesc), len(file_api_proto_letraz_v1_letraz_utils_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_letraz_v1_letraz_utils_proto_rawDesc), len(file_letraz_v1_letraz_utils_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   2,
 		},
-		GoTypes:           file_api_proto_letraz_v1_letraz_utils_proto_goTypes,
-		DependencyIndexes: file_api_proto_letraz_v1_letraz_utils_proto_depIdxs,
-		MessageInfos:      file_api_proto_letraz_v1_letraz_utils_proto_msgTypes,
+		GoTypes:           file_letraz_v1_letraz_utils_proto_goTypes,
+		DependencyIndexes: file_letraz_v1_letraz_utils_proto_depIdxs,
+		MessageInfos:      file_letraz_v1_letraz_utils_proto_msgTypes,
 	}.Build()
-	File_api_proto_letraz_v1_letraz_utils_proto = out.File
-	file_api_proto_letraz_v1_letraz_utils_proto_goTypes = nil
-	file_api_proto_letraz_v1_letraz_utils_proto_depIdxs = nil
+	File_letraz_v1_letraz_utils_proto = out.File
+	file_letraz_v1_letraz_utils_proto_goTypes = nil
+	file_letraz_v1_letraz_utils_proto_depIdxs = nil
 }

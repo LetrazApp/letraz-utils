@@ -3,6 +3,7 @@ package headed
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -49,11 +50,13 @@ func (ss *ScreenshotService) CaptureResumeScreenshot(ctx context.Context, resume
 	}
 	defer browserInstance.Release()
 
-	// Construct the URL for the resume preview
+	// Construct the URL for the resume preview with proper escaping
+	escapedID := url.PathEscape(resumeID)
+	escapedToken := url.QueryEscape(ss.config.Resume.Client.PreviewToken)
 	previewURL := fmt.Sprintf("%s/%s?token=%s",
 		strings.TrimRight(ss.config.Resume.Client.PreviewURL, "/"),
-		resumeID,
-		ss.config.Resume.Client.PreviewToken,
+		escapedID,
+		escapedToken,
 	)
 
 	ss.logger.Info("Navigating to resume preview URL", map[string]interface{}{
@@ -154,7 +157,7 @@ func (ss *ScreenshotService) waitForResumeToLoad(page *rod.Page) error {
 
 	// Try each selector with a shorter timeout
 	for _, selector := range selectors {
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		ctx, cancel := context.WithTimeout(page.GetContext(), 2*time.Second)
 		_, err := page.Context(ctx).Element(selector)
 		cancel()
 

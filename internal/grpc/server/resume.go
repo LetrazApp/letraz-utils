@@ -272,12 +272,12 @@ func (s *Server) GenerateScreenshot(ctx context.Context, req *letrazv1.ResumeScr
 		"resume_id":  req.GetResumeId(),
 	})
 
-	// Return success response with process ID (using screenshot_url field for process ID)
+	// Return success response with process ID in dedicated field
 	return &letrazv1.ResumeScreenshotResponse{
-		Status:        "ACCEPTED",
-		Message:       "Screenshot request accepted for background processing",
-		Timestamp:     time.Now().Format(time.RFC3339Nano),
-		ScreenshotUrl: processID, // Process ID for tracking
+		Status:    "ACCEPTED",
+		Message:   "Screenshot request accepted for background processing",
+		Timestamp: time.Now().Format(time.RFC3339Nano),
+		ProcessId: processID, // Process ID for tracking async task
 	}, nil
 }
 
