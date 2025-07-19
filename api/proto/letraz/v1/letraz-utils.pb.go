@@ -725,6 +725,118 @@ func (x *ResumeScreenshotResponse) GetError() string {
 	return ""
 }
 
+type HealthCheckRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HealthCheckRequest) Reset() {
+	*x = HealthCheckRequest{}
+	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HealthCheckRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HealthCheckRequest) ProtoMessage() {}
+
+func (x *HealthCheckRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HealthCheckRequest.ProtoReflect.Descriptor instead.
+func (*HealthCheckRequest) Descriptor() ([]byte, []int) {
+	return file_api_proto_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{9}
+}
+
+type HealthCheckResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Status        string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`                                                                           // health status (healthy, unhealthy)
+	Timestamp     string                 `protobuf:"bytes,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`                                                                     // ISO timestamp string
+	Version       string                 `protobuf:"bytes,3,opt,name=version,proto3" json:"version,omitempty"`                                                                         // service version
+	UptimeSeconds int64                  `protobuf:"varint,4,opt,name=uptime_seconds,json=uptimeSeconds,proto3" json:"uptime_seconds,omitempty"`                                       // uptime in seconds
+	Checks        map[string]string      `protobuf:"bytes,5,rep,name=checks,proto3" json:"checks,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // health check results for various components
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HealthCheckResponse) Reset() {
+	*x = HealthCheckResponse{}
+	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HealthCheckResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HealthCheckResponse) ProtoMessage() {}
+
+func (x *HealthCheckResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HealthCheckResponse.ProtoReflect.Descriptor instead.
+func (*HealthCheckResponse) Descriptor() ([]byte, []int) {
+	return file_api_proto_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *HealthCheckResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *HealthCheckResponse) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+func (x *HealthCheckResponse) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *HealthCheckResponse) GetUptimeSeconds() int64 {
+	if x != nil {
+		return x.UptimeSeconds
+	}
+	return 0
+}
+
+func (x *HealthCheckResponse) GetChecks() map[string]string {
+	if x != nil {
+		return x.Checks
+	}
+	return nil
+}
+
 type Job struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	Title            string                 `protobuf:"bytes,1,opt,name=title,proto3" json:"title,omitempty"`
@@ -745,7 +857,7 @@ type Job struct {
 
 func (x *Job) Reset() {
 	*x = Job{}
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[9]
+	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -757,7 +869,7 @@ func (x *Job) String() string {
 func (*Job) ProtoMessage() {}
 
 func (x *Job) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[9]
+	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -770,7 +882,7 @@ func (x *Job) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Job.ProtoReflect.Descriptor instead.
 func (*Job) Descriptor() ([]byte, []int) {
-	return file_api_proto_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{9}
+	return file_api_proto_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *Job) GetTitle() string {
@@ -868,7 +980,7 @@ type Salary struct {
 
 func (x *Salary) Reset() {
 	*x = Salary{}
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[10]
+	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -880,7 +992,7 @@ func (x *Salary) String() string {
 func (*Salary) ProtoMessage() {}
 
 func (x *Salary) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[10]
+	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -893,7 +1005,7 @@ func (x *Salary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Salary.ProtoReflect.Descriptor instead.
 func (*Salary) Descriptor() ([]byte, []int) {
-	return file_api_proto_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{10}
+	return file_api_proto_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *Salary) GetCurrency() string {
@@ -929,7 +1041,7 @@ type SalaryRange struct {
 
 func (x *SalaryRange) Reset() {
 	*x = SalaryRange{}
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[11]
+	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -941,7 +1053,7 @@ func (x *SalaryRange) String() string {
 func (*SalaryRange) ProtoMessage() {}
 
 func (x *SalaryRange) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[11]
+	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -954,7 +1066,7 @@ func (x *SalaryRange) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SalaryRange.ProtoReflect.Descriptor instead.
 func (*SalaryRange) Descriptor() ([]byte, []int) {
-	return file_api_proto_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{11}
+	return file_api_proto_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *SalaryRange) GetMin() int32 {
@@ -1009,7 +1121,7 @@ type JobPosting struct {
 
 func (x *JobPosting) Reset() {
 	*x = JobPosting{}
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[12]
+	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1021,7 +1133,7 @@ func (x *JobPosting) String() string {
 func (*JobPosting) ProtoMessage() {}
 
 func (x *JobPosting) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[12]
+	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1034,7 +1146,7 @@ func (x *JobPosting) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use JobPosting.ProtoReflect.Descriptor instead.
 func (*JobPosting) Descriptor() ([]byte, []int) {
-	return file_api_proto_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{12}
+	return file_api_proto_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *JobPosting) GetId() string {
@@ -1162,7 +1274,7 @@ type ScrapeOptions struct {
 
 func (x *ScrapeOptions) Reset() {
 	*x = ScrapeOptions{}
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[13]
+	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1174,7 +1286,7 @@ func (x *ScrapeOptions) String() string {
 func (*ScrapeOptions) ProtoMessage() {}
 
 func (x *ScrapeOptions) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[13]
+	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1187,7 +1299,7 @@ func (x *ScrapeOptions) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScrapeOptions.ProtoReflect.Descriptor instead.
 func (*ScrapeOptions) Descriptor() ([]byte, []int) {
-	return file_api_proto_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{13}
+	return file_api_proto_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ScrapeOptions) GetEngine() string {
@@ -1292,7 +1404,17 @@ const file_api_proto_letraz_v1_letraz_utils_proto_rawDesc = "" +
 	"\n" +
 	"process_id\x18\x04 \x01(\tR\tprocessId\x12%\n" +
 	"\x0escreenshot_url\x18\x05 \x01(\tR\rscreenshotUrl\x12\x14\n" +
-	"\x05error\x18\x06 \x01(\tR\x05error\"\x86\x03\n" +
+	"\x05error\x18\x06 \x01(\tR\x05error\"\x14\n" +
+	"\x12HealthCheckRequest\"\x8b\x02\n" +
+	"\x13HealthCheckResponse\x12\x16\n" +
+	"\x06status\x18\x01 \x01(\tR\x06status\x12\x1c\n" +
+	"\ttimestamp\x18\x02 \x01(\tR\ttimestamp\x12\x18\n" +
+	"\aversion\x18\x03 \x01(\tR\aversion\x12%\n" +
+	"\x0euptime_seconds\x18\x04 \x01(\x03R\ruptimeSeconds\x12B\n" +
+	"\x06checks\x18\x05 \x03(\v2*.letraz.v1.HealthCheckResponse.ChecksEntryR\x06checks\x1a9\n" +
+	"\vChecksEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x86\x03\n" +
 	"\x03Job\x12\x14\n" +
 	"\x05title\x18\x01 \x01(\tR\x05title\x12\x17\n" +
 	"\ajob_url\x18\x02 \x01(\tR\x06jobUrl\x12!\n" +
@@ -1352,7 +1474,9 @@ const file_api_proto_letraz_v1_letraz_utils_proto_rawDesc = "" +
 	"\tScrapeJob\x12\x1b.letraz.v1.ScrapeJobRequest\x1a\x1c.letraz.v1.ScrapeJobResponse2\xbf\x01\n" +
 	"\rResumeService\x12O\n" +
 	"\fTailorResume\x12\x1e.letraz.v1.TailorResumeRequest\x1a\x1f.letraz.v1.TailorResumeResponse\x12]\n" +
-	"\x12GenerateScreenshot\x12\".letraz.v1.ResumeScreenshotRequest\x1a#.letraz.v1.ResumeScreenshotResponseB+Z)letraz-utils/api/proto/letraz/v1;letrazv1b\x06proto3"
+	"\x12GenerateScreenshot\x12\".letraz.v1.ResumeScreenshotRequest\x1a#.letraz.v1.ResumeScreenshotResponse2]\n" +
+	"\rHealthService\x12L\n" +
+	"\vHealthCheck\x12\x1d.letraz.v1.HealthCheckRequest\x1a\x1e.letraz.v1.HealthCheckResponseB+Z)letraz-utils/api/proto/letraz/v1;letrazv1b\x06proto3"
 
 var (
 	file_api_proto_letraz_v1_letraz_utils_proto_rawDescOnce sync.Once
@@ -1366,7 +1490,7 @@ func file_api_proto_letraz_v1_letraz_utils_proto_rawDescGZIP() []byte {
 	return file_api_proto_letraz_v1_letraz_utils_proto_rawDescData
 }
 
-var file_api_proto_letraz_v1_letraz_utils_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_api_proto_letraz_v1_letraz_utils_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_api_proto_letraz_v1_letraz_utils_proto_goTypes = []any{
 	(*ScrapeJobRequest)(nil),         // 0: letraz.v1.ScrapeJobRequest
 	(*ScrapeJobResponse)(nil),        // 1: letraz.v1.ScrapeJobResponse
@@ -1377,35 +1501,41 @@ var file_api_proto_letraz_v1_letraz_utils_proto_goTypes = []any{
 	(*TailorResumeResponse)(nil),     // 6: letraz.v1.TailorResumeResponse
 	(*ResumeScreenshotRequest)(nil),  // 7: letraz.v1.ResumeScreenshotRequest
 	(*ResumeScreenshotResponse)(nil), // 8: letraz.v1.ResumeScreenshotResponse
-	(*Job)(nil),                      // 9: letraz.v1.Job
-	(*Salary)(nil),                   // 10: letraz.v1.Salary
-	(*SalaryRange)(nil),              // 11: letraz.v1.SalaryRange
-	(*JobPosting)(nil),               // 12: letraz.v1.JobPosting
-	(*ScrapeOptions)(nil),            // 13: letraz.v1.ScrapeOptions
-	nil,                              // 14: letraz.v1.JobPosting.MetadataEntry
-	(*structpb.Struct)(nil),          // 15: google.protobuf.Struct
+	(*HealthCheckRequest)(nil),       // 9: letraz.v1.HealthCheckRequest
+	(*HealthCheckResponse)(nil),      // 10: letraz.v1.HealthCheckResponse
+	(*Job)(nil),                      // 11: letraz.v1.Job
+	(*Salary)(nil),                   // 12: letraz.v1.Salary
+	(*SalaryRange)(nil),              // 13: letraz.v1.SalaryRange
+	(*JobPosting)(nil),               // 14: letraz.v1.JobPosting
+	(*ScrapeOptions)(nil),            // 15: letraz.v1.ScrapeOptions
+	nil,                              // 16: letraz.v1.HealthCheckResponse.ChecksEntry
+	nil,                              // 17: letraz.v1.JobPosting.MetadataEntry
+	(*structpb.Struct)(nil),          // 18: google.protobuf.Struct
 }
 var file_api_proto_letraz_v1_letraz_utils_proto_depIdxs = []int32{
-	13, // 0: letraz.v1.ScrapeJobRequest.options:type_name -> letraz.v1.ScrapeOptions
+	15, // 0: letraz.v1.ScrapeJobRequest.options:type_name -> letraz.v1.ScrapeOptions
 	3,  // 1: letraz.v1.BaseResume.user:type_name -> letraz.v1.User
 	4,  // 2: letraz.v1.BaseResume.sections:type_name -> letraz.v1.ResumeSection
-	15, // 3: letraz.v1.ResumeSection.data:type_name -> google.protobuf.Struct
+	18, // 3: letraz.v1.ResumeSection.data:type_name -> google.protobuf.Struct
 	2,  // 4: letraz.v1.TailorResumeRequest.base_resume:type_name -> letraz.v1.BaseResume
-	9,  // 5: letraz.v1.TailorResumeRequest.job:type_name -> letraz.v1.Job
-	10, // 6: letraz.v1.Job.salary:type_name -> letraz.v1.Salary
-	11, // 7: letraz.v1.JobPosting.salary:type_name -> letraz.v1.SalaryRange
-	14, // 8: letraz.v1.JobPosting.metadata:type_name -> letraz.v1.JobPosting.MetadataEntry
-	0,  // 9: letraz.v1.ScraperService.ScrapeJob:input_type -> letraz.v1.ScrapeJobRequest
-	5,  // 10: letraz.v1.ResumeService.TailorResume:input_type -> letraz.v1.TailorResumeRequest
-	7,  // 11: letraz.v1.ResumeService.GenerateScreenshot:input_type -> letraz.v1.ResumeScreenshotRequest
-	1,  // 12: letraz.v1.ScraperService.ScrapeJob:output_type -> letraz.v1.ScrapeJobResponse
-	6,  // 13: letraz.v1.ResumeService.TailorResume:output_type -> letraz.v1.TailorResumeResponse
-	8,  // 14: letraz.v1.ResumeService.GenerateScreenshot:output_type -> letraz.v1.ResumeScreenshotResponse
-	12, // [12:15] is the sub-list for method output_type
-	9,  // [9:12] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	11, // 5: letraz.v1.TailorResumeRequest.job:type_name -> letraz.v1.Job
+	16, // 6: letraz.v1.HealthCheckResponse.checks:type_name -> letraz.v1.HealthCheckResponse.ChecksEntry
+	12, // 7: letraz.v1.Job.salary:type_name -> letraz.v1.Salary
+	13, // 8: letraz.v1.JobPosting.salary:type_name -> letraz.v1.SalaryRange
+	17, // 9: letraz.v1.JobPosting.metadata:type_name -> letraz.v1.JobPosting.MetadataEntry
+	0,  // 10: letraz.v1.ScraperService.ScrapeJob:input_type -> letraz.v1.ScrapeJobRequest
+	5,  // 11: letraz.v1.ResumeService.TailorResume:input_type -> letraz.v1.TailorResumeRequest
+	7,  // 12: letraz.v1.ResumeService.GenerateScreenshot:input_type -> letraz.v1.ResumeScreenshotRequest
+	9,  // 13: letraz.v1.HealthService.HealthCheck:input_type -> letraz.v1.HealthCheckRequest
+	1,  // 14: letraz.v1.ScraperService.ScrapeJob:output_type -> letraz.v1.ScrapeJobResponse
+	6,  // 15: letraz.v1.ResumeService.TailorResume:output_type -> letraz.v1.TailorResumeResponse
+	8,  // 16: letraz.v1.ResumeService.GenerateScreenshot:output_type -> letraz.v1.ResumeScreenshotResponse
+	10, // 17: letraz.v1.HealthService.HealthCheck:output_type -> letraz.v1.HealthCheckResponse
+	14, // [14:18] is the sub-list for method output_type
+	10, // [10:14] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_api_proto_letraz_v1_letraz_utils_proto_init() }
@@ -1419,9 +1549,9 @@ func file_api_proto_letraz_v1_letraz_utils_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_proto_letraz_v1_letraz_utils_proto_rawDesc), len(file_api_proto_letraz_v1_letraz_utils_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   15,
+			NumMessages:   18,
 			NumExtensions: 0,
-			NumServices:   2,
+			NumServices:   3,
 		},
 		GoTypes:           file_api_proto_letraz_v1_letraz_utils_proto_goTypes,
 		DependencyIndexes: file_api_proto_letraz_v1_letraz_utils_proto_depIdxs,

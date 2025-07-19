@@ -29,6 +29,7 @@ type Server struct {
 	// Embed the unimplemented server methods
 	letrazv1.UnimplementedScraperServiceServer
 	letrazv1.UnimplementedResumeServiceServer
+	letrazv1.UnimplementedHealthServiceServer
 }
 
 func NewServer(cfg *config.Config, poolManager *workers.PoolManager, llmManager *llm.Manager, taskManager background.TaskManager) *Server {
@@ -68,6 +69,7 @@ func (s *Server) Start(lis net.Listener) error {
 	// Register services
 	letrazv1.RegisterScraperServiceServer(s.grpcServer, s)
 	letrazv1.RegisterResumeServiceServer(s.grpcServer, s)
+	letrazv1.RegisterHealthServiceServer(s.grpcServer, s)
 
 	// Enable reflection for debugging
 	reflection.Register(s.grpcServer)
