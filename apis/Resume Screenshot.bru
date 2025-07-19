@@ -1,0 +1,113 @@
+meta {
+  name: Resume Screenshot
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{host}}/api/v1/resume/screenshot
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  Accept: application/json
+}
+
+body:json {
+  {
+    "resume_id": "rsm_pCOywDN3MwEyJPjfLt-bn"
+  }
+}
+
+tests {
+  test("Response status is 202 (Accepted)", function() {
+    expect(res.getStatus()).to.equal(202);
+  });
+  
+  test("Response has status field", function() {
+    expect(res.getBody()).to.have.property('status');
+  });
+  
+  test("Response status is ACCEPTED", function() {
+    const body = res.getBody();
+    expect(body.status).to.equal('ACCEPTED');
+  });
+  
+  test("Response has processId", function() {
+    const body = res.getBody();
+    expect(body).to.have.property('processId');
+    expect(body.processId).to.be.a('string');
+    expect(body.processId).to.include('screenshot_');
+  });
+  
+  test("Response has timestamp", function() {
+    const body = res.getBody();
+    expect(body).to.have.property('timestamp');
+  });
+  
+  test("Response has background processing message", function() {
+    const body = res.getBody();
+    expect(body).to.have.property('message');
+    expect(body.message).to.include('background processing');
+  });
+}
+
+docs {
+  # Resume Screenshot API (Async)
+  
+  This endpoint **asynchronously** generates a screenshot of a resume by:
+  1. Accepting the request and returning immediately with a process ID
+  2. Processing in background: connecting to letraz-client, capturing screenshot, uploading to DigitalOcean Spaces
+  3. Logging the final result to console when complete
+  
+  **⚡ Fast Response**: Returns in ~1ms with process ID for tracking.
+  
+  ## Request Body
+  ```json
+  {
+    "resume_id": "rsm_pCOywDN3MwEyJPjfLt-bn"
+  }
+  ```
+  
+  ## Immediate Response (202 Accepted)
+  ```json
+  {
+    "processId": "screenshot_20250719_cfebe539-4bef-4107-ac30-fdec5598d331",
+    "status": "ACCEPTED",
+    "message": "Resume screenshot request accepted for background processing",
+    "timestamp": "2025-07-19T12:24:03.230158+05:30"
+  }
+  ```
+  
+  ## Background Processing
+  The actual screenshot generation happens in the background (~15 seconds).
+  Monitor the console logs to see completion status and final screenshot URL.
+  
+  ## Error Response (400/500)
+  ```json
+  {
+    "error": "validation_failed",
+    "message": "Resume ID is required",
+    "timestamp": "2025-07-19T12:24:03.230158+05:30"
+  }
+  ```
+  
+  ## Error Codes
+  - `invalid_request`: Invalid request body
+  - `validation_failed`: Resume ID validation failed
+  - `configuration_error`: Service not properly configured
+  - `task_submission_failed`: Failed to submit to background queue
+  
+  ## Environment Variables Required
+  - `RESUME_PREVIEW_URL`: Full URL for resume preview endpoint (e.g., "https://letraz.app/admin/resumes")
+  - `RESUME_PREVIEW_TOKEN`: Token for accessing letraz-client preview
+  - `BUCKET_URL`: DigitalOcean Spaces bucket URL
+  - `BUCKET_CDN_ENDPOINT`: CDN endpoint for public access
+  - `BUCKET_ACCESS_KEY_ID`: Spaces access key ID
+  - `BUCKET_ACCESS_KEY_SECRET`: Spaces access key secret
+  
+  ## Process ID Format
+  `screenshot_YYYYMMDD_uuid` - Use this to track the background task progress.
+}

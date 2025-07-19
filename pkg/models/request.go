@@ -16,3 +16,8 @@ type ScrapeOptions struct {
 	UserAgent   string        `json:"user_agent,omitempty"`   // Custom user agent
 	Proxy       string        `json:"proxy,omitempty"`        // Proxy configuration
 }
+
+// ResumeScreenshotRequest represents the request payload for generating a resume screenshot
+type ResumeScreenshotRequest struct {
+	ResumeID string `json:"resume_id" validate:"required,resume_id"`
+}

@@ -39,12 +39,15 @@ type BrowserInstance struct {
 func NewBrowserManager(cfg *config.Config) *BrowserManager {
 	logger := logging.GetGlobalLogger()
 
-	// Setup launcher with enhanced stealth mode and system browser
+	// Setup launcher with enhanced stealth mode and optimized rendering
 	l := launcher.New().
 		Headless(cfg.Scraper.HeadlessMode).
 		NoSandbox(true).
 		Set("disable-blink-features", "AutomationControlled").
-		Set("disable-web-security")
+		Set("disable-web-security").
+		Set("disable-background-timer-throttling").    // Prevent render delays
+		Set("disable-backgrounding-occluded-windows"). // Keep rendering active
+		Set("disable-renderer-backgrounding")          // Prevent background throttling
 
 	// Use system-installed Chrome/Chromium instead of downloading
 	if chromePath := getSystemChromePath(); chromePath != "" {

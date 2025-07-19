@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v5.29.3
-// source: api/proto/letraz/v1/letraz-utils.proto
+// source: letraz/v1/letraz-utils.proto
 
 package letrazv1
 
@@ -119,7 +119,7 @@ var ScraperService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "api/proto/letraz/v1/letraz-utils.proto",
+	Metadata: "letraz/v1/letraz-utils.proto",
 }
 
 const (
@@ -263,5 +263,5 @@ var ResumeService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "api/proto/letraz/v1/letraz-utils.proto",
+	Metadata: "letraz/v1/letraz-utils.proto",
 }

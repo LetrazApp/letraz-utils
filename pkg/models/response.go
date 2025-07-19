@@ -29,3 +29,13 @@ type ErrorResponse struct {
 	RequestID string    `json:"request_id"`
 	Timestamp time.Time `json:"timestamp"`
 }
+
+// ResumeScreenshotResponse represents the response from a screenshot generation request
+type ResumeScreenshotResponse struct {
+	Status        string    `json:"status"`
+	Message       string    `json:"message"`
+	Timestamp     time.Time `json:"timestamp"`
+	ScreenshotURL string    `json:"screenshot_url,omitempty"`
+	Error         string    `json:"error,omitempty"`
+	RequestID     string    `json:"request_id"`
+}

@@ -32,6 +32,14 @@ type AsyncTailorResponse struct {
 	Timestamp time.Time   `json:"timestamp"`
 }
 
+// AsyncScreenshotResponse represents the immediate response from async screenshot endpoint
+type AsyncScreenshotResponse struct {
+	ProcessID string      `json:"processId"`
+	Status    AsyncStatus `json:"status"`
+	Message   string      `json:"message"`
+	Timestamp time.Time   `json:"timestamp"`
+}
+
 // AsyncTaskStatusResponse represents the response for task status queries
 type AsyncTaskStatusResponse struct {
 	ProcessID      string                 `json:"processId"`
@@ -57,6 +65,13 @@ type AsyncTailorCompletionData struct {
 	TailoredResume *TailoredResume `json:"tailored_resume,omitempty"`
 	Suggestions    []Suggestion    `json:"suggestions,omitempty"`
 	ThreadID       string          `json:"thread_id,omitempty"`
+}
+
+// AsyncScreenshotCompletionData represents the completion data for screenshot tasks
+type AsyncScreenshotCompletionData struct {
+	ScreenshotURL string `json:"screenshot_url"`
+	ResumeID      string `json:"resume_id"`
+	FileSize      int    `json:"file_size_bytes"`
 }
 
 // AsyncTaskListResponse represents the response for listing tasks
@@ -90,6 +105,16 @@ func CreateAsyncTailorResponse(processID string) *AsyncTailorResponse {
 		ProcessID: processID,
 		Status:    AsyncStatusAccepted,
 		Message:   "Resume tailoring request accepted for background processing",
+		Timestamp: time.Now(),
+	}
+}
+
+// CreateAsyncScreenshotResponse creates a successful async screenshot response
+func CreateAsyncScreenshotResponse(processID string) *AsyncScreenshotResponse {
+	return &AsyncScreenshotResponse{
+		ProcessID: processID,
+		Status:    AsyncStatusAccepted,
+		Message:   "Resume screenshot request accepted for background processing",
 		Timestamp: time.Now(),
 	}
 }

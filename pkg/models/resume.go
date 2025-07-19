@@ -100,7 +100,7 @@ type BaseResume struct {
 type TailorResumeRequest struct {
 	BaseResume BaseResume `json:"base_resume"`
 	Job        Job        `json:"job"`
-	ResumeID   string     `json:"resume_id"`
+	ResumeID   string     `json:"resume_id" validate:"required,resume_id"`
 }
 
 // TailoredResume represents the tailored resume response

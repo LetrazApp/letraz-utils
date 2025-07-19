@@ -96,6 +96,11 @@ func GenerateTailorProcessID() string {
 	return GenerateProcessIDWithPrefix("tailor")
 }
 
+// GenerateScreenshotProcessID generates a unique process ID for screenshot tasks
+func GenerateScreenshotProcessID() string {
+	return GenerateProcessIDWithPrefix("screenshot")
+}
+
 // IsValidProcessID validates if a string is a valid process ID format
 func IsValidProcessID(processID string) bool {
 	if processID == "" {

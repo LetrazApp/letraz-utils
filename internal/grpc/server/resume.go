@@ -202,4 +202,83 @@ func convertGRPCJobToModel(grpcJob *letrazv1.Job) *models.Job {
 	}
 }
 
+// GenerateScreenshot implements the GenerateScreenshot gRPC method (async)
+func (s *Server) GenerateScreenshot(ctx context.Context, req *letrazv1.ResumeScreenshotRequest) (*letrazv1.ResumeScreenshotResponse, error) {
+	requestID := utils.GenerateRequestID()
+
+	s.logger.Info("gRPC async resume screenshot request received", map[string]interface{}{
+		"request_id": requestID,
+		"resume_id":  req.GetResumeId(),
+		"method":     "GenerateScreenshot",
+	})
+
+	// Validate request
+	if req.GetResumeId() == "" {
+		return &letrazv1.ResumeScreenshotResponse{
+			Status:    "FAILURE",
+			Message:   "Resume ID is required",
+			Timestamp: time.Now().Format(time.RFC3339Nano),
+			Error:     "INVALID_ARGUMENT",
+		}, nil
+	}
+
+	// Validate configuration
+	if s.cfg.Resume.Client.PreviewToken == "" {
+		s.logger.Error("Resume preview token not configured", map[string]interface{}{
+			"request_id": requestID,
+		})
+
+		return &letrazv1.ResumeScreenshotResponse{
+			Status:    "FAILURE",
+			Message:   "Resume preview service not configured",
+			Timestamp: time.Now().Format(time.RFC3339Nano),
+			Error:     "CONFIGURATION_ERROR",
+		}, nil
+	}
+
+	// Convert gRPC request to internal model
+	screenshotReq := models.ResumeScreenshotRequest{
+		ResumeID: req.GetResumeId(),
+	}
+
+	// Generate process ID for background task
+	processID := utils.GenerateScreenshotProcessID()
+
+	s.logger.Info("Submitting gRPC screenshot task for background processing", map[string]interface{}{
+		"request_id": requestID,
+		"process_id": processID,
+		"resume_id":  req.GetResumeId(),
+	})
+
+	// Submit task to background task manager
+	err := s.taskManager.SubmitScreenshotTask(ctx, processID, screenshotReq, s.cfg)
+	if err != nil {
+		s.logger.Error("Failed to submit gRPC background screenshot task", map[string]interface{}{
+			"request_id": requestID,
+			"error":      err.Error(),
+		})
+
+		return &letrazv1.ResumeScreenshotResponse{
+			Status:    "FAILURE",
+			Message:   "Failed to submit screenshot task: " + err.Error(),
+			Timestamp: time.Now().Format(time.RFC3339Nano),
+			Error:     "TASK_SUBMISSION_FAILED",
+		}, nil
+	}
+
+	s.logger.Info("gRPC screenshot task submitted successfully", map[string]interface{}{
+		"request_id": requestID,
+		"process_id": processID,
+		"resume_id":  req.GetResumeId(),
+	})
+
+	// Return success response with process ID in dedicated field
+	return &letrazv1.ResumeScreenshotResponse{
+		Status:    "ACCEPTED",
+		Message:   "Screenshot request accepted for background processing",
+		Timestamp: time.Now().Format(time.RFC3339Nano),
+		ProcessId: processID, // Process ID for tracking async task
+	}, nil
+}
+
 // All conversion functions updated to match new proto structure

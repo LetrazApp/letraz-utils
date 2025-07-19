@@ -10,21 +10,20 @@ import (
 	"letraz-utils/internal/api/validation"
 	"letraz-utils/internal/background"
 	"letraz-utils/internal/config"
-	"letraz-utils/internal/llm"
 	"letraz-utils/internal/logging"
 	"letraz-utils/pkg/models"
 	"letraz-utils/pkg/utils"
 )
 
-var resumeValidator = validator.New()
+var screenshotValidator = validator.New()
 
 func init() {
 	// Register shared resume validators
-	validation.RegisterResumeValidators(resumeValidator)
+	validation.RegisterResumeValidators(screenshotValidator)
 }
 
-// TailorResumeHandler handles the POST /api/v1/resume/tailor endpoint asynchronously
-func TailorResumeHandler(cfg *config.Config, llmManager *llm.Manager, taskManager background.TaskManager) echo.HandlerFunc {
+// ResumeScreenshotHandler handles the POST /api/v1/resume/screenshot endpoint (async)
+func ResumeScreenshotHandler(cfg *config.Config, taskManager background.TaskManager) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		requestID := utils.GenerateRequestID()
 		logger := logging.GetGlobalLogger()
@@ -32,14 +31,14 @@ func TailorResumeHandler(cfg *config.Config, llmManager *llm.Manager, taskManage
 		// Set request ID in context
 		c.Set("request_id", requestID)
 
-		logger.Info("Processing async resume tailoring request", map[string]interface{}{
+		logger.Info("Processing async resume screenshot request", map[string]interface{}{
 			"request_id": requestID,
-			"endpoint":   "/api/v1/resume/tailor",
+			"endpoint":   "/api/v1/resume/screenshot",
 			"method":     "POST",
 		})
 
 		// Parse and validate request body
-		var req models.TailorResumeRequest
+		var req models.ResumeScreenshotRequest
 		if err := c.Bind(&req); err != nil {
 			logger.Error("Failed to parse request body", map[string]interface{}{
 				"request_id": requestID,
@@ -53,7 +52,7 @@ func TailorResumeHandler(cfg *config.Config, llmManager *llm.Manager, taskManage
 		}
 
 		// Validate request
-		if err := resumeValidator.Struct(&req); err != nil {
+		if err := screenshotValidator.Struct(&req); err != nil {
 			logger.Error("Request validation failed", map[string]interface{}{
 				"request_id": requestID,
 				"error":      err.Error(),
@@ -66,27 +65,6 @@ func TailorResumeHandler(cfg *config.Config, llmManager *llm.Manager, taskManage
 		}
 
 		// Validate that required fields are present
-		if req.BaseResume.ID == "" {
-			return c.JSON(http.StatusBadRequest, models.CreateAsyncErrorResponse(
-				"validation_failed",
-				"Base resume ID is required",
-			))
-		}
-
-		if req.Job.Title == "" {
-			return c.JSON(http.StatusBadRequest, models.CreateAsyncErrorResponse(
-				"validation_failed",
-				"Job title is required",
-			))
-		}
-
-		if req.Job.CompanyName == "" {
-			return c.JSON(http.StatusBadRequest, models.CreateAsyncErrorResponse(
-				"validation_failed",
-				"Job company name is required",
-			))
-		}
-
 		if req.ResumeID == "" {
 			return c.JSON(http.StatusBadRequest, models.CreateAsyncErrorResponse(
 				"validation_failed",
@@ -94,35 +72,46 @@ func TailorResumeHandler(cfg *config.Config, llmManager *llm.Manager, taskManage
 			))
 		}
 
-		// Generate process ID for background task
-		processID := utils.GenerateTailorProcessID()
+		// Validate configuration
+		if cfg.Resume.Client.PreviewToken == "" {
+			logger.Error("Resume preview token not configured", map[string]interface{}{
+				"request_id": requestID,
+			})
 
-		logger.Info("Submitting resume tailoring task for background processing", map[string]interface{}{
-			"request_id":     requestID,
-			"process_id":     processID,
-			"base_resume_id": req.BaseResume.ID,
-			"resume_id":      req.ResumeID,
-			"job_title":      req.Job.Title,
-			"company":        req.Job.CompanyName,
-			"sections_count": len(req.BaseResume.Sections),
+			return c.JSON(http.StatusInternalServerError, models.CreateAsyncErrorResponse(
+				"configuration_error",
+				"Resume preview service not configured",
+			))
+		}
+
+		// Generate process ID for background task
+		processID := utils.GenerateScreenshotProcessID()
+
+		logger.Info("Submitting screenshot task for background processing", map[string]interface{}{
+			"request_id": requestID,
+			"process_id": processID,
+			"resume_id":  req.ResumeID,
 		})
 
 		// Submit task to background task manager
 		ctx := c.Request().Context()
-		err := taskManager.SubmitTailorTask(ctx, processID, req, llmManager, cfg)
+		err := taskManager.SubmitScreenshotTask(ctx, processID, req, cfg)
 		if err != nil {
-			logger.Error("Failed to submit background tailor task", map[string]interface{}{"error": err})
+			logger.Error("Failed to submit background screenshot task", map[string]interface{}{
+				"request_id": requestID,
+				"error":      err,
+			})
 			return c.JSON(http.StatusInternalServerError, models.CreateAsyncErrorResponse(
 				"task_submission_failed",
-				fmt.Sprintf("Failed to submit resume tailoring task: %v", err),
+				fmt.Sprintf("Failed to submit screenshot task: %v", err),
 				processID,
 			))
 		}
 
 		// Return immediate response with process ID
-		response := models.CreateAsyncTailorResponse(processID)
+		response := models.CreateAsyncScreenshotResponse(processID)
 
-		logger.Info("Resume tailoring task submitted successfully for background processing", map[string]interface{}{
+		logger.Info("Screenshot task submitted successfully for background processing", map[string]interface{}{
 			"request_id": requestID,
 			"process_id": processID,
 			"resume_id":  req.ResumeID,
