@@ -67,6 +67,7 @@ type TaskManagerImpl struct {
 	store        TaskStore
 	logger       *TaskCompletionLogger
 	appLogger    types.Logger
+	llmManager   *llm.Manager
 	workerPool   chan struct{}
 	ctx          context.Context
 	cancel       context.CancelFunc
@@ -140,6 +141,7 @@ func NewTaskManager(cfg *config.Config) *TaskManagerImpl {
 		store:        NewInMemoryTaskStore(),
 		logger:       NewTaskCompletionLogger(),
 		appLogger:    logger,
+		llmManager:   llm.NewManager(cfg),
 		workerPool:   make(chan struct{}, maxWorkers),
 		maxWorkers:   maxWorkers,
 		maxQueueSize: maxQueueSize,
@@ -158,6 +160,13 @@ func (tm *TaskManagerImpl) Start(ctx context.Context) error {
 
 	tm.ctx, tm.cancel = context.WithCancel(ctx)
 	tm.running = true
+
+	// Start LLM manager
+	if err := tm.llmManager.Start(); err != nil {
+		tm.appLogger.Warn("Failed to start LLM manager - description processing will be disabled", map[string]interface{}{
+			"error": err.Error(),
+		})
+	}
 
 	// Start worker goroutines
 	for i := 0; i < tm.maxWorkers; i++ {
@@ -185,6 +194,15 @@ func (tm *TaskManagerImpl) Stop(ctx context.Context) error {
 	}
 
 	tm.appLogger.Info("Stopping task manager...", map[string]interface{}{})
+
+	// Stop LLM manager
+	if tm.llmManager != nil {
+		if err := tm.llmManager.Stop(); err != nil {
+			tm.appLogger.Warn("Error stopping LLM manager", map[string]interface{}{
+				"error": err.Error(),
+			})
+		}
+	}
 
 	// Cancel context to signal workers to stop
 	tm.cancel()
@@ -575,17 +593,13 @@ func (tm *TaskManagerImpl) executeScrapeTask(ctx context.Context, processID stri
 			"description_length": len(request.Description),
 		})
 
-		// Get LLM manager - we need to access it from somewhere
-		// For now, we'll create a new instance since we don't have access to it directly
-		// This should be injected into the task manager in a production scenario
-		llmManager := llm.NewManager(tm.config)
-		if err := llmManager.Start(); err != nil {
-			return nil, fmt.Errorf("failed to start LLM manager: %w", err)
+		// Check if LLM manager is available and healthy
+		if tm.llmManager == nil || !tm.llmManager.IsHealthy() {
+			return nil, fmt.Errorf("LLM manager is not available or healthy - cannot process job description")
 		}
-		defer llmManager.Stop()
 
-		// Process the description directly
-		job, err := llmManager.ExtractJobFromDescription(ctx, request.Description)
+		// Process the description directly using the shared LLM manager
+		job, err := tm.llmManager.ExtractJobFromDescription(ctx, request.Description)
 		if err != nil {
 			return nil, fmt.Errorf("failed to process job description: %w", err)
 		}
