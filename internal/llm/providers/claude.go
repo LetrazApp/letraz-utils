@@ -210,7 +210,7 @@ Return a JSON object with exactly these fields:
   "confidence": 1.0,
   "title": "string - The job title",
   "job_url": "",
-  "company_name": "string - The company name (if mentioned)",
+  "company_name": "string - The company name (extract from description or use 'Company Name Not Specified' if not mentioned)",
   "location": "string - The job location (city, state, country, or 'Remote')",
   "salary": {
     "currency": "string - The currency salary is being mentioned in (e.g., 'USD' or 'INR')",
