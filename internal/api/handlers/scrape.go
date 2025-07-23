@@ -50,13 +50,37 @@ func ScrapeHandler(cfg *config.Config, poolManager *workers.PoolManager, taskMan
 			))
 		}
 
+		// Additional validation - either URL or description must be provided
+		if req.URL == "" && req.Description == "" {
+			logger.Error("Neither URL nor description provided", map[string]interface{}{
+				"request_id": requestID,
+			})
+			return c.JSON(http.StatusBadRequest, models.CreateAsyncErrorResponse(
+				"validation_failed",
+				"Either URL or description is required",
+			))
+		}
+
+		// Both URL and description cannot be provided
+		if req.URL != "" && req.Description != "" {
+			logger.Error("Both URL and description provided", map[string]interface{}{
+				"request_id": requestID,
+			})
+			return c.JSON(http.StatusBadRequest, models.CreateAsyncErrorResponse(
+				"validation_failed",
+				"Cannot provide both URL and description - choose one",
+			))
+		}
+
 		// Generate process ID for background task
 		processID := utils.GenerateScrapeProcessID()
 
 		logger.Info("Submitting scrape task for background processing", map[string]interface{}{
-			"request_id": requestID,
-			"process_id": processID,
-			"url":        req.URL,
+			"request_id":  requestID,
+			"process_id":  processID,
+			"url":         req.URL,
+			"description": req.Description,
+			"mode":        getProcessingModeFromScrapeRequest(req),
 		})
 
 		// Submit task to background task manager
@@ -85,4 +109,12 @@ func ScrapeHandler(cfg *config.Config, poolManager *workers.PoolManager, taskMan
 
 		return c.JSON(http.StatusAccepted, response)
 	}
+}
+
+// getProcessingModeFromScrapeRequest returns the processing mode based on the scrape request
+func getProcessingModeFromScrapeRequest(req models.ScrapeRequest) string {
+	if req.Description != "" {
+		return "description"
+	}
+	return "url"
 }

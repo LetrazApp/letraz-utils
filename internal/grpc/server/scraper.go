@@ -17,29 +17,38 @@ func (s *Server) ScrapeJob(ctx context.Context, req *letrazv1.ScrapeJobRequest) 
 	requestID := utils.GenerateRequestID()
 
 	s.logger.Info("gRPC async scrape request received", map[string]interface{}{
-		"request_id": requestID,
-		"url":        req.GetUrl(),
-		"method":     "ScrapeJob",
+		"request_id":  requestID,
+		"url":         req.GetUrl(),
+		"description": req.GetDescription(),
+		"method":      "ScrapeJob",
 	})
 
-	// Validate request
-	if req.GetUrl() == "" {
-		return nil, status.Error(codes.InvalidArgument, "URL is required")
+	// Validate request - either URL or description must be provided
+	if req.GetUrl() == "" && req.GetDescription() == "" {
+		return nil, status.Error(codes.InvalidArgument, "either URL or description is required")
+	}
+
+	// Both URL and description cannot be provided
+	if req.GetUrl() != "" && req.GetDescription() != "" {
+		return nil, status.Error(codes.InvalidArgument, "cannot provide both URL and description - choose one")
 	}
 
 	// Convert gRPC request to internal model
 	scrapeReq := models.ScrapeRequest{
-		URL:     req.GetUrl(),
-		Options: convertGRPCOptionsToModel(req.GetOptions()),
+		URL:         req.GetUrl(),
+		Description: req.GetDescription(),
+		Options:     convertGRPCOptionsToModel(req.GetOptions()),
 	}
 
 	// Generate process ID for background task
 	processID := utils.GenerateScrapeProcessID()
 
 	s.logger.Info("Submitting scrape task for background processing", map[string]interface{}{
-		"request_id": requestID,
-		"process_id": processID,
-		"url":        req.GetUrl(),
+		"request_id":  requestID,
+		"process_id":  processID,
+		"url":         req.GetUrl(),
+		"description": req.GetDescription(),
+		"mode":        getProcessingMode(req.GetUrl(), req.GetDescription()),
 	})
 
 	// Submit task to background task manager (async processing)
@@ -62,9 +71,11 @@ func (s *Server) ScrapeJob(ctx context.Context, req *letrazv1.ScrapeJobRequest) 
 
 	// Return immediate response with process ID (async pattern)
 	s.logger.Info("Scrape task submitted successfully for background processing", map[string]interface{}{
-		"request_id": requestID,
-		"process_id": processID,
-		"url":        req.GetUrl(),
+		"request_id":  requestID,
+		"process_id":  processID,
+		"url":         req.GetUrl(),
+		"description": req.GetDescription(),
+		"mode":        getProcessingMode(req.GetUrl(), req.GetDescription()),
 	})
 
 	return &letrazv1.ScrapeJobResponse{
@@ -74,6 +85,14 @@ func (s *Server) ScrapeJob(ctx context.Context, req *letrazv1.ScrapeJobRequest) 
 		Timestamp: time.Now().Format(time.RFC3339Nano),
 		Error:     "",
 	}, nil
+}
+
+// getProcessingMode returns a string indicating the processing mode
+func getProcessingMode(url, description string) string {
+	if description != "" {
+		return "description"
+	}
+	return "url"
 }
 
 // convertGRPCOptionsToModel converts gRPC ScrapeOptions to internal model
