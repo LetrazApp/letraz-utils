@@ -10,6 +10,9 @@ type LLMProvider interface {
 	// ExtractJobData processes HTML content and extracts structured job data
 	ExtractJobData(ctx context.Context, html, url string) (*models.Job, error)
 
+	// ExtractJobFromDescription processes job description text directly and extracts structured job data
+	ExtractJobFromDescription(ctx context.Context, description string) (*models.Job, error)
+
 	// TailorResume tailors a base resume for a specific job posting
 	TailorResume(ctx context.Context, baseResume *models.BaseResume, job *models.Job) (*models.TailoredResume, []models.Suggestion, error)
 

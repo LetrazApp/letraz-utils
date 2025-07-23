@@ -29,8 +29,9 @@ service HealthService {
 // ===== SCRAPER MESSAGES =====
 
 message ScrapeJobRequest {
-  string url = 1;
-  ScrapeOptions options = 2;
+  optional string url = 1;
+  optional string description = 2;
+  ScrapeOptions options = 3;
 }
 
 message ScrapeJobResponse {

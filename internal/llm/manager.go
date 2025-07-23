@@ -96,6 +96,24 @@ func (m *Manager) ExtractJobData(ctx context.Context, html, url string) (*models
 	return provider.ExtractJobData(ctx, html, url)
 }
 
+// ExtractJobFromDescription extracts job data from description text using the configured LLM provider
+func (m *Manager) ExtractJobFromDescription(ctx context.Context, description string) (*models.Job, error) {
+	m.mu.RLock()
+	provider := m.provider
+	healthy := m.healthy
+	m.mu.RUnlock()
+
+	if provider == nil {
+		return nil, fmt.Errorf("LLM manager not started or provider not available")
+	}
+
+	if !healthy {
+		return nil, fmt.Errorf("LLM provider is not available - check API key configuration (set LLM_API_KEY environment variable)")
+	}
+
+	return provider.ExtractJobFromDescription(ctx, description)
+}
+
 // TailorResume tailors a resume for a specific job using the configured LLM provider
 func (m *Manager) TailorResume(ctx context.Context, baseResume *models.BaseResume, job *models.Job) (*models.TailoredResume, []models.Suggestion, error) {
 	m.mu.RLock()

@@ -216,6 +216,16 @@ func (tm *TaskManagerImpl) SubmitScrapeTask(ctx context.Context, processID strin
 		return fmt.Errorf("task manager is not healthy")
 	}
 
+	// Validate request - either URL or description must be provided
+	if request.URL == "" && request.Description == "" {
+		return fmt.Errorf("either URL or description is required")
+	}
+
+	// Both URL and description cannot be provided
+	if request.URL != "" && request.Description != "" {
+		return fmt.Errorf("cannot provide both URL and description - choose one")
+	}
+
 	// Create task result
 	result := &TaskResult{
 		ProcessID: processID,
@@ -223,8 +233,10 @@ func (tm *TaskManagerImpl) SubmitScrapeTask(ctx context.Context, processID strin
 		Status:    TaskStatusAccepted,
 		CreatedAt: time.Now(),
 		Metadata: map[string]interface{}{
-			"url":    request.URL,
-			"engine": getEngineFromOptions(request.Options),
+			"url":         request.URL,
+			"description": request.Description,
+			"engine":      getEngineFromOptions(request.Options),
+			"mode":        getProcessingModeFromRequest(request),
 		},
 	}
 
@@ -552,40 +564,72 @@ func (tm *TaskManagerImpl) executeScrapeTask(ctx context.Context, processID stri
 		return nil, fmt.Errorf("failed to retrieve existing task result: %w", err)
 	}
 
-	// Execute the scraping job using the existing worker pool
-	result, err := poolManager.SubmitJob(ctx, request.URL, request.Options)
-	if err != nil {
-		return nil, fmt.Errorf("failed to submit scraping job: %w", err)
-	}
-
-	// Determine engine used
-	engine := getEngineFromOptions(request.Options)
-
-	// Create task result based on scraping result
+	// Determine processing mode
 	var taskData interface{}
+	var engine string
 
-	if result.Error != nil {
-		// Scraping failed
-		return nil, result.Error
-	}
+	if request.Description != "" {
+		// Process description directly with LLM - no scraping needed
+		tm.appLogger.Info("Processing job description directly with LLM", map[string]interface{}{
+			"process_id":         processID,
+			"description_length": len(request.Description),
+		})
 
-	// Scraping succeeded - create appropriate task data
-	if result.UsedLLM && result.Job != nil {
-		// New LLM-processed job
+		// Get LLM manager - we need to access it from somewhere
+		// For now, we'll create a new instance since we don't have access to it directly
+		// This should be injected into the task manager in a production scenario
+		llmManager := llm.NewManager(tm.config)
+		if err := llmManager.Start(); err != nil {
+			return nil, fmt.Errorf("failed to start LLM manager: %w", err)
+		}
+		defer llmManager.Stop()
+
+		// Process the description directly
+		job, err := llmManager.ExtractJobFromDescription(ctx, request.Description)
+		if err != nil {
+			return nil, fmt.Errorf("failed to process job description: %w", err)
+		}
+
 		taskData = &ScrapeTaskData{
-			Job:     result.Job,
-			Engine:  engine + "_llm",
+			Job:     job,
+			Engine:  "description_llm",
 			UsedLLM: true,
 		}
-	} else if result.JobPosting != nil {
-		// Legacy job posting
-		taskData = &ScrapeTaskData{
-			JobPosting: result.JobPosting,
-			Engine:     engine + "_legacy",
-			UsedLLM:    false,
-		}
+		engine = "description_llm"
+
 	} else {
-		return nil, fmt.Errorf("job processing completed but no data was returned")
+		// Execute the scraping job using the existing worker pool
+		result, err := poolManager.SubmitJob(ctx, request.URL, request.Options)
+		if err != nil {
+			return nil, fmt.Errorf("failed to submit scraping job: %w", err)
+		}
+
+		// Determine engine used
+		engine = getEngineFromOptions(request.Options)
+
+		if result.Error != nil {
+			// Scraping failed
+			return nil, result.Error
+		}
+
+		// Scraping succeeded - create appropriate task data
+		if result.UsedLLM && result.Job != nil {
+			// New LLM-processed job
+			taskData = &ScrapeTaskData{
+				Job:     result.Job,
+				Engine:  engine + "_llm",
+				UsedLLM: true,
+			}
+		} else if result.JobPosting != nil {
+			// Legacy job posting
+			taskData = &ScrapeTaskData{
+				JobPosting: result.JobPosting,
+				Engine:     engine + "_legacy",
+				UsedLLM:    false,
+			}
+		} else {
+			return nil, fmt.Errorf("job processing completed but no data was returned")
+		}
 	}
 
 	// Update the existing task result with success data
@@ -594,8 +638,10 @@ func (tm *TaskManagerImpl) executeScrapeTask(ctx context.Context, processID stri
 	existingResult.Data = taskData
 	existingResult.ProcessingTime = &processingTime
 	existingResult.Metadata = map[string]interface{}{
-		"url":    request.URL,
-		"engine": engine,
+		"url":         request.URL,
+		"description": request.Description,
+		"engine":      engine,
+		"mode":        getProcessingModeFromRequest(request),
 	}
 
 	return existingResult, nil
@@ -786,4 +832,12 @@ func getEngineFromOptions(options *models.ScrapeOptions) string {
 		return "hybrid"
 	}
 	return options.Engine
+}
+
+// getProcessingModeFromRequest returns the processing mode based on the request
+func getProcessingModeFromRequest(request models.ScrapeRequest) string {
+	if request.Description != "" {
+		return "description"
+	}
+	return "url"
 }

@@ -24,8 +24,9 @@ const (
 
 type ScrapeJobRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Url           string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
-	Options       *ScrapeOptions         `protobuf:"bytes,2,opt,name=options,proto3" json:"options,omitempty"`
+	Url           *string                `protobuf:"bytes,1,opt,name=url,proto3,oneof" json:"url,omitempty"`
+	Description   *string                `protobuf:"bytes,2,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	Options       *ScrapeOptions         `protobuf:"bytes,3,opt,name=options,proto3" json:"options,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -61,8 +62,15 @@ func (*ScrapeJobRequest) Descriptor() ([]byte, []int) {
 }
 
 func (x *ScrapeJobRequest) GetUrl() string {
-	if x != nil {
-		return x.Url
+	if x != nil && x.Url != nil {
+		return *x.Url
+	}
+	return ""
+}
+
+func (x *ScrapeJobRequest) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
 	}
 	return ""
 }
@@ -1341,10 +1349,13 @@ var File_api_proto_letraz_v1_letraz_utils_proto protoreflect.FileDescriptor
 
 const file_api_proto_letraz_v1_letraz_utils_proto_rawDesc = "" +
 	"\n" +
-	"&api/proto/letraz/v1/letraz-utils.proto\x12\tletraz.v1\x1a\x1cgoogle/protobuf/struct.proto\"X\n" +
-	"\x10ScrapeJobRequest\x12\x10\n" +
-	"\x03url\x18\x01 \x01(\tR\x03url\x122\n" +
-	"\aoptions\x18\x02 \x01(\v2\x18.letraz.v1.ScrapeOptionsR\aoptions\"\x97\x01\n" +
+	"&api/proto/letraz/v1/letraz-utils.proto\x12\tletraz.v1\x1a\x1cgoogle/protobuf/struct.proto\"\x9c\x01\n" +
+	"\x10ScrapeJobRequest\x12\x15\n" +
+	"\x03url\x18\x01 \x01(\tH\x00R\x03url\x88\x01\x01\x12%\n" +
+	"\vdescription\x18\x02 \x01(\tH\x01R\vdescription\x88\x01\x01\x122\n" +
+	"\aoptions\x18\x03 \x01(\v2\x18.letraz.v1.ScrapeOptionsR\aoptionsB\x06\n" +
+	"\x04_urlB\x0e\n" +
+	"\f_description\"\x97\x01\n" +
 	"\x11ScrapeJobResponse\x12\x1c\n" +
 	"\tprocessId\x18\x01 \x01(\tR\tprocessId\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x18\n" +
@@ -1543,6 +1554,7 @@ func file_api_proto_letraz_v1_letraz_utils_proto_init() {
 	if File_api_proto_letraz_v1_letraz_utils_proto != nil {
 		return
 	}
+	file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[0].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

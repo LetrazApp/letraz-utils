@@ -122,6 +122,122 @@ func (cp *ClaudeProvider) ExtractJobData(ctx context.Context, html, url string) 
 	return job, nil
 }
 
+// ExtractJobFromDescription processes job description text directly and extracts structured job data using Claude
+func (cp *ClaudeProvider) ExtractJobFromDescription(ctx context.Context, description string) (*models.Job, error) {
+	startTime := time.Now()
+
+	cp.logger.Info("Starting job data extraction from description with Claude", map[string]interface{}{
+		"description_length": len(description),
+		"provider":           "claude",
+	})
+
+	// Check description length
+	if len(description) == 0 {
+		return nil, fmt.Errorf("description cannot be empty")
+	}
+
+	// Check content length and truncate if necessary to fit token limits
+	maxContentLength := cp.config.LLM.MaxTokens * 3 // Rough estimation: 3 chars per token
+	if len(description) > maxContentLength {
+		description = description[:maxContentLength] + "..."
+		cp.logger.Debug("Description truncated to fit token limits", map[string]interface{}{
+			"original_length": len(description),
+		})
+	}
+
+	// Create the prompt for Claude
+	prompt := cp.buildJobExtractionFromDescriptionPrompt(description)
+
+	// Make request to Claude
+	response, err := cp.client.Messages.New(ctx, anthropic.MessageNewParams{
+		Model:       anthropic.ModelClaude3_7SonnetLatest,
+		MaxTokens:   int64(cp.config.LLM.MaxTokens),
+		Temperature: anthropic.Float(float64(cp.config.LLM.Temperature)),
+		Messages: []anthropic.MessageParam{{
+			Content: []anthropic.ContentBlockParamUnion{{
+				OfText: &anthropic.TextBlockParam{Text: prompt},
+			}},
+			Role: anthropic.MessageParamRoleUser,
+		}},
+	})
+
+	if err != nil {
+		cp.logger.Error("Claude API call failed for description processing", map[string]interface{}{
+			"provider": "claude",
+			"error":    err.Error(),
+		})
+		return nil, fmt.Errorf("failed to call Claude API: %w", err)
+	}
+
+	cp.logger.Debug("Claude API call successful for description processing, parsing response", map[string]interface{}{
+		"provider": "claude",
+	})
+
+	// Parse the response (reuse existing parsing logic)
+	job, err := cp.parseClaudeResponse(response, "")
+	if err != nil {
+		cp.logger.Error("Failed to parse Claude response for description", map[string]interface{}{
+			"provider": "claude",
+			"error":    err.Error(),
+		})
+
+		// Don't wrap CustomError types so they can be properly handled upstream
+		if _, ok := err.(*utils.CustomError); ok {
+			return nil, err
+		}
+
+		return nil, fmt.Errorf("failed to parse Claude response: %w", err)
+	}
+
+	processingTime := time.Since(startTime)
+	cp.logger.Info("Job data extraction from description completed successfully", map[string]interface{}{
+		"processing_time": processingTime,
+		"provider":        "claude",
+	})
+
+	return job, nil
+}
+
+// buildJobExtractionFromDescriptionPrompt creates the prompt for Claude to extract job data from description
+func (cp *ClaudeProvider) buildJobExtractionFromDescriptionPrompt(description string) string {
+	return fmt.Sprintf(`
+The content below is a job description provided directly by the user. Please extract and structure the job information.
+
+Return a JSON object with exactly these fields:
+
+{
+  "is_job_posting": true,
+  "confidence": 1.0,
+  "title": "string - The job title",
+  "job_url": "",
+  "company_name": "string - The company name (if mentioned)",
+  "location": "string - The job location (city, state, country, or 'Remote')",
+  "salary": {
+    "currency": "string - The currency salary is being mentioned in (e.g., 'USD' or 'INR')",
+    "max": number - Maximum salary as integer (0 if not specified),
+    "min": number - Minimum salary as integer (0 if not specified)
+  },
+  "requirements": ["array of strings - Required qualifications, skills, experience"],
+  "description": "string - Brief job description or summary (2-3 sentences max)",
+  "responsibilities": ["array of strings - Key job responsibilities and duties"],
+  "benefits": ["array of strings - Employee benefits, perks, compensation details"],
+  "reason": ""
+}
+
+EXTRACTION RULES:
+- Return ONLY valid JSON, no additional text or explanation
+- Extract all available information from the description
+- For salary: extract any monetary values mentioned (annual, hourly, etc.)
+- Keep descriptions concise but informative
+- If company name is not mentioned, use empty string
+- If location is not specified, use "Not specified"
+- Set is_job_posting to true and confidence to 1.0 since this is a direct job description
+
+JOB DESCRIPTION TO ANALYZE:
+%s
+`, description)
+}
+
 // buildJobExtractionPrompt creates the prompt for Claude to extract job data
 func (cp *ClaudeProvider) buildJobExtractionPrompt(content, url string) string {
 	return fmt.Sprintf(`You are a job posting analyzer. Analyze the provided content to determine if it contains a job posting, and if so, extract structured job information.

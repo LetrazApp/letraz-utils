@@ -4,8 +4,9 @@ import "time"
 
 // ScrapeRequest represents the request payload for scraping a job posting
 type ScrapeRequest struct {
-	URL     string         `json:"url" validate:"required,url"`
-	Options *ScrapeOptions `json:"options,omitempty"`
+	URL         string         `json:"url" validate:"omitempty,url"`
+	Description string         `json:"description,omitempty"`
+	Options     *ScrapeOptions `json:"options,omitempty"`
 }
 
 // ScrapeOptions provides additional configuration for scraping requests
