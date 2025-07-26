@@ -193,7 +193,7 @@ func convertGRPCJobToModel(grpcJob *letrazv1.Job) *models.Job {
 		JobURL:           grpcJob.GetJobUrl(),
 		CompanyName:      grpcJob.GetCompanyName(),
 		Location:         grpcJob.GetLocation(),
-		Currency:         grpcJob.GetCurrency(),
+		Currency:         grpcJob.GetSalary().GetCurrency(),
 		Salary:           salary,
 		Requirements:     grpcJob.GetRequirements(),
 		Description:      grpcJob.GetDescription(),

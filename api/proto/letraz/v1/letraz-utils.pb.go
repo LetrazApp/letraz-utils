@@ -847,18 +847,16 @@ func (x *HealthCheckResponse) GetChecks() map[string]string {
 
 type Job struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
-	Title            string                 `protobuf:"bytes,1,opt,name=title,proto3" json:"title,omitempty"`
-	JobUrl           string                 `protobuf:"bytes,2,opt,name=job_url,json=jobUrl,proto3" json:"job_url,omitempty"`
-	CompanyName      string                 `protobuf:"bytes,3,opt,name=company_name,json=companyName,proto3" json:"company_name,omitempty"`
-	Location         string                 `protobuf:"bytes,4,opt,name=location,proto3" json:"location,omitempty"`
-	Currency         string                 `protobuf:"bytes,5,opt,name=currency,proto3" json:"currency,omitempty"`
-	SalaryMax        int32                  `protobuf:"varint,6,opt,name=salary_max,json=salaryMax,proto3" json:"salary_max,omitempty"` // nullable in JSON, 0 means null
-	SalaryMin        int32                  `protobuf:"varint,7,opt,name=salary_min,json=salaryMin,proto3" json:"salary_min,omitempty"` // nullable in JSON, 0 means null
-	Salary           *Salary                `protobuf:"bytes,8,opt,name=salary,proto3" json:"salary,omitempty"`
-	Requirements     []string               `protobuf:"bytes,9,rep,name=requirements,proto3" json:"requirements,omitempty"`
-	Description      string                 `protobuf:"bytes,10,opt,name=description,proto3" json:"description,omitempty"`
-	Responsibilities []string               `protobuf:"bytes,11,rep,name=responsibilities,proto3" json:"responsibilities,omitempty"`
-	Benefits         []string               `protobuf:"bytes,12,rep,name=benefits,proto3" json:"benefits,omitempty"`
+	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Title            string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	JobUrl           string                 `protobuf:"bytes,3,opt,name=job_url,json=jobUrl,proto3" json:"job_url,omitempty"`
+	CompanyName      string                 `protobuf:"bytes,4,opt,name=company_name,json=companyName,proto3" json:"company_name,omitempty"`
+	Location         string                 `protobuf:"bytes,5,opt,name=location,proto3" json:"location,omitempty"`
+	Salary           *Salary                `protobuf:"bytes,6,opt,name=salary,proto3" json:"salary,omitempty"`
+	Requirements     []string               `protobuf:"bytes,7,rep,name=requirements,proto3" json:"requirements,omitempty"`
+	Description      string                 `protobuf:"bytes,8,opt,name=description,proto3" json:"description,omitempty"`
+	Responsibilities []string               `protobuf:"bytes,9,rep,name=responsibilities,proto3" json:"responsibilities,omitempty"`
+	Benefits         []string               `protobuf:"bytes,10,rep,name=benefits,proto3" json:"benefits,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -893,6 +891,13 @@ func (*Job) Descriptor() ([]byte, []int) {
 	return file_api_proto_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{11}
 }
 
+func (x *Job) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
 func (x *Job) GetTitle() string {
 	if x != nil {
 		return x.Title
@@ -919,27 +924,6 @@ func (x *Job) GetLocation() string {
 		return x.Location
 	}
 	return ""
-}
-
-func (x *Job) GetCurrency() string {
-	if x != nil {
-		return x.Currency
-	}
-	return ""
-}
-
-func (x *Job) GetSalaryMax() int32 {
-	if x != nil {
-		return x.SalaryMax
-	}
-	return 0
-}
-
-func (x *Job) GetSalaryMin() int32 {
-	if x != nil {
-		return x.SalaryMin
-	}
-	return 0
 }
 
 func (x *Job) GetSalary() *Salary {
@@ -1425,23 +1409,19 @@ const file_api_proto_letraz_v1_letraz_utils_proto_rawDesc = "" +
 	"\x06checks\x18\x05 \x03(\v2*.letraz.v1.HealthCheckResponse.ChecksEntryR\x06checks\x1a9\n" +
 	"\vChecksEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x86\x03\n" +
-	"\x03Job\x12\x14\n" +
-	"\x05title\x18\x01 \x01(\tR\x05title\x12\x17\n" +
-	"\ajob_url\x18\x02 \x01(\tR\x06jobUrl\x12!\n" +
-	"\fcompany_name\x18\x03 \x01(\tR\vcompanyName\x12\x1a\n" +
-	"\blocation\x18\x04 \x01(\tR\blocation\x12\x1a\n" +
-	"\bcurrency\x18\x05 \x01(\tR\bcurrency\x12\x1d\n" +
-	"\n" +
-	"salary_max\x18\x06 \x01(\x05R\tsalaryMax\x12\x1d\n" +
-	"\n" +
-	"salary_min\x18\a \x01(\x05R\tsalaryMin\x12)\n" +
-	"\x06salary\x18\b \x01(\v2\x11.letraz.v1.SalaryR\x06salary\x12\"\n" +
-	"\frequirements\x18\t \x03(\tR\frequirements\x12 \n" +
-	"\vdescription\x18\n" +
-	" \x01(\tR\vdescription\x12*\n" +
-	"\x10responsibilities\x18\v \x03(\tR\x10responsibilities\x12\x1a\n" +
-	"\bbenefits\x18\f \x03(\tR\bbenefits\"H\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xbc\x02\n" +
+	"\x03Job\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12\x17\n" +
+	"\ajob_url\x18\x03 \x01(\tR\x06jobUrl\x12!\n" +
+	"\fcompany_name\x18\x04 \x01(\tR\vcompanyName\x12\x1a\n" +
+	"\blocation\x18\x05 \x01(\tR\blocation\x12)\n" +
+	"\x06salary\x18\x06 \x01(\v2\x11.letraz.v1.SalaryR\x06salary\x12\"\n" +
+	"\frequirements\x18\a \x03(\tR\frequirements\x12 \n" +
+	"\vdescription\x18\b \x01(\tR\vdescription\x12*\n" +
+	"\x10responsibilities\x18\t \x03(\tR\x10responsibilities\x12\x1a\n" +
+	"\bbenefits\x18\n" +
+	" \x03(\tR\bbenefits\"H\n" +
 	"\x06Salary\x12\x1a\n" +
 	"\bcurrency\x18\x01 \x01(\tR\bcurrency\x12\x10\n" +
 	"\x03max\x18\x02 \x01(\x05R\x03max\x12\x10\n" +

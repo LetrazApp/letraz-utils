@@ -39,7 +39,7 @@ type Config struct {
 		Provider    string        `yaml:"provider" default:"claude"`
 		APIKey      string        `yaml:"api_key"`
 		Model       string        `yaml:"model" default:"claude-3-haiku-20240307"`
-		MaxTokens   int           `yaml:"max_tokens" default:"4096"`
+		MaxTokens   int           `yaml:"max_tokens" default:"8192"`
 		Temperature float32       `yaml:"temperature" default:"0.1"`
 		Timeout     time.Duration `yaml:"timeout" default:"30s"`
 	} `yaml:"llm"`
@@ -160,7 +160,7 @@ func LoadConfig(configPath string) (*Config, error) {
 	config.BackgroundTasks.MaxTaskAge = 24 * time.Hour
 
 	config.LLM.Provider = "claude"
-	config.LLM.MaxTokens = 4096
+	config.LLM.MaxTokens = 8192
 	config.LLM.Temperature = 0.1
 	config.LLM.Timeout = 120 * time.Second
 
