@@ -568,6 +568,12 @@ func (cp *ClaudeProvider) buildResumeTailoringPrompt(baseResume *models.BaseResu
    - Improve clarity and readability of existing descriptions
    - Ensure consistency in formatting and style
 
+4. **OPTIMIZE STRUCTURE**: Strategically reorder sections to maximize impact:
+   - Place most job-relevant sections early in the resume
+   - Consider industry norms and hiring manager expectations
+   - Ensure the most compelling content appears first for quick scanning
+   - Update section index values to reflect the new optimal ordering
+
 **RESPONSE FORMAT:**
 Return a JSON object with exactly this structure:
 
@@ -580,10 +586,12 @@ Return a JSON object with exactly this structure:
       "profile_text": "string - Rewritten professional summary optimized for the target job using only existing experience/skills (2-3 sentences, HTML format like the original)"
     },
     "sections": [
-      // Array of resume sections with tailored content
+      // Array of resume sections with tailored content and optimized ordering
+      // You may reorder sections to maximize relevance for this specific job
+      // Update the "index" field to reflect the new ordering (0, 1, 2, etc.)
       // For Experience sections: rewrite descriptions to emphasize job-relevant achievements using only existing information
       // For Education sections: highlight relevant coursework or projects only if already mentioned
-      // Maintain the exact same structure as the input resume
+      // Keep all section content and structure, but optimize the order for maximum impact
     ]
   },
   "suggestions": [
@@ -656,13 +664,23 @@ Return a JSON object with exactly this structure:
 - Think from the perspective: "If implemented, which 3 changes would most increase the chances of this resume being selected?"
 
 **IMPORTANT GUIDELINES:**
-- Keep the exact same structure and format as the input resume
-- Only modify content, not structure or data types
-- Preserve all IDs, timestamps, and metadata
+- Preserve all IDs, timestamps, and metadata for each section
 - Focus on relevance while maintaining authenticity and not adding fabricated information
 - Use HTML formatting in descriptions where the original uses it
 - Suggestions should be specific and actionable, not generic advice
 - Never suggest adding information that wasn't in the original resume
+
+**SECTION ORDERING GUIDELINES:**
+- Strategically reorder sections to maximize relevance for the specific job
+- Update the "index" field to reflect new ordering (start from 0, increment by 1)
+- Consider these ordering strategies:
+  * Technical roles: Skills/Technical sections early, then Experience
+  * Senior positions: Experience first to show career progression
+  * Entry-level/Recent graduates: Education before Experience
+  * Creative roles: Portfolio/Projects prominently placed
+  * Industry-specific: Move most relevant sections to top positions
+- Always keep user profile/summary at the top if present
+- Maintain logical flow while prioritizing job-relevant sections
 
 Return ONLY the JSON response, no additional text or explanations.`, string(resumeJSON), string(jobJSON))
 }

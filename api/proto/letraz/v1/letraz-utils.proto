@@ -128,18 +128,16 @@ message HealthCheckResponse {
 // ===== COMMON MESSAGES =====
 
 message Job {
-  string title = 1;
-  string job_url = 2;
-  string company_name = 3;
-  string location = 4;
-  string currency = 5;
-  int32 salary_max = 6;           // nullable in JSON, 0 means null
-  int32 salary_min = 7;           // nullable in JSON, 0 means null
-  Salary salary = 8;
-  repeated string requirements = 9;
-  string description = 10;
-  repeated string responsibilities = 11;
-  repeated string benefits = 12;
+  string id = 1;
+  string title = 2;
+  string job_url = 3;
+  string company_name = 4;
+  string location = 5;
+  Salary salary = 6;
+  repeated string requirements = 7;
+  string description = 8;
+  repeated string responsibilities = 9;
+  repeated string benefits = 10;
 }
 
 message Salary {
