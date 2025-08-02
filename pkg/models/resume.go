@@ -103,12 +103,16 @@ type TailorResumeRequest struct {
 	ResumeID   string     `json:"resume_id" validate:"required,resume_id"`
 }
 
+// TailoredResumeSection represents a simplified section in a tailored resume
+type TailoredResumeSection struct {
+	Type string      `json:"type"`
+	Data interface{} `json:"data"` // Can be ExperienceData, EducationData, etc. with filtered fields
+}
+
 // TailoredResume represents the tailored resume response
 type TailoredResume struct {
-	ID       string          `json:"id"`
-	Base     bool            `json:"base"`
-	User     User            `json:"user"`
-	Sections []ResumeSection `json:"sections"`
+	ID       string                  `json:"id"`
+	Sections []TailoredResumeSection `json:"sections"`
 }
 
 // TailorResumeResponse represents the response for resume tailoring
