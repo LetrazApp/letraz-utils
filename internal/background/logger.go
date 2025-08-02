@@ -206,12 +206,21 @@ func LogTaskCompletionToStdout(result *TaskResult) error {
 	return WriteStructuredLog(logEntry)
 }
 
-// sendTaskCallback sends a task callback via gRPC for scrape tasks
+// sendTaskCallback sends a task callback via gRPC
 func (l *TaskCompletionLogger) sendTaskCallback(ctx context.Context, result *TaskResult) error {
-	// Only send callbacks for scrape tasks for now
-	if result.Type != TaskTypeScrape {
+	// Send callbacks for both scrape and tailor tasks
+	switch result.Type {
+	case TaskTypeScrape:
+		return l.sendScrapeTaskCallback(ctx, result)
+	case TaskTypeTailor:
+		return l.sendTailorResumeTaskCallback(ctx, result)
+	default:
 		return nil
 	}
+}
+
+// sendScrapeTaskCallback sends a scrape task callback via gRPC
+func (l *TaskCompletionLogger) sendScrapeTaskCallback(ctx context.Context, result *TaskResult) error {
 
 	// Create callback data from task result
 	callbackData := &callback.CallbackData{
@@ -253,4 +262,52 @@ func (l *TaskCompletionLogger) sendTaskCallback(ctx context.Context, result *Tas
 
 	// Send the callback
 	return l.callbackClient.SendScrapeJobCallback(ctx, callbackData)
+}
+
+// sendTailorResumeTaskCallback sends a TailorResume task callback via gRPC
+func (l *TaskCompletionLogger) sendTailorResumeTaskCallback(ctx context.Context, result *TaskResult) error {
+	// Create callback data from task result
+	callbackData := &callback.TailorResumeCallbackData{
+		ProcessID: result.ProcessID,
+		Status:    string(result.Status),
+		Timestamp: time.Now(),
+		Operation: string(result.Type),
+		ProcessingTime: func() time.Duration {
+			if result.ProcessingTime != nil {
+				return *result.ProcessingTime
+			}
+			return 0
+		}(),
+	}
+
+	// Extract TailorResume-specific data if available
+	if result.Data != nil {
+		if tailorData, ok := result.Data.(*TailorTaskData); ok {
+			callbackData.Data = &callback.TailorResumeJobData{
+				TailoredResume: tailorData.TailoredResume,
+				Suggestions:    tailorData.Suggestions,
+				ThreadID:       tailorData.ThreadID,
+			}
+		}
+	}
+
+	// Extract metadata if available
+	if result.Metadata != nil {
+		callbackData.Metadata = &callback.TailorResumeCallbackMetadata{}
+
+		if company, ok := result.Metadata["company"].(string); ok {
+			callbackData.Metadata.Company = company
+		}
+
+		if jobTitle, ok := result.Metadata["job_title"].(string); ok {
+			callbackData.Metadata.JobTitle = jobTitle
+		}
+
+		if resumeID, ok := result.Metadata["resume_id"].(string); ok {
+			callbackData.Metadata.ResumeID = resumeID
+		}
+	}
+
+	// Send the callback
+	return l.callbackClient.SendTailorResumeCallback(ctx, callbackData)
 }

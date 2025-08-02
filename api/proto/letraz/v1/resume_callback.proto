@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package letraz_server.RESUME;
+
+import "google/protobuf/struct.proto";
+
+option go_package = "letraz-utils/api/proto/letraz/v1;letrazv1";
+
+service TailorResumeCallBackController {
+    rpc TailorResumeCallBack(TailorResumeCallbackRequest) returns (TailorResumeCallbackResponse) {}
+}
+
+// TailorResume Callback Messages
+message TailorResumeCallbackRequest {
+    string processId = 1;
+    string status = 2;
+    optional TailorResumeDataRequest data = 3;
+    string timestamp = 4;
+    string operation = 5;
+    string processing_time = 6;
+    optional TailorResumeMetadataRequest metadata = 7;
+}
+
+message TailorResumeCallbackResponse {
+    optional string msg = 1;
+}
+
+message TailorResumeDataRequest {
+    TailoredResumeRequest tailored_resume = 1;
+    repeated SuggestionRequest suggestions = 2;
+    string thread_id = 3;
+}
+
+message TailorResumeMetadataRequest {
+    string company = 1;
+    string job_title = 2;
+    string resume_id = 3;
+}
+
+message TailoredResumeRequest {
+    string id = 1;
+    repeated SectionRequest sections = 2;
+}
+
+message SectionRequest {
+    string type = 1;
+    google.protobuf.Struct data = 2;
+}
+
+message SuggestionRequest {
+    string id = 1;
+    string type = 2;
+    string priority = 3;
+    string impact = 4;
+    string section = 5;
+    string current = 6;
+    string suggested = 7;
+    string reasoning = 8;
+}

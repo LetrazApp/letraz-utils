@@ -70,6 +70,14 @@ proto: ## Generate protobuf files from consolidated letraz-utils.proto
 	@protoc --go_out=. --go_opt=paths=source_relative \
 		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
 		api/proto/letraz/v1/letraz-utils.proto
+
+	@protoc --go_out=. --go_opt=paths=source_relative \
+    		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
+    		api/proto/letraz/v1/callback.proto
+
+	@protoc --go_out=. --go_opt=paths=source_relative \
+        		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
+        		api/proto/letraz/v1/resume_callback.proto
 	@echo "$(GREEN)✅ Protobuf files generated$(NC)"
 
 proto-separate: ## Generate protobuf files from separate proto files (fallback)

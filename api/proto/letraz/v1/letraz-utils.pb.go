@@ -1021,238 +1021,6 @@ func (x *Salary) GetMin() int32 {
 	return 0
 }
 
-type SalaryRange struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Min           int32                  `protobuf:"varint,1,opt,name=min,proto3" json:"min,omitempty"`
-	Max           int32                  `protobuf:"varint,2,opt,name=max,proto3" json:"max,omitempty"`
-	Currency      string                 `protobuf:"bytes,3,opt,name=currency,proto3" json:"currency,omitempty"`
-	Period        string                 `protobuf:"bytes,4,opt,name=period,proto3" json:"period,omitempty"` // hourly, monthly, yearly
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SalaryRange) Reset() {
-	*x = SalaryRange{}
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[13]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SalaryRange) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SalaryRange) ProtoMessage() {}
-
-func (x *SalaryRange) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[13]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SalaryRange.ProtoReflect.Descriptor instead.
-func (*SalaryRange) Descriptor() ([]byte, []int) {
-	return file_api_proto_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{13}
-}
-
-func (x *SalaryRange) GetMin() int32 {
-	if x != nil {
-		return x.Min
-	}
-	return 0
-}
-
-func (x *SalaryRange) GetMax() int32 {
-	if x != nil {
-		return x.Max
-	}
-	return 0
-}
-
-func (x *SalaryRange) GetCurrency() string {
-	if x != nil {
-		return x.Currency
-	}
-	return ""
-}
-
-func (x *SalaryRange) GetPeriod() string {
-	if x != nil {
-		return x.Period
-	}
-	return ""
-}
-
-type JobPosting struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Title           string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
-	Company         string                 `protobuf:"bytes,3,opt,name=company,proto3" json:"company,omitempty"`
-	Location        string                 `protobuf:"bytes,4,opt,name=location,proto3" json:"location,omitempty"`
-	Remote          bool                   `protobuf:"varint,5,opt,name=remote,proto3" json:"remote,omitempty"`
-	Salary          *SalaryRange           `protobuf:"bytes,6,opt,name=salary,proto3" json:"salary,omitempty"`
-	Description     string                 `protobuf:"bytes,7,opt,name=description,proto3" json:"description,omitempty"`
-	Requirements    []string               `protobuf:"bytes,8,rep,name=requirements,proto3" json:"requirements,omitempty"`
-	Skills          []string               `protobuf:"bytes,9,rep,name=skills,proto3" json:"skills,omitempty"`
-	Benefits        []string               `protobuf:"bytes,10,rep,name=benefits,proto3" json:"benefits,omitempty"`
-	ExperienceLevel string                 `protobuf:"bytes,11,opt,name=experience_level,json=experienceLevel,proto3" json:"experience_level,omitempty"`
-	JobType         string                 `protobuf:"bytes,12,opt,name=job_type,json=jobType,proto3" json:"job_type,omitempty"`
-	PostedDate      string                 `protobuf:"bytes,13,opt,name=posted_date,json=postedDate,proto3" json:"posted_date,omitempty"` // ISO timestamp string
-	ApplicationUrl  string                 `protobuf:"bytes,14,opt,name=application_url,json=applicationUrl,proto3" json:"application_url,omitempty"`
-	Metadata        map[string]string      `protobuf:"bytes,15,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	ProcessedAt     string                 `protobuf:"bytes,16,opt,name=processed_at,json=processedAt,proto3" json:"processed_at,omitempty"` // ISO timestamp string
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
-}
-
-func (x *JobPosting) Reset() {
-	*x = JobPosting{}
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[14]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *JobPosting) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*JobPosting) ProtoMessage() {}
-
-func (x *JobPosting) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[14]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use JobPosting.ProtoReflect.Descriptor instead.
-func (*JobPosting) Descriptor() ([]byte, []int) {
-	return file_api_proto_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{14}
-}
-
-func (x *JobPosting) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *JobPosting) GetTitle() string {
-	if x != nil {
-		return x.Title
-	}
-	return ""
-}
-
-func (x *JobPosting) GetCompany() string {
-	if x != nil {
-		return x.Company
-	}
-	return ""
-}
-
-func (x *JobPosting) GetLocation() string {
-	if x != nil {
-		return x.Location
-	}
-	return ""
-}
-
-func (x *JobPosting) GetRemote() bool {
-	if x != nil {
-		return x.Remote
-	}
-	return false
-}
-
-func (x *JobPosting) GetSalary() *SalaryRange {
-	if x != nil {
-		return x.Salary
-	}
-	return nil
-}
-
-func (x *JobPosting) GetDescription() string {
-	if x != nil {
-		return x.Description
-	}
-	return ""
-}
-
-func (x *JobPosting) GetRequirements() []string {
-	if x != nil {
-		return x.Requirements
-	}
-	return nil
-}
-
-func (x *JobPosting) GetSkills() []string {
-	if x != nil {
-		return x.Skills
-	}
-	return nil
-}
-
-func (x *JobPosting) GetBenefits() []string {
-	if x != nil {
-		return x.Benefits
-	}
-	return nil
-}
-
-func (x *JobPosting) GetExperienceLevel() string {
-	if x != nil {
-		return x.ExperienceLevel
-	}
-	return ""
-}
-
-func (x *JobPosting) GetJobType() string {
-	if x != nil {
-		return x.JobType
-	}
-	return ""
-}
-
-func (x *JobPosting) GetPostedDate() string {
-	if x != nil {
-		return x.PostedDate
-	}
-	return ""
-}
-
-func (x *JobPosting) GetApplicationUrl() string {
-	if x != nil {
-		return x.ApplicationUrl
-	}
-	return ""
-}
-
-func (x *JobPosting) GetMetadata() map[string]string {
-	if x != nil {
-		return x.Metadata
-	}
-	return nil
-}
-
-func (x *JobPosting) GetProcessedAt() string {
-	if x != nil {
-		return x.ProcessedAt
-	}
-	return ""
-}
-
 type ScrapeOptions struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Engine         string                 `protobuf:"bytes,1,opt,name=engine,proto3" json:"engine,omitempty"` // "headed", "raw", "auto"
@@ -1266,7 +1034,7 @@ type ScrapeOptions struct {
 
 func (x *ScrapeOptions) Reset() {
 	*x = ScrapeOptions{}
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[15]
+	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1278,7 +1046,7 @@ func (x *ScrapeOptions) String() string {
 func (*ScrapeOptions) ProtoMessage() {}
 
 func (x *ScrapeOptions) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[15]
+	mi := &file_api_proto_letraz_v1_letraz_utils_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1291,7 +1059,7 @@ func (x *ScrapeOptions) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScrapeOptions.ProtoReflect.Descriptor instead.
 func (*ScrapeOptions) Descriptor() ([]byte, []int) {
-	return file_api_proto_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{15}
+	return file_api_proto_letraz_v1_letraz_utils_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ScrapeOptions) GetEngine() string {
@@ -1425,35 +1193,7 @@ const file_api_proto_letraz_v1_letraz_utils_proto_rawDesc = "" +
 	"\x06Salary\x12\x1a\n" +
 	"\bcurrency\x18\x01 \x01(\tR\bcurrency\x12\x10\n" +
 	"\x03max\x18\x02 \x01(\x05R\x03max\x12\x10\n" +
-	"\x03min\x18\x03 \x01(\x05R\x03min\"e\n" +
-	"\vSalaryRange\x12\x10\n" +
-	"\x03min\x18\x01 \x01(\x05R\x03min\x12\x10\n" +
-	"\x03max\x18\x02 \x01(\x05R\x03max\x12\x1a\n" +
-	"\bcurrency\x18\x03 \x01(\tR\bcurrency\x12\x16\n" +
-	"\x06period\x18\x04 \x01(\tR\x06period\"\xdb\x04\n" +
-	"\n" +
-	"JobPosting\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
-	"\x05title\x18\x02 \x01(\tR\x05title\x12\x18\n" +
-	"\acompany\x18\x03 \x01(\tR\acompany\x12\x1a\n" +
-	"\blocation\x18\x04 \x01(\tR\blocation\x12\x16\n" +
-	"\x06remote\x18\x05 \x01(\bR\x06remote\x12.\n" +
-	"\x06salary\x18\x06 \x01(\v2\x16.letraz.v1.SalaryRangeR\x06salary\x12 \n" +
-	"\vdescription\x18\a \x01(\tR\vdescription\x12\"\n" +
-	"\frequirements\x18\b \x03(\tR\frequirements\x12\x16\n" +
-	"\x06skills\x18\t \x03(\tR\x06skills\x12\x1a\n" +
-	"\bbenefits\x18\n" +
-	" \x03(\tR\bbenefits\x12)\n" +
-	"\x10experience_level\x18\v \x01(\tR\x0fexperienceLevel\x12\x19\n" +
-	"\bjob_type\x18\f \x01(\tR\ajobType\x12\x1f\n" +
-	"\vposted_date\x18\r \x01(\tR\n" +
-	"postedDate\x12'\n" +
-	"\x0fapplication_url\x18\x0e \x01(\tR\x0eapplicationUrl\x12?\n" +
-	"\bmetadata\x18\x0f \x03(\v2#.letraz.v1.JobPosting.MetadataEntryR\bmetadata\x12!\n" +
-	"\fprocessed_at\x18\x10 \x01(\tR\vprocessedAt\x1a;\n" +
-	"\rMetadataEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xa8\x01\n" +
+	"\x03min\x18\x03 \x01(\x05R\x03min\"\xa8\x01\n" +
 	"\rScrapeOptions\x12\x16\n" +
 	"\x06engine\x18\x01 \x01(\tR\x06engine\x12'\n" +
 	"\x0ftimeout_seconds\x18\x02 \x01(\x05R\x0etimeoutSeconds\x12!\n" +
@@ -1481,7 +1221,7 @@ func file_api_proto_letraz_v1_letraz_utils_proto_rawDescGZIP() []byte {
 	return file_api_proto_letraz_v1_letraz_utils_proto_rawDescData
 }
 
-var file_api_proto_letraz_v1_letraz_utils_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_api_proto_letraz_v1_letraz_utils_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_api_proto_letraz_v1_letraz_utils_proto_goTypes = []any{
 	(*ScrapeJobRequest)(nil),         // 0: letraz.v1.ScrapeJobRequest
 	(*ScrapeJobResponse)(nil),        // 1: letraz.v1.ScrapeJobResponse
@@ -1496,37 +1236,32 @@ var file_api_proto_letraz_v1_letraz_utils_proto_goTypes = []any{
 	(*HealthCheckResponse)(nil),      // 10: letraz.v1.HealthCheckResponse
 	(*Job)(nil),                      // 11: letraz.v1.Job
 	(*Salary)(nil),                   // 12: letraz.v1.Salary
-	(*SalaryRange)(nil),              // 13: letraz.v1.SalaryRange
-	(*JobPosting)(nil),               // 14: letraz.v1.JobPosting
-	(*ScrapeOptions)(nil),            // 15: letraz.v1.ScrapeOptions
-	nil,                              // 16: letraz.v1.HealthCheckResponse.ChecksEntry
-	nil,                              // 17: letraz.v1.JobPosting.MetadataEntry
-	(*structpb.Struct)(nil),          // 18: google.protobuf.Struct
+	(*ScrapeOptions)(nil),            // 13: letraz.v1.ScrapeOptions
+	nil,                              // 14: letraz.v1.HealthCheckResponse.ChecksEntry
+	(*structpb.Struct)(nil),          // 15: google.protobuf.Struct
 }
 var file_api_proto_letraz_v1_letraz_utils_proto_depIdxs = []int32{
-	15, // 0: letraz.v1.ScrapeJobRequest.options:type_name -> letraz.v1.ScrapeOptions
+	13, // 0: letraz.v1.ScrapeJobRequest.options:type_name -> letraz.v1.ScrapeOptions
 	3,  // 1: letraz.v1.BaseResume.user:type_name -> letraz.v1.User
 	4,  // 2: letraz.v1.BaseResume.sections:type_name -> letraz.v1.ResumeSection
-	18, // 3: letraz.v1.ResumeSection.data:type_name -> google.protobuf.Struct
+	15, // 3: letraz.v1.ResumeSection.data:type_name -> google.protobuf.Struct
 	2,  // 4: letraz.v1.TailorResumeRequest.base_resume:type_name -> letraz.v1.BaseResume
 	11, // 5: letraz.v1.TailorResumeRequest.job:type_name -> letraz.v1.Job
-	16, // 6: letraz.v1.HealthCheckResponse.checks:type_name -> letraz.v1.HealthCheckResponse.ChecksEntry
+	14, // 6: letraz.v1.HealthCheckResponse.checks:type_name -> letraz.v1.HealthCheckResponse.ChecksEntry
 	12, // 7: letraz.v1.Job.salary:type_name -> letraz.v1.Salary
-	13, // 8: letraz.v1.JobPosting.salary:type_name -> letraz.v1.SalaryRange
-	17, // 9: letraz.v1.JobPosting.metadata:type_name -> letraz.v1.JobPosting.MetadataEntry
-	0,  // 10: letraz.v1.ScraperService.ScrapeJob:input_type -> letraz.v1.ScrapeJobRequest
-	5,  // 11: letraz.v1.ResumeService.TailorResume:input_type -> letraz.v1.TailorResumeRequest
-	7,  // 12: letraz.v1.ResumeService.GenerateScreenshot:input_type -> letraz.v1.ResumeScreenshotRequest
-	9,  // 13: letraz.v1.HealthService.HealthCheck:input_type -> letraz.v1.HealthCheckRequest
-	1,  // 14: letraz.v1.ScraperService.ScrapeJob:output_type -> letraz.v1.ScrapeJobResponse
-	6,  // 15: letraz.v1.ResumeService.TailorResume:output_type -> letraz.v1.TailorResumeResponse
-	8,  // 16: letraz.v1.ResumeService.GenerateScreenshot:output_type -> letraz.v1.ResumeScreenshotResponse
-	10, // 17: letraz.v1.HealthService.HealthCheck:output_type -> letraz.v1.HealthCheckResponse
-	14, // [14:18] is the sub-list for method output_type
-	10, // [10:14] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	0,  // 8: letraz.v1.ScraperService.ScrapeJob:input_type -> letraz.v1.ScrapeJobRequest
+	5,  // 9: letraz.v1.ResumeService.TailorResume:input_type -> letraz.v1.TailorResumeRequest
+	7,  // 10: letraz.v1.ResumeService.GenerateScreenshot:input_type -> letraz.v1.ResumeScreenshotRequest
+	9,  // 11: letraz.v1.HealthService.HealthCheck:input_type -> letraz.v1.HealthCheckRequest
+	1,  // 12: letraz.v1.ScraperService.ScrapeJob:output_type -> letraz.v1.ScrapeJobResponse
+	6,  // 13: letraz.v1.ResumeService.TailorResume:output_type -> letraz.v1.TailorResumeResponse
+	8,  // 14: letraz.v1.ResumeService.GenerateScreenshot:output_type -> letraz.v1.ResumeScreenshotResponse
+	10, // 15: letraz.v1.HealthService.HealthCheck:output_type -> letraz.v1.HealthCheckResponse
+	12, // [12:16] is the sub-list for method output_type
+	8,  // [8:12] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_api_proto_letraz_v1_letraz_utils_proto_init() }
@@ -1541,7 +1276,7 @@ func file_api_proto_letraz_v1_letraz_utils_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_proto_letraz_v1_letraz_utils_proto_rawDesc), len(file_api_proto_letraz_v1_letraz_utils_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   18,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   3,
 		},

@@ -8,6 +8,8 @@ service ScrapeJobCallbackController {
     rpc ScrapeJobCallBack(ScrapeJobCallbackRequest) returns (ScrapeJobCallbackResponse) {}
 }
 
+
+
 message CallbackMetadataRequest {
     optional string engine = 1;
     optional string url = 2;

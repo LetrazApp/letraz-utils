@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	letrazv1 "letraz-utils/api/proto/letraz/v1"
 	"letraz-utils/internal/logging"
@@ -19,9 +20,10 @@ import (
 
 // Client represents a gRPC client for making callbacks
 type Client struct {
-	conn   *grpc.ClientConn
-	client letrazv1.ScrapeJobCallbackControllerClient
-	logger logging.Logger
+	conn               *grpc.ClientConn
+	scrapeClient       letrazv1.ScrapeJobCallbackControllerClient
+	tailorResumeClient letrazv1.TailorResumeCallBackControllerClient
+	logger             logging.Logger
 }
 
 // ClientConfig holds configuration for the callback client
@@ -74,13 +76,15 @@ func NewClient(config *ClientConfig, logger logging.Logger) (*Client, error) {
 		return nil, fmt.Errorf("failed to create gRPC connection to %s: %w", serverAddr, err)
 	}
 
-	// Create client
-	client := letrazv1.NewScrapeJobCallbackControllerClient(conn)
+	// Create clients
+	scrapeClient := letrazv1.NewScrapeJobCallbackControllerClient(conn)
+	tailorResumeClient := letrazv1.NewTailorResumeCallBackControllerClient(conn)
 
 	return &Client{
-		conn:   conn,
-		client: client,
-		logger: logger,
+		conn:               conn,
+		scrapeClient:       scrapeClient,
+		tailorResumeClient: tailorResumeClient,
+		logger:             logger,
 	}, nil
 }
 
@@ -107,7 +111,7 @@ func (c *Client) SendScrapeJobCallback(ctx context.Context, result *CallbackData
 	defer cancel()
 
 	// Make the gRPC call
-	response, err := c.client.ScrapeJobCallBack(callCtx, req)
+	response, err := c.scrapeClient.ScrapeJobCallBack(callCtx, req)
 	if err != nil {
 		c.logger.Error("Failed to send scrape job callback", map[string]interface{}{
 			"process_id": req.ProcessId,
@@ -125,6 +129,46 @@ func (c *Client) SendScrapeJobCallback(ctx context.Context, result *CallbackData
 	}
 
 	c.logger.Info("Scrape job callback sent successfully", logFields)
+
+	return nil
+}
+
+// SendTailorResumeCallback sends a TailorResume callback to the server
+func (c *Client) SendTailorResumeCallback(ctx context.Context, result *TailorResumeCallbackData) error {
+	req := convertToTailorResumeCallbackRequest(result)
+
+	c.logger.Info("Sending TailorResume callback", map[string]interface{}{
+		"process_id":   req.ProcessId,
+		"status":       req.Status,
+		"operation":    req.Operation,
+		"method_name":  "/letraz_server.RESUME.TailorResumeCallBackController/TailorResumeCallBack",
+		"client_state": c.conn.GetState().String(),
+		"target":       c.conn.Target(),
+	})
+
+	// Create context with timeout
+	callCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	// Make the gRPC call
+	response, err := c.tailorResumeClient.TailorResumeCallBack(callCtx, req)
+	if err != nil {
+		c.logger.Error("Failed to send TailorResume callback", map[string]interface{}{
+			"process_id": req.ProcessId,
+			"error":      err.Error(),
+		})
+		return fmt.Errorf("failed to send TailorResume callback: %w", err)
+	}
+
+	// Log success with response message if available
+	logFields := map[string]interface{}{
+		"process_id": req.ProcessId,
+	}
+	if response != nil && response.Msg != nil {
+		logFields["response_msg"] = *response.Msg
+	}
+
+	c.logger.Info("TailorResume callback sent successfully", logFields)
 
 	return nil
 }
@@ -151,6 +195,31 @@ type CallbackJobData struct {
 type CallbackMetadata struct {
 	Engine string
 	URL    string
+}
+
+// TailorResumeCallbackData represents the data structure for TailorResume callbacks
+type TailorResumeCallbackData struct {
+	ProcessID      string
+	Status         string
+	Data           *TailorResumeJobData
+	Timestamp      time.Time
+	Operation      string
+	ProcessingTime time.Duration
+	Metadata       *TailorResumeCallbackMetadata
+}
+
+// TailorResumeJobData represents TailorResume job data for callbacks
+type TailorResumeJobData struct {
+	TailoredResume *models.TailoredResume
+	Suggestions    []models.Suggestion
+	ThreadID       string
+}
+
+// TailorResumeCallbackMetadata represents metadata for TailorResume callbacks
+type TailorResumeCallbackMetadata struct {
+	Company  string
+	JobTitle string
+	ResumeID string
 }
 
 // convertToCallbackRequest converts CallbackData to the gRPC request format
@@ -204,6 +273,90 @@ func convertToCallbackRequest(data *CallbackData) *letrazv1.ScrapeJobCallbackReq
 	}
 
 	return req
+}
+
+// convertToTailorResumeCallbackRequest converts TailorResumeCallbackData to the gRPC request format
+func convertToTailorResumeCallbackRequest(data *TailorResumeCallbackData) *letrazv1.TailorResumeCallbackRequest {
+	req := &letrazv1.TailorResumeCallbackRequest{
+		ProcessId:      data.ProcessID,
+		Status:         data.Status,
+		Timestamp:      data.Timestamp.Format(time.RFC3339Nano),
+		Operation:      data.Operation,
+		ProcessingTime: data.ProcessingTime.String(),
+	}
+
+	// Convert TailorResume data if available
+	if data.Data != nil {
+		req.Data = &letrazv1.TailorResumeDataRequest{
+			ThreadId: data.Data.ThreadID,
+		}
+
+		// Convert TailoredResume if available
+		if data.Data.TailoredResume != nil {
+			resume := data.Data.TailoredResume
+			req.Data.TailoredResume = &letrazv1.TailoredResumeRequest{
+				Id: resume.ID,
+			}
+
+			// Convert sections
+			if len(resume.Sections) > 0 {
+				sections := make([]*letrazv1.SectionRequest, len(resume.Sections))
+				for i, section := range resume.Sections {
+					// Convert data to protobuf.Struct
+					var protoStruct *structpb.Struct
+					if section.Data != nil {
+						if structData, err := structpb.NewStruct(convertToMap(section.Data)); err == nil {
+							protoStruct = structData
+						}
+					}
+
+					sections[i] = &letrazv1.SectionRequest{
+						Type: section.Type,
+						Data: protoStruct,
+					}
+				}
+				req.Data.TailoredResume.Sections = sections
+			}
+		}
+
+		// Convert suggestions if available
+		if len(data.Data.Suggestions) > 0 {
+			suggestions := make([]*letrazv1.SuggestionRequest, len(data.Data.Suggestions))
+			for i, suggestion := range data.Data.Suggestions {
+				suggestions[i] = &letrazv1.SuggestionRequest{
+					Id:        suggestion.ID,
+					Type:      suggestion.Type,
+					Priority:  suggestion.Priority,
+					Impact:    suggestion.Impact,
+					Section:   suggestion.Section,
+					Current:   suggestion.Current,
+					Suggested: suggestion.Suggested,
+					Reasoning: suggestion.Reasoning,
+				}
+			}
+			req.Data.Suggestions = suggestions
+		}
+	}
+
+	// Convert metadata if available
+	if data.Metadata != nil {
+		req.Metadata = &letrazv1.TailorResumeMetadataRequest{
+			Company:  data.Metadata.Company,
+			JobTitle: data.Metadata.JobTitle,
+			ResumeId: data.Metadata.ResumeID,
+		}
+	}
+
+	return req
+}
+
+// convertToMap converts interface{} to map[string]interface{} for structpb conversion
+func convertToMap(data interface{}) map[string]interface{} {
+	if dataMap, ok := data.(map[string]interface{}); ok {
+		return dataMap
+	}
+	// If it's not already a map, return empty map
+	return map[string]interface{}{}
 }
 
 // determineConnectionParams analyzes the server address and returns appropriate connection parameters
