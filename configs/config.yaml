@@ -47,7 +47,7 @@ firecrawl:
   formats: ["markdown"]  # Default formats: markdown, html, rawHtml, links, screenshot
 
 logging:
-  level: "warn"
+  level: "info"
   format: "json"
   output: "stdout"
 
@@ -106,3 +106,10 @@ resume:
     base_url: "http://localhost:3000"  # Default letraz-client URL (deprecated, use preview_url)
     preview_url: "http://localhost:3000/admin/resumes"  # Full URL for resume preview endpoint
     preview_token: ""  # Set via environment variable RESUME_PREVIEW_TOKEN
+
+# Callback configuration for gRPC callbacks when tasks complete
+callback:
+  server_address: ""  # Set via environment variable CALLBACK_SERVER_ADDRESS (e.g., "localhost:9090")
+  timeout: "30s"
+  max_retries: 3
+  enabled: true  # Set via environment variable CALLBACK_ENABLED

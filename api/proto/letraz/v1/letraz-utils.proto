@@ -146,32 +146,6 @@ message Salary {
   int32 min = 3;
 }
 
-message SalaryRange {
-  int32 min = 1;
-  int32 max = 2;
-  string currency = 3;
-  string period = 4; // hourly, monthly, yearly
-}
-
-message JobPosting {
-  string id = 1;
-  string title = 2;
-  string company = 3;
-  string location = 4;
-  bool remote = 5;
-  SalaryRange salary = 6;
-  string description = 7;
-  repeated string requirements = 8;
-  repeated string skills = 9;
-  repeated string benefits = 10;
-  string experience_level = 11;
-  string job_type = 12;
-  string posted_date = 13;           // ISO timestamp string
-  string application_url = 14;
-  map<string, string> metadata = 15;
-  string processed_at = 16;          // ISO timestamp string
-}
-
 message ScrapeOptions {
   string engine = 1;      // "headed", "raw", "auto"
   int32 timeout_seconds = 2;

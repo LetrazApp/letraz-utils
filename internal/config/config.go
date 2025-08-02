@@ -107,6 +107,13 @@ type Config struct {
 			PreviewToken string `yaml:"preview_token"`
 		} `yaml:"client"`
 	} `yaml:"resume"`
+
+	Callback struct {
+		ServerAddress string        `yaml:"server_address"`
+		Timeout       time.Duration `yaml:"timeout" default:"30s"`
+		MaxRetries    int           `yaml:"max_retries" default:"3"`
+		Enabled       bool          `yaml:"enabled" default:"true"`
+	} `yaml:"callback"`
 }
 
 // expandEnvVars expands environment variables in a string using ${VAR} or $VAR syntax
@@ -185,6 +192,10 @@ func LoadConfig(configPath string) (*Config, error) {
 	config.Redis.URL = "redis://localhost:6379"
 	config.Redis.DB = 0
 	config.Redis.Timeout = 5 * time.Second
+
+	config.Callback.Timeout = 30 * time.Second
+	config.Callback.MaxRetries = 3
+	config.Callback.Enabled = true
 
 	// Load from YAML file if it exists
 	if configPath != "" {
@@ -326,6 +337,27 @@ func (c *Config) loadFromEnv() {
 
 	if previewToken := os.Getenv("RESUME_PREVIEW_TOKEN"); previewToken != "" {
 		c.Resume.Client.PreviewToken = previewToken
+	}
+
+	// Callback configuration
+	if callbackServerAddr := os.Getenv("CALLBACK_SERVER_ADDRESS"); callbackServerAddr != "" {
+		c.Callback.ServerAddress = callbackServerAddr
+	}
+
+	if callbackTimeout := os.Getenv("CALLBACK_TIMEOUT"); callbackTimeout != "" {
+		if timeout, err := time.ParseDuration(callbackTimeout); err == nil {
+			c.Callback.Timeout = timeout
+		}
+	}
+
+	if callbackMaxRetries := os.Getenv("CALLBACK_MAX_RETRIES"); callbackMaxRetries != "" {
+		if retries, err := strconv.Atoi(callbackMaxRetries); err == nil {
+			c.Callback.MaxRetries = retries
+		}
+	}
+
+	if callbackEnabled := os.Getenv("CALLBACK_ENABLED"); callbackEnabled != "" {
+		c.Callback.Enabled = callbackEnabled == "true" || callbackEnabled == "1"
 	}
 
 	// Handle additional logging adapter options via environment variables

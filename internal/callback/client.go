@@ -1,0 +1,269 @@
+package callback
+
+import (
+	"context"
+	"fmt"
+	"net"
+	"strings"
+	"time"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/keepalive"
+
+	letrazv1 "letraz-utils/api/proto/letraz/v1"
+	"letraz-utils/internal/logging"
+	"letraz-utils/pkg/models"
+)
+
+// Client represents a gRPC client for making callbacks
+type Client struct {
+	conn   *grpc.ClientConn
+	client letrazv1.ScrapeJobCallbackControllerClient
+	logger logging.Logger
+}
+
+// ClientConfig holds configuration for the callback client
+type ClientConfig struct {
+	ServerAddress string        `yaml:"server_address"`
+	Timeout       time.Duration `yaml:"timeout"`
+	MaxRetries    int           `yaml:"max_retries"`
+}
+
+// NewClient creates a new callback gRPC client
+func NewClient(config *ClientConfig, logger logging.Logger) (*Client, error) {
+	if config.ServerAddress == "" {
+		return nil, fmt.Errorf("server address is required")
+	}
+
+	// Set default timeout if not provided
+	if config.Timeout == 0 {
+		config.Timeout = 30 * time.Second
+	}
+
+	// Set default max retries if not provided
+	if config.MaxRetries == 0 {
+		config.MaxRetries = 3
+	}
+
+	// Determine connection parameters
+	serverAddr, creds := determineConnectionParams(config.ServerAddress, logger)
+
+	// Create gRPC connection with proper credentials and connection options
+	conn, err := grpc.NewClient(
+		serverAddr,
+		grpc.WithTransportCredentials(creds),
+		grpc.WithTimeout(config.Timeout),
+		// Add keepalive parameters for better connection stability
+		grpc.WithKeepaliveParams(keepalive.ClientParameters{
+			Time:                30 * time.Second,
+			Timeout:             5 * time.Second,
+			PermitWithoutStream: true,
+		}),
+		// Use custom dialer to prefer IPv4
+		grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
+			return (&net.Dialer{
+				Timeout: config.Timeout,
+				// Prefer IPv4 to avoid IPv6 routing issues
+				FallbackDelay: 0,
+			}).DialContext(ctx, "tcp4", addr)
+		}),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create gRPC connection to %s: %w", serverAddr, err)
+	}
+
+	// Create client
+	client := letrazv1.NewScrapeJobCallbackControllerClient(conn)
+
+	return &Client{
+		conn:   conn,
+		client: client,
+		logger: logger,
+	}, nil
+}
+
+// Close closes the gRPC connection
+func (c *Client) Close() error {
+	if c.conn != nil {
+		return c.conn.Close()
+	}
+	return nil
+}
+
+// SendScrapeJobCallback sends a scrape job callback to the server
+func (c *Client) SendScrapeJobCallback(ctx context.Context, result *CallbackData) error {
+	req := convertToCallbackRequest(result)
+
+	c.logger.Info("Sending scrape job callback", map[string]interface{}{
+		"process_id": req.ProcessId,
+		"status":     req.Status,
+		"operation":  req.Operation,
+	})
+
+	// Create context with timeout
+	callCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	// Make the gRPC call
+	response, err := c.client.ScrapeJobCallBack(callCtx, req)
+	if err != nil {
+		c.logger.Error("Failed to send scrape job callback", map[string]interface{}{
+			"process_id": req.ProcessId,
+			"error":      err.Error(),
+		})
+		return fmt.Errorf("failed to send callback: %w", err)
+	}
+
+	// Log success with response message if available
+	logFields := map[string]interface{}{
+		"process_id": req.ProcessId,
+	}
+	if response != nil && response.Msg != nil {
+		logFields["response_msg"] = *response.Msg
+	}
+
+	c.logger.Info("Scrape job callback sent successfully", logFields)
+
+	return nil
+}
+
+// CallbackData represents the data structure for callbacks
+type CallbackData struct {
+	ProcessID      string
+	Status         string
+	Data           *CallbackJobData
+	Timestamp      time.Time
+	Operation      string
+	ProcessingTime time.Duration
+	Metadata       *CallbackMetadata
+}
+
+// CallbackJobData represents job data for callbacks
+type CallbackJobData struct {
+	Job     *models.Job
+	Engine  string
+	UsedLLM bool
+}
+
+// CallbackMetadata represents metadata for callbacks
+type CallbackMetadata struct {
+	Engine string
+	URL    string
+}
+
+// convertToCallbackRequest converts CallbackData to the gRPC request format
+func convertToCallbackRequest(data *CallbackData) *letrazv1.ScrapeJobCallbackRequest {
+	req := &letrazv1.ScrapeJobCallbackRequest{
+		ProcessId:      data.ProcessID,
+		Status:         data.Status,
+		Timestamp:      data.Timestamp.Format(time.RFC3339Nano),
+		Operation:      data.Operation,
+		ProcessingTime: data.ProcessingTime.String(),
+	}
+
+	// Convert job data if available
+	if data.Data != nil {
+		req.Data = &letrazv1.ScrapeJobDataRequest{
+			Engine:  &data.Data.Engine,
+			UsedLlm: &data.Data.UsedLLM,
+		}
+
+		// Convert job details if available
+		if data.Data.Job != nil {
+			job := data.Data.Job
+			req.Data.Job = &letrazv1.JobDetailRequest{
+				Title:            job.Title,
+				JobUrl:           job.JobURL,
+				CompanyName:      job.CompanyName,
+				Location:         job.Location,
+				Requirements:     job.Requirements,
+				Description:      job.Description,
+				Responsibilities: job.Responsibilities,
+				Benefits:         job.Benefits,
+			}
+
+			// Convert salary if available
+			if job.Salary.Currency != "" || job.Salary.Max > 0 || job.Salary.Min > 0 {
+				req.Data.Job.Salary = &letrazv1.JobSalaryRequest{
+					Currency: &job.Salary.Currency,
+					Max:      func() *int32 { v := int32(job.Salary.Max); return &v }(),
+					Min:      func() *int32 { v := int32(job.Salary.Min); return &v }(),
+				}
+			}
+		}
+	}
+
+	// Convert metadata if available
+	if data.Metadata != nil {
+		req.Metadata = &letrazv1.CallbackMetadataRequest{
+			Engine: &data.Metadata.Engine,
+			Url:    &data.Metadata.URL,
+		}
+	}
+
+	return req
+}
+
+// determineConnectionParams analyzes the server address and returns appropriate connection parameters
+func determineConnectionParams(serverAddress string, logger logging.Logger) (string, credentials.TransportCredentials) {
+	// Check if it's a localhost address
+	if isLocalhost(serverAddress) {
+		// For localhost, use insecure connection and default to port 9090 if no port specified
+		addr := ensurePort(serverAddress, "9090")
+		logger.Info("Using insecure connection for localhost", map[string]interface{}{
+			"address": addr,
+		})
+		return addr, insecure.NewCredentials()
+	}
+
+	// Check if it's an ngrok or other external domain
+	if isExternalDomain(serverAddress) {
+		// For external domains (like ngrok), use TLS and default to port 443
+		addr := ensurePort(serverAddress, "443")
+		logger.Info("Using TLS connection for external domain", map[string]interface{}{
+			"address": addr,
+		})
+		return addr, credentials.NewTLS(nil)
+	}
+
+	// Default: assume it's an external address with TLS
+	addr := ensurePort(serverAddress, "443")
+	logger.Info("Using TLS connection (default)", map[string]interface{}{
+		"address": addr,
+	})
+	return addr, credentials.NewTLS(nil)
+}
+
+// isLocalhost checks if the address is localhost/127.0.0.1
+func isLocalhost(addr string) bool {
+	// Remove port if present for checking
+	host := strings.Split(addr, ":")[0]
+	return host == "localhost" || host == "127.0.0.1" || host == "0.0.0.0"
+}
+
+// isExternalDomain checks if the address looks like an external domain
+func isExternalDomain(addr string) bool {
+	// Remove port if present for checking
+	host := strings.Split(addr, ":")[0]
+
+	// Check for ngrok domains
+	if strings.Contains(host, "ngrok") {
+		return true
+	}
+
+	// Check if it contains dots (likely a domain)
+	return strings.Contains(host, ".")
+}
+
+// ensurePort adds a default port to the address if no port is specified
+func ensurePort(addr, defaultPort string) string {
+	// If already has port, return as-is
+	if strings.Contains(addr, ":") {
+		return addr
+	}
+
+	// Add default port
+	return fmt.Sprintf("%s:%s", addr, defaultPort)
+}
