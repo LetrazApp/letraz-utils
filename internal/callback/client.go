@@ -2,6 +2,7 @@ package callback
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"strings"
@@ -56,7 +57,6 @@ func NewClient(config *ClientConfig, logger logging.Logger) (*Client, error) {
 	conn, err := grpc.NewClient(
 		serverAddr,
 		grpc.WithTransportCredentials(creds),
-		grpc.WithTimeout(config.Timeout),
 		// Add keepalive parameters for better connection stability
 		grpc.WithKeepaliveParams(keepalive.ClientParameters{
 			Time:                30 * time.Second,
@@ -355,8 +355,19 @@ func convertToMap(data interface{}) map[string]interface{} {
 	if dataMap, ok := data.(map[string]interface{}); ok {
 		return dataMap
 	}
-	// If it's not already a map, return empty map
-	return map[string]interface{}{}
+
+	// Try to convert via JSON for other types
+	jsonBytes, err := json.Marshal(data)
+	if err != nil {
+		return map[string]interface{}{}
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(jsonBytes, &result); err != nil {
+		return map[string]interface{}{}
+	}
+
+	return result
 }
 
 // determineConnectionParams analyzes the server address and returns appropriate connection parameters
@@ -393,7 +404,7 @@ func determineConnectionParams(serverAddress string, logger logging.Logger) (str
 func isLocalhost(addr string) bool {
 	// Remove port if present for checking
 	host := strings.Split(addr, ":")[0]
-	return host == "localhost" || host == "127.0.0.1" || host == "0.0.0.0"
+	return host == "localhost" || host == "127.0.0.1"
 }
 
 // isExternalDomain checks if the address looks like an external domain
