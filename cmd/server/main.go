@@ -11,6 +11,7 @@ import (
 
 	"letraz-utils/internal/api/routes"
 	"letraz-utils/internal/background"
+	"letraz-utils/internal/callback"
 	"letraz-utils/internal/config"
 	"letraz-utils/internal/llm"
 	"letraz-utils/internal/logging"
@@ -44,9 +45,42 @@ func main() {
 		return
 	}
 
-	// Initialize background task manager
+	// Initialize callback client if enabled
+	var callbackClient *callback.Client
+	if cfg.Callback.Enabled && cfg.Callback.ServerAddress != "" {
+		logger.Info("Initializing gRPC callback client", map[string]interface{}{
+			"server_address": cfg.Callback.ServerAddress,
+		})
+
+		callbackConfig := &callback.ClientConfig{
+			ServerAddress: cfg.Callback.ServerAddress,
+			Timeout:       cfg.Callback.Timeout,
+			MaxRetries:    cfg.Callback.MaxRetries,
+		}
+
+		callbackClient, err = callback.NewClient(callbackConfig, logger)
+		if err != nil {
+			logger.Error("Failed to create callback client, proceeding without callbacks", map[string]interface{}{
+				"error": err.Error(),
+			})
+			// Continue without callback support instead of failing
+			callbackClient = nil
+		} else {
+			logger.Info("Callback client initialized successfully")
+		}
+	} else {
+		logger.Info("Callback support disabled or no server address configured")
+	}
+
+	// Initialize background task manager with callback support
 	logger.Info("Initializing background task manager")
-	taskManager := background.NewTaskManager(cfg)
+	var taskManager background.TaskManager
+	if callbackClient != nil {
+		taskManager = background.NewTaskManagerWithCallback(cfg, callbackClient)
+	} else {
+		taskManager = background.NewTaskManager(cfg)
+	}
+
 	ctx := context.Background()
 	if err := taskManager.Start(ctx); err != nil {
 		logger.Error("Failed to start task manager", map[string]interface{}{"error": err.Error()})
@@ -113,6 +147,14 @@ func main() {
 		logger.Info("Stopping LLM manager...")
 		if err := llmManager.Stop(); err != nil {
 			logger.Error("Error stopping LLM manager", map[string]interface{}{"error": err.Error()})
+		}
+
+		// Close callback client if initialized
+		if callbackClient != nil {
+			logger.Info("Closing callback client...")
+			if err := callbackClient.Close(); err != nil {
+				logger.Error("Error closing callback client", map[string]interface{}{"error": err.Error()})
+			}
 		}
 
 		logger.Info("Server shutdown complete")

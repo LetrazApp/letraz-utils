@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"letraz-utils/internal/callback"
 	"letraz-utils/internal/config"
 	"letraz-utils/internal/llm"
 	"letraz-utils/internal/logging"
@@ -140,6 +141,54 @@ func NewTaskManager(cfg *config.Config) *TaskManagerImpl {
 		config:       cfg,
 		store:        NewInMemoryTaskStore(),
 		logger:       NewTaskCompletionLogger(),
+		appLogger:    logger,
+		llmManager:   llm.NewManager(cfg),
+		workerPool:   make(chan struct{}, maxWorkers),
+		maxWorkers:   maxWorkers,
+		maxQueueSize: maxQueueSize,
+		taskChan:     make(chan *TaskExecution, maxQueueSize),
+	}
+}
+
+// NewTaskManagerWithCallback creates a new task manager with callback support
+func NewTaskManagerWithCallback(cfg *config.Config, callbackClient *callback.Client) *TaskManagerImpl {
+	logger := logging.GetGlobalLogger()
+
+	// Validate configuration and get safe values
+	maxWorkers, maxQueueSize, err := validateTaskManagerConfig(cfg)
+	if err != nil {
+		// Log validation error and fall back to defaults
+		logger.Warn("Task manager configuration validation failed, using defaults", map[string]interface{}{
+			"error": err.Error(),
+		})
+		maxWorkers = DefaultMaxWorkers
+		maxQueueSize = DefaultMaxQueueSize
+	}
+
+	// Log final configuration values
+	logger.Info("Task manager configuration initialized", map[string]interface{}{
+		"max_workers":      maxWorkers,
+		"max_queue_size":   maxQueueSize,
+		"using_defaults":   err != nil,
+		"callback_enabled": cfg.Callback.Enabled,
+	})
+
+	// Create logger with callback support
+	var taskLogger *TaskCompletionLogger
+	if cfg.Callback.Enabled && callbackClient != nil {
+		taskLogger = NewTaskCompletionLoggerWithCallback(callbackClient, true)
+		logger.Info("Task manager initialized with callback support", map[string]interface{}{
+			"callback_server": cfg.Callback.ServerAddress,
+		})
+	} else {
+		taskLogger = NewTaskCompletionLogger()
+		logger.Info("Task manager initialized without callback support", nil)
+	}
+
+	return &TaskManagerImpl{
+		config:       cfg,
+		store:        NewInMemoryTaskStore(),
+		logger:       taskLogger,
 		appLogger:    logger,
 		llmManager:   llm.NewManager(cfg),
 		workerPool:   make(chan struct{}, maxWorkers),

@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package letraz_server.JOB;
+
+option go_package = "letraz-utils/api/proto/letraz/v1;letrazv1";
+
+service ScrapeJobCallbackController {
+    rpc ScrapeJobCallBack(ScrapeJobCallbackRequest) returns (ScrapeJobCallbackResponse) {}
+}
+
+
+
+message CallbackMetadataRequest {
+    optional string engine = 1;
+    optional string url = 2;
+}
+
+message JobDetailRequest {
+    string title = 1;
+    string job_url = 2;
+    string company_name = 3;
+    string location = 4;
+    optional JobSalaryRequest salary = 5;
+    repeated string requirements = 6;
+    string description = 7;
+    repeated string responsibilities = 8;
+    repeated string benefits = 9;
+}
+
+message JobSalaryRequest {
+    optional string currency = 1;
+    optional int32 max = 2;
+    optional int32 min = 3;
+}
+
+message ScrapeJobCallbackRequest {
+    string processId = 1;
+    string status = 2;
+    optional ScrapeJobDataRequest data = 3;
+    string timestamp = 4;
+    string operation = 5;
+    string processing_time = 6;
+    optional CallbackMetadataRequest metadata = 7;
+}
+
+message ScrapeJobDataRequest {
+    optional JobDetailRequest job = 1;
+    optional string engine = 2;
+    optional bool used_llm = 3;
+}
+
+message ScrapeJobCallbackResponse {
+    optional string msg = 1;
+}

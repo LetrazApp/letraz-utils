@@ -524,10 +524,56 @@ func (cp *ClaudeProvider) TailorResumeWithRawResponse(ctx context.Context, baseR
 	return tailoredResume, suggestions, rawResponse, nil
 }
 
+// createFilteredResumeForLLM creates a filtered version of BaseResume for LLM processing,
+// removing unnecessary fields to reduce prompt size
+func (cp *ClaudeProvider) createFilteredResumeForLLM(baseResume *models.BaseResume) map[string]interface{} {
+	// Filter sections - remove id, index, resume fields and filter data objects
+	filteredSections := make([]map[string]interface{}, len(baseResume.Sections))
+	for i, section := range baseResume.Sections {
+		filteredSection := map[string]interface{}{
+			"type": section.Type,
+			"data": cp.filterSectionData(section.Data),
+		}
+		filteredSections[i] = filteredSection
+	}
+
+	return map[string]interface{}{
+		"sections": filteredSections,
+	}
+}
+
+// filterSectionData filters data objects within resume sections,
+// removing unnecessary metadata fields
+func (cp *ClaudeProvider) filterSectionData(data interface{}) interface{} {
+	if data == nil {
+		return nil
+	}
+
+	// Convert to map to manipulate
+	dataMap, ok := data.(map[string]interface{})
+	if !ok {
+		return data
+	}
+
+	// Create filtered map excluding unwanted fields
+	filtered := make(map[string]interface{})
+	for key, value := range dataMap {
+		// Skip unwanted fields
+		if key == "id" || key == "created_at" || key == "updated_at" ||
+			key == "user" || key == "resume_section" {
+			continue
+		}
+		filtered[key] = value
+	}
+
+	return filtered
+}
+
 // buildResumeTailoringPrompt creates the comprehensive prompt for Claude to tailor the resume
 func (cp *ClaudeProvider) buildResumeTailoringPrompt(baseResume *models.BaseResume, job *models.Job) string {
-	// Convert baseResume to JSON for the prompt
-	resumeJSON, _ := json.MarshalIndent(baseResume, "", "  ")
+	// Create filtered version of the resume for LLM processing
+	filteredResume := cp.createFilteredResumeForLLM(baseResume)
+	resumeJSON, _ := json.MarshalIndent(filteredResume, "", "  ")
 	jobJSON, _ := json.MarshalIndent(job, "", "  ")
 
 	return fmt.Sprintf(`You are an expert resume optimization specialist with years of experience helping professionals tailor their resumes for specific job applications. Your task is to analyze the provided base resume and job posting, then create a tailored version that maximizes the candidate's chances of success.
@@ -579,16 +625,14 @@ Return a JSON object with exactly this structure:
 
 {
   "tailored_resume": {
-    "id": "string - same as input resume ID",
-    "base": false,
-    "user": {
-      // Keep user information exactly the same, but update profile_text to be tailored for this specific job using only existing background
-      "profile_text": "string - Rewritten professional summary optimized for the target job using only existing experience/skills (2-3 sentences, HTML format like the original)"
-    },
     "sections": [
       // Array of resume sections with tailored content and optimized ordering
       // You may reorder sections to maximize relevance for this specific job
-      // Update the "index" field to reflect the new ordering (0, 1, 2, etc.)
+      // Each section should have:
+      // {
+      //   "type": "string - section type",
+      //   "data": { ... tailored content without id, created_at, updated_at, user, resume_section fields ... }
+      // }
       // For Experience sections: rewrite descriptions to emphasize job-relevant achievements using only existing information
       // For Education sections: highlight relevant coursework or projects only if already mentioned
       // Keep all section content and structure, but optimize the order for maximum impact
@@ -724,10 +768,15 @@ func (cp *ClaudeProvider) parseResumeTailoringResponse(response *anthropic.Messa
 		"raw_response": responseText,
 	})
 
-	// Parse JSON response
+	// Parse JSON response using simplified structure that matches LLM output
 	var tailoringResponse struct {
-		TailoredResume models.TailoredResume `json:"tailored_resume"`
-		Suggestions    []models.Suggestion   `json:"suggestions"`
+		TailoredResume struct {
+			Sections []struct {
+				Type string      `json:"type"`
+				Data interface{} `json:"data"`
+			} `json:"sections"`
+		} `json:"tailored_resume"`
+		Suggestions []models.Suggestion `json:"suggestions"`
 	}
 
 	if err := json.Unmarshal([]byte(responseText), &tailoringResponse); err != nil {
@@ -737,8 +786,13 @@ func (cp *ClaudeProvider) parseResumeTailoringResponse(response *anthropic.Messa
 		})
 
 		var fallbackResponse struct {
-			TailoredResume models.TailoredResume `json:"tailored_resume"`
-			Suggestions    []string              `json:"suggestions"`
+			TailoredResume struct {
+				Sections []struct {
+					Type string      `json:"type"`
+					Data interface{} `json:"data"`
+				} `json:"sections"`
+			} `json:"tailored_resume"`
+			Suggestions []string `json:"suggestions"`
 		}
 
 		if fallbackErr := json.Unmarshal([]byte(responseText), &fallbackResponse); fallbackErr != nil {
@@ -772,8 +826,8 @@ func (cp *ClaudeProvider) parseResumeTailoringResponse(response *anthropic.Messa
 	}
 
 	// Validate the response
-	if tailoringResponse.TailoredResume.ID == "" {
-		return nil, nil, fmt.Errorf("invalid tailored resume: missing ID")
+	if len(tailoringResponse.TailoredResume.Sections) == 0 {
+		return nil, nil, fmt.Errorf("invalid tailored resume: no sections provided")
 	}
 
 	if len(tailoringResponse.Suggestions) == 0 {
@@ -807,9 +861,23 @@ func (cp *ClaudeProvider) parseResumeTailoringResponse(response *anthropic.Messa
 		}
 	}
 
+	// Create simplified TailoredResume response
+	tailoredResume := &models.TailoredResume{
+		ID:       baseResume.ID, // Keep original ID for reference
+		Sections: make([]models.TailoredResumeSection, len(tailoringResponse.TailoredResume.Sections)),
+	}
+
+	// Convert LLM sections to final format
+	for i, llmSection := range tailoringResponse.TailoredResume.Sections {
+		tailoredResume.Sections[i] = models.TailoredResumeSection{
+			Type: llmSection.Type,
+			Data: llmSection.Data,
+		}
+	}
+
 	cp.logger.Info("Successfully parsed and validated resume tailoring response")
 
-	return &tailoringResponse.TailoredResume, tailoringResponse.Suggestions, nil
+	return tailoredResume, tailoringResponse.Suggestions, nil
 }
 
 // IsHealthy checks if the Claude provider is healthy and available
