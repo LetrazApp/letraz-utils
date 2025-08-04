@@ -78,6 +78,12 @@ func SetupRoutes(e *echo.Echo, cfg *config.Config, poolManager *workers.PoolMana
 			workers.GET("/status", handlers.DetailedWorkerStatusHandler(poolManager))
 		}
 
+		// Metrics and monitoring routes
+		metrics := v1.Group("/metrics")
+		{
+			metrics.GET("/browser", handlers.BrowserMetricsHandler())
+		}
+
 		// Domain-specific routes
 		domains := v1.Group("/domains")
 		{
