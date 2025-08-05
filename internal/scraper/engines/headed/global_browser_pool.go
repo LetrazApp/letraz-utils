@@ -136,6 +136,7 @@ func InitializeGlobalBrowserPool(cfg *config.Config) error {
 
 		ctx, cancel := context.WithCancel(context.Background())
 		if ctx == nil {
+			cancel() // Prevent context leak
 			initErr = fmt.Errorf("failed to create context")
 			return
 		}
@@ -154,6 +155,7 @@ func InitializeGlobalBrowserPool(cfg *config.Config) error {
 		}
 
 		if globalPool == nil {
+			cancel() // Prevent context leak
 			initErr = fmt.Errorf("failed to create global browser pool")
 			return
 		}
