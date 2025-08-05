@@ -44,6 +44,8 @@ browser_pool:
   max_idle_time: "5m"       # How long to keep idle browsers before closing
   acquisition_timeout: "30s" # Timeout for acquiring a browser instance
   cleanup_interval: "1m"    # How often to run cleanup routine
+  max_browsers: 5           # Maximum number of browsers to create
+  min_browsers: 2           # Minimum number of browsers for redundancy
 
 firecrawl:
   api_key: ""  # Set via environment variable FIRECRAWL_API_KEY

@@ -55,6 +55,8 @@ func BrowserMetricsHandler() echo.HandlerFunc {
 				"available_browsers":       metrics.AvailableBrowsers,
 				"queued_requests":          metrics.QueuedRequests,
 				"average_acquisition_time": metrics.AverageAcquisitionTime.String(),
+				"total_acquisition_time":   metrics.TotalAcquisitionTime.String(),
+				"acquisition_count":        metrics.AcquisitionCount,
 				"is_healthy":               globalPool.IsHealthy(),
 			},
 		}

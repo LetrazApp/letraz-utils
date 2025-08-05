@@ -51,6 +51,8 @@ type BrowserPoolMetrics struct {
 	AvailableBrowsers      int64
 	QueuedRequests         int64
 	AverageAcquisitionTime time.Duration
+	TotalAcquisitionTime   time.Duration
+	AcquisitionCount       int64
 }
 
 // GlobalBrowserInstance represents a browser instance with a page for use
@@ -70,10 +72,30 @@ var (
 func InitializeGlobalBrowserPool(cfg *config.Config) error {
 	var initErr error
 	poolOnce.Do(func() {
+		defer func() {
+			if r := recover(); r != nil {
+				initErr = fmt.Errorf("panic during initialization: %v", r)
+				globalPool = nil
+			}
+		}()
+
+		if cfg == nil {
+			initErr = fmt.Errorf("config cannot be nil")
+			return
+		}
+
 		logger := logging.GetGlobalLogger()
+		if logger == nil {
+			initErr = fmt.Errorf("failed to get global logger")
+			return
+		}
 
 		// Calculate max instances based on system resources and configuration
 		maxInstances := calculateOptimalBrowserInstances(cfg)
+		if maxInstances <= 0 {
+			initErr = fmt.Errorf("invalid max instances: %d", maxInstances)
+			return
+		}
 
 		// Setup launcher with enhanced stealth mode and optimized rendering
 		l := launcher.New().
@@ -89,6 +111,11 @@ func InitializeGlobalBrowserPool(cfg *config.Config) error {
 			Set("no-first-run").                 // Skip first run wizards
 			Set("no-default-browser-check").     // Skip default browser checks
 			Set("disable-background-networking") // Reduce background activity
+
+		if l == nil {
+			initErr = fmt.Errorf("failed to create launcher")
+			return
+		}
 
 		// Use system-installed Chrome/Chromium instead of downloading
 		if chromePath := getSystemChromePath(); chromePath != "" {
@@ -108,6 +135,10 @@ func InitializeGlobalBrowserPool(cfg *config.Config) error {
 		}
 
 		ctx, cancel := context.WithCancel(context.Background())
+		if ctx == nil {
+			initErr = fmt.Errorf("failed to create context")
+			return
+		}
 
 		globalPool = &GlobalBrowserPool{
 			config:            cfg,
@@ -122,19 +153,33 @@ func InitializeGlobalBrowserPool(cfg *config.Config) error {
 			metrics:           &BrowserPoolMetrics{},
 		}
 
+		if globalPool == nil {
+			initErr = fmt.Errorf("failed to create global browser pool")
+			return
+		}
+
 		// Start background cleanup routine
 		globalPool.startCleanupRoutine()
 
 		logger.Info("Global browser pool initialized", map[string]interface{}{
-			"max_instances": maxInstances,
+			"max_instances":    maxInstances,
+			"cleanup_interval": cfg.BrowserPool.CleanupInterval.String(),
+			"max_idle_time":    cfg.BrowserPool.MaxIdleTime.String(),
+			"max_browsers":     cfg.BrowserPool.MaxBrowsers,
+			"min_browsers":     cfg.BrowserPool.MinBrowsers,
 		})
 	})
 
-	if globalPool == nil {
-		return fmt.Errorf("failed to initialize global browser pool")
+	// Check for initialization errors
+	if initErr != nil {
+		return fmt.Errorf("failed to initialize global browser pool: %w", initErr)
 	}
 
-	return initErr
+	if globalPool == nil {
+		return fmt.Errorf("failed to initialize global browser pool: unexpected nil pool")
+	}
+
+	return nil
 }
 
 // GetGlobalBrowserPool returns the global browser pool instance
@@ -153,9 +198,14 @@ func (gbp *GlobalBrowserPool) AcquireBrowser(ctx context.Context) (*GlobalBrowse
 	gbp.metrics.mu.Unlock()
 
 	defer func() {
+		acquisitionTime := time.Since(startTime)
 		gbp.metrics.mu.Lock()
 		gbp.metrics.QueuedRequests--
-		gbp.metrics.AverageAcquisitionTime = time.Since(startTime)
+		gbp.metrics.TotalAcquisitionTime += acquisitionTime
+		gbp.metrics.AcquisitionCount++
+		if gbp.metrics.AcquisitionCount > 0 {
+			gbp.metrics.AverageAcquisitionTime = gbp.metrics.TotalAcquisitionTime / time.Duration(gbp.metrics.AcquisitionCount)
+		}
 		gbp.metrics.mu.Unlock()
 	}()
 
@@ -273,7 +323,7 @@ func (gbp *GlobalBrowserPool) createManagedBrowser(ctx context.Context) (*Manage
 		LastUsedAt:  time.Now(),
 		InUse:       false,
 		UsageCount:  0,
-		MaxIdleTime: 5 * time.Minute, // Close browsers idle for 5 minutes
+		MaxIdleTime: gbp.config.BrowserPool.MaxIdleTime,
 	}
 
 	gbp.mu.Lock()
@@ -382,12 +432,14 @@ func (gbp *GlobalBrowserPool) applyStealthPatches(ctx context.Context, page *rod
 		};
 		
 		// Override permissions
-		const originalQuery = window.navigator.permissions.query;
-		window.navigator.permissions.query = (parameters) => (
-			parameters.name === 'notifications' ?
-				Promise.resolve({ state: Notification.permission }) :
-				originalQuery(parameters)
-		);
+		if (window.navigator.permissions && window.navigator.permissions.query) {
+			const originalQuery = window.navigator.permissions.query;
+			window.navigator.permissions.query = (parameters) => (
+				parameters.name === 'notifications' ?
+					Promise.resolve({ state: typeof Notification !== 'undefined' ? Notification.permission : 'default' }) :
+					originalQuery(parameters)
+			);
+		}
 	}`
 
 	_, err := page.Context(ctx).Eval(stealthJS)
@@ -477,7 +529,11 @@ func (gbp *GlobalBrowserPool) closeManagedBrowser(managedBrowser *ManagedBrowser
 
 // startCleanupRoutine starts background cleanup of idle browsers
 func (gbp *GlobalBrowserPool) startCleanupRoutine() {
-	gbp.cleanupTicker = time.NewTicker(1 * time.Minute)
+	cleanupInterval := gbp.config.BrowserPool.CleanupInterval
+	if cleanupInterval == 0 {
+		cleanupInterval = 5 * time.Minute // default fallback
+	}
+	gbp.cleanupTicker = time.NewTicker(cleanupInterval)
 
 	go func() {
 		defer gbp.cleanupTicker.Stop()
@@ -568,6 +624,8 @@ func (gbp *GlobalBrowserPool) GetMetrics() *BrowserPoolMetrics {
 		AvailableBrowsers:      int64(len(gbp.availableBrowsers)),
 		QueuedRequests:         gbp.metrics.QueuedRequests,
 		AverageAcquisitionTime: gbp.metrics.AverageAcquisitionTime,
+		TotalAcquisitionTime:   gbp.metrics.TotalAcquisitionTime,
+		AcquisitionCount:       gbp.metrics.AcquisitionCount,
 	}
 }
 
@@ -667,18 +725,26 @@ func (gbp *GlobalBrowserPool) IsHealthy() bool {
 
 // calculateOptimalBrowserInstances calculates optimal number of browser instances
 func calculateOptimalBrowserInstances(cfg *config.Config) int {
-	// Conservative approach: limit to 5 browsers max regardless of worker pool size
-	// Each browser can handle multiple pages sequentially
-	maxBrowsers := 5
+	// Get configurable max browsers
+	maxBrowsers := cfg.BrowserPool.MaxBrowsers
+	if maxBrowsers == 0 {
+		maxBrowsers = 5 // default
+	}
 
 	// Scale down for lower worker counts
-	if cfg.Workers.PoolSize < 5 {
+	if cfg.Workers.PoolSize < maxBrowsers {
 		maxBrowsers = cfg.Workers.PoolSize
 	}
 
-	// Minimum of 2 browsers for redundancy
-	if maxBrowsers < 2 {
-		maxBrowsers = 2
+	// Get configurable min browsers
+	minBrowsers := cfg.BrowserPool.MinBrowsers
+	if minBrowsers == 0 {
+		minBrowsers = 2 // default
+	}
+
+	// Ensure we meet minimum requirements
+	if maxBrowsers < minBrowsers {
+		maxBrowsers = minBrowsers
 	}
 
 	return maxBrowsers
