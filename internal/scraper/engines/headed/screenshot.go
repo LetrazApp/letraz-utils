@@ -103,7 +103,7 @@ func (ss *ScreenshotService) CaptureResumeScreenshot(ctx context.Context, resume
 	}
 
 	// Set A4 viewport for proper resume rendering (with dedicated timeout)
-	viewportCtx, viewportCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	viewportCtx, viewportCancel := context.WithTimeout(screenshotCtx, 5*time.Second)
 	defer viewportCancel()
 
 	err = browserInstance.Page.Context(viewportCtx).SetViewport(&proto.EmulationSetDeviceMetricsOverride{
