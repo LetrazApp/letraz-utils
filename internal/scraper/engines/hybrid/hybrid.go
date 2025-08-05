@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"letraz-utils/internal/config"
 	"letraz-utils/internal/llm"
@@ -15,7 +16,7 @@ import (
 	"letraz-utils/pkg/utils"
 )
 
-// HybridScraper implements a hybrid approach: try Rod scraper first, fallback to Firecrawl if a captcha is detected
+// HybridScraper implements a hybrid approach: try Rod scraper first, fallback to Firecrawl if a captcha is detected or navigation error occurs
 type HybridScraper struct {
 	config           *config.Config
 	llmManager       *llm.Manager
@@ -62,7 +63,50 @@ func NewHybridScraper(cfg *config.Config, llmManager *llm.Manager) *HybridScrape
 	}
 }
 
-// ScrapeJob scrapes a job posting using hybrid approach: Rod first, Firecrawl on captcha
+// isNavigationError checks if the error is a navigation/protocol error that should trigger Firecrawl fallback
+func (h *HybridScraper) isNavigationError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	errStr := strings.ToLower(err.Error())
+
+	// HTTP/2 protocol errors
+	if strings.Contains(errStr, "net::err_http2_protocol_error") {
+		return true
+	}
+
+	// Other network and navigation errors that are common in Docker/NGINX environments
+	navigationErrors := []string{
+		"net::err_connection_refused",
+		"net::err_connection_reset",
+		"net::err_connection_aborted",
+		"net::err_connection_failed",
+		"net::err_name_not_resolved",
+		"net::err_network_changed",
+		"net::err_timed_out",
+		"net::err_internet_disconnected",
+		"net::err_ssl_protocol_error",
+		"net::err_cert_authority_invalid",
+		"net::err_cert_common_name_invalid",
+		"net::err_cert_date_invalid",
+		"failed to navigate to url",
+		"failed to navigate to",
+		"navigation timeout",
+		"context deadline exceeded",
+		"timeout",
+	}
+
+	for _, navError := range navigationErrors {
+		if strings.Contains(errStr, navError) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// ScrapeJob scrapes a job posting using hybrid approach: Rod first, Firecrawl on captcha or navigation errors
 func (h *HybridScraper) ScrapeJob(ctx context.Context, url string, options *models.ScrapeOptions) (*models.Job, error) {
 	h.logger.Info("Starting hybrid job scraping (Rod → Firecrawl fallback)", map[string]interface{}{
 		"url": url,
@@ -127,8 +171,9 @@ func (h *HybridScraper) ScrapeJob(ctx context.Context, url string, options *mode
 
 	job, err := h.rodScraper.ScrapeJob(ctx, url, options)
 
-	// Check if it's a captcha error - if so, fallback to Firecrawl
+	// Check if it's a captcha error or navigation error - if so, fallback to Firecrawl
 	if err != nil {
+		// Check for captcha errors first
 		if customErr, ok := err.(*utils.CustomError); ok && customErr.Code == http.StatusTemporaryRedirect {
 			h.logger.Info("Rod scraper detected captcha, adding domain to captcha list and falling back to Firecrawl", map[string]interface{}{
 				"url":    url,
@@ -147,7 +192,7 @@ func (h *HybridScraper) ScrapeJob(ctx context.Context, url string, options *mode
 			h.usedFirecrawl = true
 
 			// Fallback to Firecrawl
-			h.logger.Info("Attempting scrape with Firecrawl engine", map[string]interface{}{
+			h.logger.Info("Attempting scrape with Firecrawl engine (captcha fallback)", map[string]interface{}{
 				"url": url,
 			})
 			job, err = h.firecrawlScraper.ScrapeJob(ctx, url, options)
@@ -169,13 +214,51 @@ func (h *HybridScraper) ScrapeJob(ctx context.Context, url string, options *mode
 				"url":       url,
 				"job_title": job.Title,
 				"company":   job.CompanyName,
-				"engine":    "firecrawl_fallback",
+				"engine":    "firecrawl_captcha_fallback",
 			})
 			return job, nil
 		}
 
-		// Non-captcha error from Rod scraper - preserve CustomError types
-		h.logger.Error("Rod scraper failed with non-captcha error", map[string]interface{}{
+		// Check for navigation/protocol errors that should trigger Firecrawl fallback
+		if h.isNavigationError(err) {
+			h.logger.Info("Rod scraper failed with navigation/protocol error, falling back to Firecrawl", map[string]interface{}{
+				"url":   url,
+				"error": err.Error(),
+			})
+
+			// Mark Firecrawl as used for fallback
+			h.usedFirecrawl = true
+
+			// Fallback to Firecrawl
+			h.logger.Info("Attempting scrape with Firecrawl engine (navigation error fallback)", map[string]interface{}{
+				"url": url,
+			})
+			job, err = h.firecrawlScraper.ScrapeJob(ctx, url, options)
+
+			if err != nil {
+				h.logger.Error("Firecrawl fallback also failed", map[string]interface{}{
+					"url":   url,
+					"error": err.Error(),
+				})
+
+				// Don't wrap CustomError types so they can be properly handled upstream
+				if _, ok := err.(*utils.CustomError); ok {
+					return nil, err
+				}
+				return nil, fmt.Errorf("hybrid scraping failed - Rod: navigation error (%s), Firecrawl: %w", err.Error(), err)
+			}
+
+			h.logger.Info("Successfully scraped job using Firecrawl fallback", map[string]interface{}{
+				"url":       url,
+				"job_title": job.Title,
+				"company":   job.CompanyName,
+				"engine":    "firecrawl_navigation_fallback",
+			})
+			return job, nil
+		}
+
+		// Non-captcha, non-navigation error from Rod scraper - preserve CustomError types
+		h.logger.Error("Rod scraper failed with non-fallback error", map[string]interface{}{
 			"url":   url,
 			"error": err.Error(),
 		})
@@ -235,13 +318,20 @@ func (h *HybridScraper) ScrapeJobLegacy(ctx context.Context, url string, options
 	h.usedRod = true
 	jobPosting, err := h.rodScraper.ScrapeJobLegacy(ctx, url, options)
 
-	// For legacy scraping, we don't expect captcha errors since it doesn't use LLM
-	// But if there are issues, we can still fallback to Firecrawl
+	// Check for errors that should trigger Firecrawl fallback
 	if err != nil {
-		h.logger.Info("Rod legacy scraper failed, falling back to Firecrawl", map[string]interface{}{
-			"url":   url,
-			"error": err.Error(),
-		})
+		// Check if this is a navigation/protocol error that should trigger fallback
+		if h.isNavigationError(err) {
+			h.logger.Info("Rod legacy scraper failed with navigation/protocol error, falling back to Firecrawl", map[string]interface{}{
+				"url":   url,
+				"error": err.Error(),
+			})
+		} else {
+			h.logger.Info("Rod legacy scraper failed, falling back to Firecrawl", map[string]interface{}{
+				"url":   url,
+				"error": err.Error(),
+			})
+		}
 
 		// Mark Firecrawl as used for fallback
 		h.usedFirecrawl = true
