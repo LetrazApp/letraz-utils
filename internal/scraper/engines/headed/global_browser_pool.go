@@ -17,7 +17,7 @@ import (
 // GlobalBrowserPool manages a shared pool of browser instances across the entire application
 type GlobalBrowserPool struct {
 	config            *config.Config
-	launcher          *launcher.Launcher
+	launcherTemplate  *launcher.Launcher
 	browsers          []*ManagedBrowser
 	availableBrowsers chan *ManagedBrowser
 	mu                sync.RWMutex
@@ -143,7 +143,7 @@ func InitializeGlobalBrowserPool(cfg *config.Config) error {
 
 		globalPool = &GlobalBrowserPool{
 			config:            cfg,
-			launcher:          l,
+			launcherTemplate:  l,
 			browsers:          make([]*ManagedBrowser, 0, maxInstances),
 			availableBrowsers: make(chan *ManagedBrowser, maxInstances),
 			maxInstances:      maxInstances,
@@ -215,9 +215,16 @@ func (gbp *GlobalBrowserPool) AcquireBrowser(ctx context.Context) (*GlobalBrowse
 	select {
 	case managedBrowser := <-gbp.availableBrowsers:
 		if gbp.isManagedBrowserHealthy(managedBrowser) {
+			gbp.logger.Info("Reusing browser from pool", map[string]interface{}{
+				"browser_id":  managedBrowser.ID,
+				"usage_count": managedBrowser.UsageCount,
+			})
 			return gbp.createGlobalInstance(managedBrowser)
 		}
 		// Browser is unhealthy, continue to create new one
+		gbp.logger.Warn("Browser from pool is unhealthy, closing it", map[string]interface{}{
+			"browser_id": managedBrowser.ID,
+		})
 		gbp.closeManagedBrowser(managedBrowser)
 	case <-time.After(1 * time.Second):
 		// Quick timeout waiting for available browser, try to create new one
@@ -285,7 +292,7 @@ func (gbi *GlobalBrowserInstance) Release() {
 	// Return browser to available pool
 	select {
 	case gbi.pool.availableBrowsers <- managedBrowser:
-		gbi.pool.logger.Debug("Browser returned to pool", map[string]interface{}{
+		gbi.pool.logger.Info("Browser returned to pool", map[string]interface{}{
 			"browser_id":  managedBrowser.ID,
 			"usage_count": managedBrowser.UsageCount,
 		})
@@ -300,12 +307,15 @@ func (gbi *GlobalBrowserInstance) Release() {
 
 // createManagedBrowser creates a new managed browser instance
 func (gbp *GlobalBrowserPool) createManagedBrowser(ctx context.Context) (*ManagedBrowser, error) {
+	// Create a fresh launcher for each browser to avoid "already launched" errors
+	freshLauncher := gbp.createFreshLauncher()
+
 	// Use a longer timeout for browser creation to avoid premature cancellation
 	browserCtx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
 
-	// Launch browser with extended timeout
-	url, err := gbp.launcher.Context(browserCtx).Launch()
+	// Launch browser with fresh launcher and extended timeout
+	url, err := freshLauncher.Context(browserCtx).Launch()
 	if err != nil {
 		return nil, fmt.Errorf("failed to launch browser: %w", err)
 	}
@@ -343,6 +353,35 @@ func (gbp *GlobalBrowserPool) createManagedBrowser(ctx context.Context) (*Manage
 	})
 
 	return managedBrowser, nil
+}
+
+// createFreshLauncher creates a new launcher instance based on the template
+func (gbp *GlobalBrowserPool) createFreshLauncher() *launcher.Launcher {
+	// Create a new launcher with the same configuration as the template
+	l := launcher.New().
+		Headless(gbp.config.Scraper.HeadlessMode).
+		NoSandbox(true).
+		Set("disable-blink-features", "AutomationControlled").
+		Set("disable-web-security").
+		Set("disable-background-timer-throttling").
+		Set("disable-backgrounding-occluded-windows").
+		Set("disable-renderer-backgrounding").
+		Set("disable-dev-shm-usage").
+		Set("disable-gpu").
+		Set("no-first-run").
+		Set("no-default-browser-check").
+		Set("disable-background-networking")
+
+	// Use system-installed Chrome/Chromium if available
+	if chromePath := getSystemChromePath(); chromePath != "" {
+		l = l.Bin(chromePath)
+	}
+
+	if gbp.config.Scraper.UserAgent != "" {
+		l = l.Set("user-agent", gbp.config.Scraper.UserAgent)
+	}
+
+	return l
 }
 
 // createGlobalInstance creates a GlobalBrowserInstance with a new page
@@ -454,8 +493,21 @@ func (gbp *GlobalBrowserPool) isManagedBrowserHealthy(managedBrowser *ManagedBro
 		return false
 	}
 
-	// Check if browser process is still alive
-	_, err := managedBrowser.Browser.Pages()
+	// Create a short timeout context for the health check
+	healthCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	// Check if browser process is still alive with timeout
+	_, err := managedBrowser.Browser.Context(healthCtx).Pages()
+
+	// If the first check fails, try once more after a brief pause (network hiccup, etc.)
+	if err != nil {
+		time.Sleep(100 * time.Millisecond)
+		healthCtx2, cancel2 := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel2()
+		_, err = managedBrowser.Browser.Context(healthCtx2).Pages()
+	}
+
 	return err == nil
 }
 
@@ -506,36 +558,45 @@ func (gbp *GlobalBrowserPool) closeManagedBrowser(managedBrowser *ManagedBrowser
 		}
 	}
 
-	// Remove from browsers slice
+	// Remove from browsers slice and update counts (thread-safe)
 	gbp.mu.Lock()
+	found := false
 	for i, browser := range gbp.browsers {
 		if browser.ID == managedBrowser.ID {
 			gbp.browsers = append(gbp.browsers[:i], gbp.browsers[i+1:]...)
+			found = true
 			break
 		}
 	}
-	gbp.currentInstances--
+
+	// Only decrement if we actually found and removed the browser
+	if found && gbp.currentInstances > 0 {
+		gbp.currentInstances--
+	}
+	currentCount := gbp.currentInstances
 	gbp.mu.Unlock()
 
-	gbp.metrics.mu.Lock()
-	gbp.metrics.TotalBrowsersClosed++
-	gbp.metrics.CurrentActiveBrowsers--
-	gbp.metrics.mu.Unlock()
+	// Update metrics only if we actually found the browser
+	if found {
+		gbp.metrics.mu.Lock()
+		gbp.metrics.TotalBrowsersClosed++
+		if gbp.metrics.CurrentActiveBrowsers > 0 {
+			gbp.metrics.CurrentActiveBrowsers--
+		}
+		gbp.metrics.mu.Unlock()
+	}
 
 	gbp.logger.Info("Managed browser closed", map[string]interface{}{
 		"browser_id":        managedBrowser.ID,
-		"current_instances": gbp.currentInstances,
+		"current_instances": currentCount,
 		"usage_count":       managedBrowser.UsageCount,
+		"was_found":         found,
 	})
 }
 
 // startCleanupRoutine starts background cleanup of idle browsers
 func (gbp *GlobalBrowserPool) startCleanupRoutine() {
-	cleanupInterval := gbp.config.BrowserPool.CleanupInterval
-	if cleanupInterval == 0 {
-		cleanupInterval = 5 * time.Minute // default fallback
-	}
-	gbp.cleanupTicker = time.NewTicker(cleanupInterval)
+	gbp.cleanupTicker = time.NewTicker(2 * time.Minute)
 
 	go func() {
 		defer gbp.cleanupTicker.Stop()
@@ -560,13 +621,30 @@ func (gbp *GlobalBrowserPool) cleanupIdleBrowsers() {
 	gbp.mu.RLock()
 	for _, browser := range gbp.browsers {
 		browser.mu.RLock()
-		isIdle := !browser.InUse && now.Sub(browser.LastUsedAt) > browser.MaxIdleTime
-		isStuck := browser.InUse && now.Sub(browser.LastUsedAt) > 10*time.Minute
+		idleTime := now.Sub(browser.LastUsedAt)
+		isIdle := !browser.InUse && idleTime > browser.MaxIdleTime
+		isStuck := browser.InUse && idleTime > 15*time.Minute // Increased from 10 to 15 minutes
+
+		// Only check health for browsers that have been idle for more than 5 minutes to avoid false positives
+		isUnhealthy := false
+		if idleTime > 5*time.Minute && !browser.InUse {
+			isUnhealthy = !gbp.isManagedBrowserHealthy(browser)
+		}
 		browser.mu.RUnlock()
 
 		if isIdle {
 			browsersToClose = append(browsersToClose, browser)
-		} else if isStuck || !gbp.isManagedBrowserHealthy(browser) {
+		} else if isStuck {
+			gbp.logger.Warn("Found stuck browser", map[string]interface{}{
+				"browser_id": browser.ID,
+				"stuck_time": idleTime,
+			})
+			unhealthyBrowsers = append(unhealthyBrowsers, browser)
+		} else if isUnhealthy {
+			gbp.logger.Warn("Found unhealthy browser", map[string]interface{}{
+				"browser_id": browser.ID,
+				"idle_time":  idleTime,
+			})
 			unhealthyBrowsers = append(unhealthyBrowsers, browser)
 		}
 	}
@@ -707,8 +785,10 @@ func (gbp *GlobalBrowserPool) Shutdown(ctx context.Context) error {
 		gbp.logger.Warn("Browser shutdown took too long, forcing completion")
 	}
 
-	// Clean up launcher
-	gbp.launcher.Cleanup()
+	// Clean up launcher template (if needed)
+	if gbp.launcherTemplate != nil {
+		gbp.launcherTemplate.Cleanup()
+	}
 
 	gbp.logger.Info("Global browser pool shutdown completed", map[string]interface{}{
 		"remaining_browsers": gbp.currentInstances,

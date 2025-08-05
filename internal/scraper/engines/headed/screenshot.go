@@ -102,8 +102,11 @@ func (ss *ScreenshotService) CaptureResumeScreenshot(ctx context.Context, resume
 		return nil, fmt.Errorf("failed to wait for page load: %w", err)
 	}
 
-	// Set A4 viewport for proper resume rendering (optimized for speed)
-	err = browserInstance.Page.SetViewport(&proto.EmulationSetDeviceMetricsOverride{
+	// Set A4 viewport for proper resume rendering (with dedicated timeout)
+	viewportCtx, viewportCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer viewportCancel()
+
+	err = browserInstance.Page.Context(viewportCtx).SetViewport(&proto.EmulationSetDeviceMetricsOverride{
 		Width:             794,  // A4 width at 96 DPI (210mm)
 		Height:            1123, // A4 height at 96 DPI (297mm)
 		DeviceScaleFactor: 1,    // Standard DPI for faster rendering
