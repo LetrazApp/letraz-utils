@@ -59,6 +59,15 @@ type Config struct {
 		} `yaml:"captcha"`
 	} `yaml:"scraper"`
 
+	BrowserPool struct {
+		MaxInstances       int           `yaml:"max_instances" default:"5"`
+		MaxIdleTime        time.Duration `yaml:"max_idle_time" default:"5m"`
+		AcquisitionTimeout time.Duration `yaml:"acquisition_timeout" default:"30s"`
+		CleanupInterval    time.Duration `yaml:"cleanup_interval" default:"5m"`
+		MaxBrowsers        int           `yaml:"max_browsers" default:"5"`
+		MinBrowsers        int           `yaml:"min_browsers" default:"2"`
+	} `yaml:"browser_pool"`
+
 	Firecrawl struct {
 		APIKey     string        `yaml:"api_key"`
 		APIURL     string        `yaml:"api_url" default:"https://api.firecrawl.dev"`
@@ -180,6 +189,13 @@ func LoadConfig(configPath string) (*Config, error) {
 	config.Scraper.Captcha.Provider = "2captcha"
 	config.Scraper.Captcha.Timeout = 120 * time.Second
 	config.Scraper.Captcha.EnableAutoSolve = true
+
+	config.BrowserPool.MaxInstances = 5
+	config.BrowserPool.MaxIdleTime = 5 * time.Minute
+	config.BrowserPool.AcquisitionTimeout = 30 * time.Second
+	config.BrowserPool.CleanupInterval = 5 * time.Minute
+	config.BrowserPool.MaxBrowsers = 5
+	config.BrowserPool.MinBrowsers = 2
 
 	config.Firecrawl.MaxRetries = 3
 	config.Firecrawl.Timeout = 60 * time.Second
@@ -358,6 +374,43 @@ func (c *Config) loadFromEnv() {
 
 	if callbackEnabled := os.Getenv("CALLBACK_ENABLED"); callbackEnabled != "" {
 		c.Callback.Enabled = callbackEnabled == "true" || callbackEnabled == "1"
+	}
+
+	// Browser pool configuration
+	if maxInstances := os.Getenv("BROWSER_POOL_MAX_INSTANCES"); maxInstances != "" {
+		if instances, err := strconv.Atoi(maxInstances); err == nil {
+			c.BrowserPool.MaxInstances = instances
+		}
+	}
+
+	if maxIdleTime := os.Getenv("BROWSER_POOL_MAX_IDLE_TIME"); maxIdleTime != "" {
+		if duration, err := time.ParseDuration(maxIdleTime); err == nil {
+			c.BrowserPool.MaxIdleTime = duration
+		}
+	}
+
+	if acquisitionTimeout := os.Getenv("BROWSER_POOL_ACQUISITION_TIMEOUT"); acquisitionTimeout != "" {
+		if duration, err := time.ParseDuration(acquisitionTimeout); err == nil {
+			c.BrowserPool.AcquisitionTimeout = duration
+		}
+	}
+
+	if cleanupInterval := os.Getenv("BROWSER_POOL_CLEANUP_INTERVAL"); cleanupInterval != "" {
+		if duration, err := time.ParseDuration(cleanupInterval); err == nil {
+			c.BrowserPool.CleanupInterval = duration
+		}
+	}
+
+	if maxBrowsers := os.Getenv("BROWSER_POOL_MAX_BROWSERS"); maxBrowsers != "" {
+		if browsers, err := strconv.Atoi(maxBrowsers); err == nil {
+			c.BrowserPool.MaxBrowsers = browsers
+		}
+	}
+
+	if minBrowsers := os.Getenv("BROWSER_POOL_MIN_BROWSERS"); minBrowsers != "" {
+		if browsers, err := strconv.Atoi(minBrowsers); err == nil {
+			c.BrowserPool.MinBrowsers = browsers
+		}
 	}
 
 	// Handle additional logging adapter options via environment variables

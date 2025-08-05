@@ -16,6 +16,7 @@ import (
 	"letraz-utils/internal/llm"
 	"letraz-utils/internal/logging"
 	"letraz-utils/internal/mux"
+	"letraz-utils/internal/scraper/engines/headed"
 	"letraz-utils/internal/scraper/workers"
 
 	"github.com/labstack/echo/v4"
@@ -37,6 +38,14 @@ func main() {
 	// Get the new logger instance
 	logger := logging.GetGlobalLogger()
 	logger.Info("Starting Letraz Utils Service")
+
+	// Initialize global browser pool for screenshot generation
+	logger.Info("Initializing global browser pool for screenshot generation")
+	if err := headed.InitializeGlobalBrowserPool(cfg); err != nil {
+		logger.Error("Failed to initialize global browser pool", map[string]interface{}{"error": err.Error()})
+		return
+	}
+	logger.Info("Global browser pool initialized successfully")
 
 	// Initialize LLM manager
 	llmManager := llm.NewManager(cfg)
@@ -147,6 +156,16 @@ func main() {
 		logger.Info("Stopping LLM manager...")
 		if err := llmManager.Stop(); err != nil {
 			logger.Error("Error stopping LLM manager", map[string]interface{}{"error": err.Error()})
+		}
+
+		// Shutdown global browser pool
+		logger.Info("Shutting down global browser pool...")
+		if globalPool, err := headed.GetGlobalBrowserPool(); err == nil {
+			if err := globalPool.Shutdown(shutdownCtx); err != nil {
+				logger.Error("Error shutting down global browser pool", map[string]interface{}{"error": err.Error()})
+			}
+		} else {
+			logger.Warn("Could not get global browser pool for shutdown", map[string]interface{}{"error": err.Error()})
 		}
 
 		// Close callback client if initialized

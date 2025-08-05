@@ -39,7 +39,7 @@ type BrowserInstance struct {
 func NewBrowserManager(cfg *config.Config) *BrowserManager {
 	logger := logging.GetGlobalLogger()
 
-	// Setup launcher with enhanced stealth mode and optimized rendering
+	// Setup launcher with enhanced stealth mode and critical Docker flags
 	l := launcher.New().
 		Headless(cfg.Scraper.HeadlessMode).
 		NoSandbox(true).
@@ -47,7 +47,10 @@ func NewBrowserManager(cfg *config.Config) *BrowserManager {
 		Set("disable-web-security").
 		Set("disable-background-timer-throttling").    // Prevent render delays
 		Set("disable-backgrounding-occluded-windows"). // Keep rendering active
-		Set("disable-renderer-backgrounding")          // Prevent background throttling
+		Set("disable-renderer-backgrounding").         // Prevent background throttling
+		// Critical flags to fix Docker navigation errors
+		Set("disable-gpu").          // Essential: prevents GPU context failures in Docker
+		Set("disable-dev-shm-usage") // Essential: overcomes Docker shared memory limitations
 
 	// Use system-installed Chrome/Chromium instead of downloading
 	if chromePath := getSystemChromePath(); chromePath != "" {

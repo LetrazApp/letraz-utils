@@ -13,10 +13,10 @@ workers:
   max_retries: 3
 
 background_tasks:
-  max_concurrent_tasks: 50
-  task_timeout: "300s"
-  cleanup_interval: "1h"
-  max_task_age: "24h"
+  max_concurrent_tasks: 20  # Reduced from 50 to prevent resource exhaustion
+  task_timeout: "180s"      # Reduced from 300s with better timeouts in place
+  cleanup_interval: "30m"   # More frequent cleanup
+  max_task_age: "12h"       # Reduced to clean up old tasks faster
 
 llm:
   provider: "claude"
@@ -37,6 +37,15 @@ scraper:
     api_key: ""  # Set via environment variable CAPTCHA_API_KEY
     timeout: "30s"
     enable_auto_solve: true
+
+# Browser pool configuration for screenshot generation
+browser_pool:
+  max_instances: 5          # Maximum number of browser instances (auto-calculated if not set)
+  max_idle_time: "5m"       # How long to keep idle browsers before closing
+  acquisition_timeout: "30s" # Timeout for acquiring a browser instance
+  cleanup_interval: "1m"    # How often to run cleanup routine
+  max_browsers: 5           # Maximum number of browsers to create
+  min_browsers: 2           # Minimum number of browsers for redundancy
 
 firecrawl:
   api_key: ""  # Set via environment variable FIRECRAWL_API_KEY
