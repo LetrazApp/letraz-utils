@@ -284,6 +284,20 @@ func (c *Config) loadFromEnv() {
 		c.Firecrawl.APIKey = firecrawlAPIKey
 	}
 
+	// BrightData configuration from environment variables
+	if brightDataToken := os.Getenv("BRIGHTDATA_TOKEN"); brightDataToken != "" {
+		c.BrightData.APIKey = brightDataToken
+	}
+	if brightDataAPIKey := os.Getenv("BRIGHTDATA_API_KEY"); brightDataAPIKey != "" {
+		c.BrightData.APIKey = brightDataAPIKey
+	}
+	if brightDataBaseURL := os.Getenv("BRIGHTDATA_BASE_URL"); brightDataBaseURL != "" {
+		c.BrightData.BaseURL = brightDataBaseURL
+	}
+	if brightDataDatasetID := os.Getenv("BRIGHTDATA_DATASET_ID"); brightDataDatasetID != "" {
+		c.BrightData.DatasetID = brightDataDatasetID
+	}
+
 	if firecrawlAPIURL := os.Getenv("FIRECRAWL_API_URL"); firecrawlAPIURL != "" {
 		c.Firecrawl.APIURL = firecrawlAPIURL
 	}

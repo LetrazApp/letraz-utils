@@ -56,7 +56,7 @@ firecrawl:
   formats: ["markdown"]  # Default formats: markdown, html, rawHtml, links, screenshot
 
 brightdata:
-  api_key: "fbe1a941d19d343290736099ecf4795256aafd2c8b3aebb655aebb1a8f2a5ad4"  # Default API key from example
+  api_key: "${BRIGHTDATA_TOKEN}"  # Set via environment variable BRIGHTDATA_TOKEN
   base_url: "https://api.brightdata.com"
   dataset_id: "gd_lpfll7v5hcqtkxl6l"  # LinkedIn job scraping dataset
   timeout: "60s"

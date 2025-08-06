@@ -155,16 +155,6 @@ func (bs *BrightDataScraper) callBrightDataAPI(ctx context.Context, url string) 
 		bs.config.BrightData.BaseURL,
 		bs.config.BrightData.DatasetID)
 
-	// Create HTTP request
-	req, err := http.NewRequestWithContext(ctx, "POST", apiURL, bytes.NewBuffer(jsonPayload))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create HTTP request: %w", err)
-	}
-
-	// Set headers
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", bs.config.BrightData.APIKey))
-
 	bs.logger.Debug("Making BrightData API request", map[string]interface{}{
 		"url":        url,
 		"api_url":    apiURL,
@@ -183,9 +173,19 @@ func (bs *BrightDataScraper) callBrightDataAPI(ctx context.Context, url string) 
 			})
 
 			// Exponential backoff
-			backoffDelay := time.Duration(attempt) * time.Second
+			backoffDelay := time.Duration(1<<uint(attempt-1)) * time.Second
 			time.Sleep(backoffDelay)
 		}
+
+		// Create HTTP request
+		req, err := http.NewRequestWithContext(ctx, "POST", apiURL, bytes.NewBuffer(jsonPayload))
+		if err != nil {
+			return nil, fmt.Errorf("failed to create HTTP request: %w", err)
+		}
+
+		// Set headers
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", bs.config.BrightData.APIKey))
 
 		resp, err := bs.httpClient.Do(req)
 		if err != nil {
