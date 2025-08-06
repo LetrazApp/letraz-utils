@@ -5,6 +5,7 @@ import (
 
 	"letraz-utils/internal/config"
 	"letraz-utils/internal/llm"
+	"letraz-utils/internal/scraper/engines/brightdata"
 	"letraz-utils/internal/scraper/engines/firecrawl"
 	"letraz-utils/internal/scraper/engines/headed"
 	"letraz-utils/internal/scraper/engines/hybrid"
@@ -33,6 +34,8 @@ func (f *DefaultScraperFactory) CreateScraper(engine string) (Scraper, error) {
 		return firecrawl.NewFirecrawlScraper(f.config, f.llmManager), nil
 	case "headed", "rod":
 		return headed.NewRodScraper(f.config, f.llmManager), nil
+	case "brightdata":
+		return brightdata.NewBrightDataScraper(f.config, f.llmManager), nil
 	case "auto":
 		// Auto mode defaults to hybrid for best performance and fallback capability
 		return hybrid.NewHybridScraper(f.config, f.llmManager), nil
@@ -43,5 +46,5 @@ func (f *DefaultScraperFactory) CreateScraper(engine string) (Scraper, error) {
 
 // GetSupportedEngines returns a list of supported engine types
 func (f *DefaultScraperFactory) GetSupportedEngines() []string {
-	return []string{"firecrawl", "headed", "auto"}
+	return []string{"brightdata", "firecrawl", "headed", "hybrid", "auto"}
 }

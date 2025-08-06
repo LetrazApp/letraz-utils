@@ -327,6 +327,16 @@ func (w *Worker) scrapeJob(job ScrapeJob) JobResult {
 		engine = job.Options.Engine
 	}
 
+	// Override engine for LinkedIn URLs - use BrightData exclusively
+	if utils.IsLinkedInURL(job.URL) {
+		engine = "brightdata"
+		w.logger.Info("LinkedIn URL detected, using BrightData engine", map[string]interface{}{
+			"job_id": job.ID,
+			"url":    job.URL,
+			"engine": engine,
+		})
+	}
+
 	// Get domain for rate limiting
 	domain := extractDomain(job.URL)
 

@@ -77,6 +77,14 @@ type Config struct {
 		Formats    []string      `yaml:"formats" default:"markdown"`
 	} `yaml:"firecrawl"`
 
+	BrightData struct {
+		APIKey     string        `yaml:"api_key"`
+		BaseURL    string        `yaml:"base_url" default:"https://api.brightdata.com"`
+		DatasetID  string        `yaml:"dataset_id" default:"gd_lpfll7v5hcqtkxl6l"`
+		Timeout    time.Duration `yaml:"timeout" default:"60s"`
+		MaxRetries int           `yaml:"max_retries" default:"3"`
+	} `yaml:"brightdata"`
+
 	Logging struct {
 		Level  string `yaml:"level" default:"info"`
 		Format string `yaml:"format" default:"json"`
@@ -274,6 +282,20 @@ func (c *Config) loadFromEnv() {
 
 	if firecrawlAPIKey := os.Getenv("FIRECRAWL_API_KEY"); firecrawlAPIKey != "" {
 		c.Firecrawl.APIKey = firecrawlAPIKey
+	}
+
+	// BrightData configuration from environment variables
+	if brightDataToken := os.Getenv("BRIGHTDATA_TOKEN"); brightDataToken != "" {
+		c.BrightData.APIKey = brightDataToken
+	}
+	if brightDataAPIKey := os.Getenv("BRIGHTDATA_API_KEY"); brightDataAPIKey != "" {
+		c.BrightData.APIKey = brightDataAPIKey
+	}
+	if brightDataBaseURL := os.Getenv("BRIGHTDATA_BASE_URL"); brightDataBaseURL != "" {
+		c.BrightData.BaseURL = brightDataBaseURL
+	}
+	if brightDataDatasetID := os.Getenv("BRIGHTDATA_DATASET_ID"); brightDataDatasetID != "" {
+		c.BrightData.DatasetID = brightDataDatasetID
 	}
 
 	if firecrawlAPIURL := os.Getenv("FIRECRAWL_API_URL"); firecrawlAPIURL != "" {
