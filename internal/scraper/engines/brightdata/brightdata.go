@@ -192,10 +192,11 @@ func (bs *BrightDataScraper) callBrightDataAPI(ctx context.Context, url string) 
 			lastErr = fmt.Errorf("HTTP request failed: %w", err)
 			continue
 		}
-		resp.Body.Close()
 
 		// Read response body
 		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+
 		if err != nil {
 			lastErr = fmt.Errorf("failed to read response body: %w", err)
 			continue
