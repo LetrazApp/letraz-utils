@@ -77,6 +77,14 @@ type Config struct {
 		Formats    []string      `yaml:"formats" default:"markdown"`
 	} `yaml:"firecrawl"`
 
+	BrightData struct {
+		APIKey     string        `yaml:"api_key"`
+		BaseURL    string        `yaml:"base_url" default:"https://api.brightdata.com"`
+		DatasetID  string        `yaml:"dataset_id" default:"gd_lpfll7v5hcqtkxl6l"`
+		Timeout    time.Duration `yaml:"timeout" default:"60s"`
+		MaxRetries int           `yaml:"max_retries" default:"3"`
+	} `yaml:"brightdata"`
+
 	Logging struct {
 		Level  string `yaml:"level" default:"info"`
 		Format string `yaml:"format" default:"json"`
