@@ -19,6 +19,109 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
+	GenerateScreenshotCallBackController_GenerateScreenshotCallBack_FullMethodName = "/letraz_server.RESUME.GenerateScreenshotCallBackController/GenerateScreenshotCallBack"
+)
+
+// GenerateScreenshotCallBackControllerClient is the client API for GenerateScreenshotCallBackController service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type GenerateScreenshotCallBackControllerClient interface {
+	GenerateScreenshotCallBack(ctx context.Context, in *GenerateScreenshotCallBackRequest, opts ...grpc.CallOption) (*GenerateScreenshotCallBackResponse, error)
+}
+
+type generateScreenshotCallBackControllerClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewGenerateScreenshotCallBackControllerClient(cc grpc.ClientConnInterface) GenerateScreenshotCallBackControllerClient {
+	return &generateScreenshotCallBackControllerClient{cc}
+}
+
+func (c *generateScreenshotCallBackControllerClient) GenerateScreenshotCallBack(ctx context.Context, in *GenerateScreenshotCallBackRequest, opts ...grpc.CallOption) (*GenerateScreenshotCallBackResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GenerateScreenshotCallBackResponse)
+	err := c.cc.Invoke(ctx, GenerateScreenshotCallBackController_GenerateScreenshotCallBack_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// GenerateScreenshotCallBackControllerServer is the server API for GenerateScreenshotCallBackController service.
+// All implementations must embed UnimplementedGenerateScreenshotCallBackControllerServer
+// for forward compatibility.
+type GenerateScreenshotCallBackControllerServer interface {
+	GenerateScreenshotCallBack(context.Context, *GenerateScreenshotCallBackRequest) (*GenerateScreenshotCallBackResponse, error)
+	mustEmbedUnimplementedGenerateScreenshotCallBackControllerServer()
+}
+
+// UnimplementedGenerateScreenshotCallBackControllerServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedGenerateScreenshotCallBackControllerServer struct{}
+
+func (UnimplementedGenerateScreenshotCallBackControllerServer) GenerateScreenshotCallBack(context.Context, *GenerateScreenshotCallBackRequest) (*GenerateScreenshotCallBackResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GenerateScreenshotCallBack not implemented")
+}
+func (UnimplementedGenerateScreenshotCallBackControllerServer) mustEmbedUnimplementedGenerateScreenshotCallBackControllerServer() {
+}
+func (UnimplementedGenerateScreenshotCallBackControllerServer) testEmbeddedByValue() {}
+
+// UnsafeGenerateScreenshotCallBackControllerServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to GenerateScreenshotCallBackControllerServer will
+// result in compilation errors.
+type UnsafeGenerateScreenshotCallBackControllerServer interface {
+	mustEmbedUnimplementedGenerateScreenshotCallBackControllerServer()
+}
+
+func RegisterGenerateScreenshotCallBackControllerServer(s grpc.ServiceRegistrar, srv GenerateScreenshotCallBackControllerServer) {
+	// If the following call pancis, it indicates UnimplementedGenerateScreenshotCallBackControllerServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&GenerateScreenshotCallBackController_ServiceDesc, srv)
+}
+
+func _GenerateScreenshotCallBackController_GenerateScreenshotCallBack_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GenerateScreenshotCallBackRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GenerateScreenshotCallBackControllerServer).GenerateScreenshotCallBack(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GenerateScreenshotCallBackController_GenerateScreenshotCallBack_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GenerateScreenshotCallBackControllerServer).GenerateScreenshotCallBack(ctx, req.(*GenerateScreenshotCallBackRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// GenerateScreenshotCallBackController_ServiceDesc is the grpc.ServiceDesc for GenerateScreenshotCallBackController service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var GenerateScreenshotCallBackController_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "letraz_server.RESUME.GenerateScreenshotCallBackController",
+	HandlerType: (*GenerateScreenshotCallBackControllerServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "GenerateScreenshotCallBack",
+			Handler:    _GenerateScreenshotCallBackController_GenerateScreenshotCallBack_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "api/proto/letraz/v1/resume_callback.proto",
+}
+
+const (
 	TailorResumeCallBackController_TailorResumeCallBack_FullMethodName = "/letraz_server.RESUME.TailorResumeCallBackController/TailorResumeCallBack"
 )
 
@@ -26,7 +129,7 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type TailorResumeCallBackControllerClient interface {
-	TailorResumeCallBack(ctx context.Context, in *TailorResumeCallbackRequest, opts ...grpc.CallOption) (*TailorResumeCallbackResponse, error)
+	TailorResumeCallBack(ctx context.Context, in *TailorResumeCallBackRequest, opts ...grpc.CallOption) (*TailorResumeCallBackResponse, error)
 }
 
 type tailorResumeCallBackControllerClient struct {
@@ -37,9 +140,9 @@ func NewTailorResumeCallBackControllerClient(cc grpc.ClientConnInterface) Tailor
 	return &tailorResumeCallBackControllerClient{cc}
 }
 
-func (c *tailorResumeCallBackControllerClient) TailorResumeCallBack(ctx context.Context, in *TailorResumeCallbackRequest, opts ...grpc.CallOption) (*TailorResumeCallbackResponse, error) {
+func (c *tailorResumeCallBackControllerClient) TailorResumeCallBack(ctx context.Context, in *TailorResumeCallBackRequest, opts ...grpc.CallOption) (*TailorResumeCallBackResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(TailorResumeCallbackResponse)
+	out := new(TailorResumeCallBackResponse)
 	err := c.cc.Invoke(ctx, TailorResumeCallBackController_TailorResumeCallBack_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -51,7 +154,7 @@ func (c *tailorResumeCallBackControllerClient) TailorResumeCallBack(ctx context.
 // All implementations must embed UnimplementedTailorResumeCallBackControllerServer
 // for forward compatibility.
 type TailorResumeCallBackControllerServer interface {
-	TailorResumeCallBack(context.Context, *TailorResumeCallbackRequest) (*TailorResumeCallbackResponse, error)
+	TailorResumeCallBack(context.Context, *TailorResumeCallBackRequest) (*TailorResumeCallBackResponse, error)
 	mustEmbedUnimplementedTailorResumeCallBackControllerServer()
 }
 
@@ -62,7 +165,7 @@ type TailorResumeCallBackControllerServer interface {
 // pointer dereference when methods are called.
 type UnimplementedTailorResumeCallBackControllerServer struct{}
 
-func (UnimplementedTailorResumeCallBackControllerServer) TailorResumeCallBack(context.Context, *TailorResumeCallbackRequest) (*TailorResumeCallbackResponse, error) {
+func (UnimplementedTailorResumeCallBackControllerServer) TailorResumeCallBack(context.Context, *TailorResumeCallBackRequest) (*TailorResumeCallBackResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method TailorResumeCallBack not implemented")
 }
 func (UnimplementedTailorResumeCallBackControllerServer) mustEmbedUnimplementedTailorResumeCallBackControllerServer() {
@@ -88,7 +191,7 @@ func RegisterTailorResumeCallBackControllerServer(s grpc.ServiceRegistrar, srv T
 }
 
 func _TailorResumeCallBackController_TailorResumeCallBack_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(TailorResumeCallbackRequest)
+	in := new(TailorResumeCallBackRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -100,7 +203,7 @@ func _TailorResumeCallBackController_TailorResumeCallBack_Handler(srv interface{
 		FullMethod: TailorResumeCallBackController_TailorResumeCallBack_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TailorResumeCallBackControllerServer).TailorResumeCallBack(ctx, req.(*TailorResumeCallbackRequest))
+		return srv.(TailorResumeCallBackControllerServer).TailorResumeCallBack(ctx, req.(*TailorResumeCallBackRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
