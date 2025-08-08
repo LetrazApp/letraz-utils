@@ -214,6 +214,8 @@ func (l *TaskCompletionLogger) sendTaskCallback(ctx context.Context, result *Tas
 		return l.sendScrapeTaskCallback(ctx, result)
 	case TaskTypeTailor:
 		return l.sendTailorResumeTaskCallback(ctx, result)
+	case TaskTypeScreenshot:
+		return l.sendScreenshotTaskCallback(ctx, result)
 	default:
 		return nil
 	}
@@ -310,4 +312,53 @@ func (l *TaskCompletionLogger) sendTailorResumeTaskCallback(ctx context.Context,
 
 	// Send the callback
 	return l.callbackClient.SendTailorResumeCallback(ctx, callbackData)
+}
+
+// sendScreenshotTaskCallback sends a screenshot task callback via gRPC
+func (l *TaskCompletionLogger) sendScreenshotTaskCallback(ctx context.Context, result *TaskResult) error {
+	// Create callback data from task result
+	callbackData := &callback.ScreenshotCallbackData{
+		ProcessID: result.ProcessID,
+		Status:    string(result.Status),
+		Timestamp: time.Now(),
+		Operation: string(result.Type),
+		ProcessingTime: func() time.Duration {
+			if result.ProcessingTime != nil {
+				return *result.ProcessingTime
+			}
+			return 0
+		}(),
+	}
+
+	// Extract screenshot-specific data if available
+	if result.Data != nil {
+		if screenshotData, ok := result.Data.(*ScreenshotTaskData); ok {
+			callbackData.Data = &callback.ScreenshotJobData{
+				ScreenshotURL: screenshotData.ScreenshotURL,
+				ResumeID:      screenshotData.ResumeID,
+				FileSizeBytes: screenshotData.FileSize,
+			}
+		}
+	}
+
+	// Extract metadata if available
+	if result.Metadata != nil {
+		callbackData.Metadata = &callback.ScreenshotCallbackMetadata{}
+
+		if resumeID, ok := result.Metadata["resume_id"].(string); ok {
+			callbackData.Metadata.ResumeID = resumeID
+		}
+		if screenshotURL, ok := result.Metadata["screenshot_url"].(string); ok {
+			callbackData.Metadata.ScreenshotURL = screenshotURL
+		}
+		if fileSize, ok := result.Metadata["file_size"].(int); ok {
+			callbackData.Metadata.FileSize = fileSize
+		}
+		if fileSizeFloat, ok := result.Metadata["file_size"].(float64); ok {
+			callbackData.Metadata.FileSize = int(fileSizeFloat)
+		}
+	}
+
+	// Send the callback
+	return l.callbackClient.SendGenerateScreenshotCallback(ctx, callbackData)
 }

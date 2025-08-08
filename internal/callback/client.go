@@ -24,6 +24,7 @@ type Client struct {
 	conn               *grpc.ClientConn
 	scrapeClient       letrazv1.ScrapeJobCallbackControllerClient
 	tailorResumeClient letrazv1.TailorResumeCallBackControllerClient
+	screenshotClient   letrazv1.GenerateScreenshotCallBackControllerClient
 	logger             logging.Logger
 }
 
@@ -79,11 +80,13 @@ func NewClient(config *ClientConfig, logger logging.Logger) (*Client, error) {
 	// Create clients
 	scrapeClient := letrazv1.NewScrapeJobCallbackControllerClient(conn)
 	tailorResumeClient := letrazv1.NewTailorResumeCallBackControllerClient(conn)
+	screenshotClient := letrazv1.NewGenerateScreenshotCallBackControllerClient(conn)
 
 	return &Client{
 		conn:               conn,
 		scrapeClient:       scrapeClient,
 		tailorResumeClient: tailorResumeClient,
+		screenshotClient:   screenshotClient,
 		logger:             logger,
 	}, nil
 }
@@ -169,6 +172,46 @@ func (c *Client) SendTailorResumeCallback(ctx context.Context, result *TailorRes
 	}
 
 	c.logger.Info("TailorResume callback sent successfully", logFields)
+
+	return nil
+}
+
+// SendGenerateScreenshotCallback sends a GenerateScreenshot callback to the server
+func (c *Client) SendGenerateScreenshotCallback(ctx context.Context, result *ScreenshotCallbackData) error {
+	req := convertToScreenshotCallbackRequest(result)
+
+	c.logger.Info("Sending GenerateScreenshot callback", map[string]interface{}{
+		"process_id":   req.ProcessId,
+		"status":       req.Status,
+		"operation":    req.Operation,
+		"method_name":  "/letraz_server.RESUME.GenerateScreenshotCallBackController/GenerateScreenshotCallBack",
+		"client_state": c.conn.GetState().String(),
+		"target":       c.conn.Target(),
+	})
+
+	// Create context with timeout
+	callCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	// Make the gRPC call
+	response, err := c.screenshotClient.GenerateScreenshotCallBack(callCtx, req)
+	if err != nil {
+		c.logger.Error("Failed to send GenerateScreenshot callback", map[string]interface{}{
+			"process_id": req.ProcessId,
+			"error":      err.Error(),
+		})
+		return fmt.Errorf("failed to send GenerateScreenshot callback: %w", err)
+	}
+
+	// Log success with response message if available
+	logFields := map[string]interface{}{
+		"process_id": req.ProcessId,
+	}
+	if response != nil && response.Msg != nil {
+		logFields["response_msg"] = *response.Msg
+	}
+
+	c.logger.Info("GenerateScreenshot callback sent successfully", logFields)
 
 	return nil
 }
@@ -276,8 +319,8 @@ func convertToCallbackRequest(data *CallbackData) *letrazv1.ScrapeJobCallbackReq
 }
 
 // convertToTailorResumeCallbackRequest converts TailorResumeCallbackData to the gRPC request format
-func convertToTailorResumeCallbackRequest(data *TailorResumeCallbackData) *letrazv1.TailorResumeCallbackRequest {
-	req := &letrazv1.TailorResumeCallbackRequest{
+func convertToTailorResumeCallbackRequest(data *TailorResumeCallbackData) *letrazv1.TailorResumeCallBackRequest {
+	req := &letrazv1.TailorResumeCallBackRequest{
 		ProcessId:      data.ProcessID,
 		Status:         data.Status,
 		Timestamp:      data.Timestamp.Format(time.RFC3339Nano),
@@ -287,9 +330,7 @@ func convertToTailorResumeCallbackRequest(data *TailorResumeCallbackData) *letra
 
 	// Convert TailorResume data if available
 	if data.Data != nil {
-		req.Data = &letrazv1.TailorResumeDataRequest{
-			ThreadId: data.Data.ThreadID,
-		}
+		req.Data = &letrazv1.DataRequest{ThreadId: data.Data.ThreadID}
 
 		// Convert TailoredResume if available
 		if data.Data.TailoredResume != nil {
@@ -340,10 +381,64 @@ func convertToTailorResumeCallbackRequest(data *TailorResumeCallbackData) *letra
 
 	// Convert metadata if available
 	if data.Metadata != nil {
-		req.Metadata = &letrazv1.TailorResumeMetadataRequest{
+		req.Metadata = &letrazv1.MetadataRequest{
 			Company:  data.Metadata.Company,
 			JobTitle: data.Metadata.JobTitle,
 			ResumeId: data.Metadata.ResumeID,
+		}
+	}
+
+	return req
+}
+
+// ScreenshotCallbackData represents the data structure for GenerateScreenshot callbacks
+type ScreenshotCallbackData struct {
+	ProcessID      string
+	Status         string
+	Data           *ScreenshotJobData
+	Timestamp      time.Time
+	Operation      string
+	ProcessingTime time.Duration
+	Metadata       *ScreenshotCallbackMetadata
+}
+
+// ScreenshotJobData represents screenshot job data for callbacks
+type ScreenshotJobData struct {
+	ScreenshotURL string
+	ResumeID      string
+	FileSizeBytes int
+}
+
+// ScreenshotCallbackMetadata represents metadata for screenshot callbacks
+type ScreenshotCallbackMetadata struct {
+	FileSize      int
+	ResumeID      string
+	ScreenshotURL string
+}
+
+// convertToScreenshotCallbackRequest converts ScreenshotCallbackData to the gRPC request format
+func convertToScreenshotCallbackRequest(data *ScreenshotCallbackData) *letrazv1.GenerateScreenshotCallBackRequest {
+	req := &letrazv1.GenerateScreenshotCallBackRequest{
+		ProcessId:      data.ProcessID,
+		Status:         data.Status,
+		Timestamp:      data.Timestamp.Format(time.RFC3339Nano),
+		Operation:      data.Operation,
+		ProcessingTime: data.ProcessingTime.String(),
+	}
+
+	if data.Data != nil {
+		req.Data = &letrazv1.ScreenshotDataRequest{
+			ScreenshotUrl: data.Data.ScreenshotURL,
+			ResumeId:      data.Data.ResumeID,
+			FileSizeBytes: int32(data.Data.FileSizeBytes),
+		}
+	}
+
+	if data.Metadata != nil {
+		req.Metadata = &letrazv1.ScreenshotMetadataRequest{
+			FileSize:      int32(data.Metadata.FileSize),
+			ResumeId:      data.Metadata.ResumeID,
+			ScreenshotUrl: data.Metadata.ScreenshotURL,
 		}
 	}
 

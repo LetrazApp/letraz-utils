@@ -2,44 +2,54 @@ syntax = "proto3";
 
 package letraz_server.RESUME;
 
-import "google/protobuf/struct.proto";
-
 option go_package = "letraz-utils/api/proto/letraz/v1;letrazv1";
 
+import "google/protobuf/struct.proto";
+
+service GenerateScreenshotCallBackController {
+    rpc GenerateScreenshotCallBack(GenerateScreenshotCallBackRequest) returns (GenerateScreenshotCallBackResponse) {}
+}
+
 service TailorResumeCallBackController {
-    rpc TailorResumeCallBack(TailorResumeCallbackRequest) returns (TailorResumeCallbackResponse) {}
+    rpc TailorResumeCallBack(TailorResumeCallBackRequest) returns (TailorResumeCallBackResponse) {}
 }
 
-// TailorResume Callback Messages
-message TailorResumeCallbackRequest {
-    string processId = 1;
-    string status = 2;
-    optional TailorResumeDataRequest data = 3;
-    string timestamp = 4;
-    string operation = 5;
-    string processing_time = 6;
-    optional TailorResumeMetadataRequest metadata = 7;
-}
-
-message TailorResumeCallbackResponse {
-    optional string msg = 1;
-}
-
-message TailorResumeDataRequest {
+message DataRequest {
     TailoredResumeRequest tailored_resume = 1;
     repeated SuggestionRequest suggestions = 2;
     string thread_id = 3;
 }
 
-message TailorResumeMetadataRequest {
+message GenerateScreenshotCallBackRequest {
+    string processId = 1;
+    string status = 2;
+    ScreenshotDataRequest data = 3;
+    string timestamp = 4;
+    string operation = 5;
+    string processing_time = 6;
+    ScreenshotMetadataRequest metadata = 7;
+}
+
+message GenerateScreenshotCallBackResponse {
+    optional string msg = 1;
+}
+
+message MetadataRequest {
     string company = 1;
     string job_title = 2;
     string resume_id = 3;
 }
 
-message TailoredResumeRequest {
-    string id = 1;
-    repeated SectionRequest sections = 2;
+message ScreenshotDataRequest {
+    string screenshot_url = 1;
+    string resume_id = 2;
+    int32 file_size_bytes = 3;
+}
+
+message ScreenshotMetadataRequest {
+    int32 file_size = 1;
+    string resume_id = 2;
+    string screenshot_url = 3;
 }
 
 message SectionRequest {
@@ -56,4 +66,23 @@ message SuggestionRequest {
     string current = 6;
     string suggested = 7;
     string reasoning = 8;
+}
+
+message TailorResumeCallBackRequest {
+    string processId = 1;
+    string status = 2;
+    DataRequest data = 3;
+    string timestamp = 4;
+    string operation = 5;
+    string processing_time = 6;
+    MetadataRequest metadata = 7;
+}
+
+message TailorResumeCallBackResponse {
+    optional string msg = 1;
+}
+
+message TailoredResumeRequest {
+    string id = 1;
+    repeated SectionRequest sections = 2;
 }
