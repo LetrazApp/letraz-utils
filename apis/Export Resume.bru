@@ -441,92 +441,60 @@ body:json {
 }
 
 tests {
-  test("Response status is 202 (Accepted)", function() {
-    expect(res.getStatus()).to.equal(202);
+  test("Response status is 200 (OK)", function() {
+    expect(res.getStatus()).to.equal(200);
   });
-  
+
   test("Response has status field", function() {
     expect(res.getBody()).to.have.property('status');
   });
-  
-  test("Response status is ACCEPTED", function() {
+
+  test("Response status is SUCCESS", function() {
     const body = res.getBody();
-    expect(body.status).to.equal('ACCEPTED');
+    expect(body.status).to.equal('SUCCESS');
   });
-  
-  test("Response has processId", function() {
+
+  test("Response has export_url", function() {
     const body = res.getBody();
-    expect(body).to.have.property('processId');
-    expect(body.processId).to.be.a('string');
-    expect(body.processId).to.include('screenshot_');
+    expect(body).to.have.property('export_url');
+    expect(body.export_url).to.be.a('string');
+    expect(body.export_url).to.match(/^https?:\/\//);
+    expect(body.export_url).to.match(/\.tex($|\?)/);
   });
-  
-  test("Response has timestamp", function() {
-    const body = res.getBody();
-    expect(body).to.have.property('timestamp');
-  });
-  
-  test("Response has background processing message", function() {
+
+  test("Response has message", function() {
     const body = res.getBody();
     expect(body).to.have.property('message');
-    expect(body.message).to.include('background processing');
   });
 }
 
 docs {
-  # Resume Screenshot API (Async)
-  
-  This endpoint **asynchronously** generates a screenshot of a resume by:
-  1. Accepting the request and returning immediately with a process ID
-  2. Processing in background: connecting to letraz-client, capturing screenshot, uploading to DigitalOcean Spaces
-  3. Logging the final result to console when complete
-  
-  **⚡ Fast Response**: Returns in ~1ms with process ID for tracking.
-  
+  # Export Resume API (Synchronous)
+
+  This endpoint synchronously renders a resume to a LaTeX (.tex) file using a theme
+  and uploads it to DigitalOcean Spaces.
+
   ## Request Body
   ```json
   {
-    "resume_id": "rsm_pCOywDN3MwEyJPjfLt-bn"
+    "resume": { /* BaseResume object */ },
+    "theme": "DEFAULT_THEME"
   }
   ```
-  
-  ## Immediate Response (202 Accepted)
+
+  ## Response (200 OK)
   ```json
   {
-    "processId": "screenshot_20250719_cfebe539-4bef-4107-ac30-fdec5598d331",
-    "status": "ACCEPTED",
-    "message": "Resume screenshot request accepted for background processing",
-    "timestamp": "2025-07-19T12:24:03.230158+05:30"
+    "status": "SUCCESS",
+    "message": "Exported successfully",
+    "export_url": "https://<cdn or bucket>/exports/<resumeId>/<uuid>.tex"
   }
   ```
-  
-  ## Background Processing
-  The actual screenshot generation happens in the background (~15 seconds).
-  Monitor the console logs to see completion status and final screenshot URL.
-  
-  ## Error Response (400/500)
-  ```json
-  {
-    "error": "validation_failed",
-    "message": "Resume ID is required",
-    "timestamp": "2025-07-19T12:24:03.230158+05:30"
-  }
-  ```
-  
-  ## Error Codes
-  - `invalid_request`: Invalid request body
-  - `validation_failed`: Resume ID validation failed
-  - `configuration_error`: Service not properly configured
-  - `task_submission_failed`: Failed to submit to background queue
-  
-  ## Environment Variables Required
-  - `RESUME_PREVIEW_URL`: Full URL for resume preview endpoint (e.g., "https://letraz.app/admin/resumes")
-  - `RESUME_PREVIEW_TOKEN`: Token for accessing letraz-client preview
-  - `BUCKET_URL`: DigitalOcean Spaces bucket URL
-  - `BUCKET_CDN_ENDPOINT`: CDN endpoint for public access
-  - `BUCKET_ACCESS_KEY_ID`: Spaces access key ID
-  - `BUCKET_ACCESS_KEY_SECRET`: Spaces access key secret
-  
-  ## Process ID Format
-  `screenshot_YYYYMMDD_uuid` - Use this to track the background task progress.
+
+  ## Notes
+  - The exported file is publicly accessible via the returned `export_url`.
+  - The server escapes LaTeX-sensitive characters and follows the DEFAULT_THEME
+    based on the provided template.
+  - If storage is misconfigured, the endpoint returns an error with status 500 and
+    an explanatory message.
 }

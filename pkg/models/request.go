@@ -25,6 +25,6 @@ type ResumeScreenshotRequest struct {
 
 // ExportResumeRequest represents a REST request to export a resume to LaTeX
 type ExportResumeRequest struct {
-	Resume BaseResume `json:"resume" validate:"required"`
-	Theme  string     `json:"theme" validate:"required"`
+	Resume *BaseResume `json:"resume" validate:"required"`
+	Theme  string      `json:"theme" validate:"required,theme"`
 }

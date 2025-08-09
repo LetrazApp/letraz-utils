@@ -90,7 +90,7 @@ type ResumeSection struct {
 
 // BaseResume represents the complete resume structure
 type BaseResume struct {
-	ID       string          `json:"id"`
+	ID       string          `json:"id" validate:"required,resume_id"`
 	Base     bool            `json:"base"`
 	User     User            `json:"user"`
 	Sections []ResumeSection `json:"sections"`

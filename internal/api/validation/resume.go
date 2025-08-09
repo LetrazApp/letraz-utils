@@ -18,5 +18,14 @@ func ValidateResumeID(fl validator.FieldLevel) bool {
 // RegisterResumeValidators registers all resume-related custom validators
 func RegisterResumeValidators(v *validator.Validate) {
 	v.RegisterValidation("resume_id", ValidateResumeID)
-	// Placeholder: add theme validator when themes expand
+	v.RegisterValidation("theme", ValidateTheme)
+}
+
+// ThemePattern restricts themes to safe tokens; tightened to allow uppercase too (e.g., DEFAULT_THEME)
+var ThemePattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_-]{1,31}$`)
+
+// ValidateTheme ensures theme name is a safe token
+func ValidateTheme(fl validator.FieldLevel) bool {
+	theme := fl.Field().String()
+	return ThemePattern.MatchString(theme)
 }

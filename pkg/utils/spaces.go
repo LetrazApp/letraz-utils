@@ -3,6 +3,7 @@ package utils
 import (
 	"bytes"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -213,8 +214,20 @@ func (sc *SpacesClient) UploadLatexExport(resumeID string, fileName string, late
 	if resumeID == "" {
 		return "", fmt.Errorf("resumeID is required")
 	}
+	if len(latexData) == 0 {
+		return "", fmt.Errorf("latexData is empty")
+	}
 	if fileName == "" {
 		fileName = uuid.New().String() + ".tex"
+	} else {
+		// Normalize and constrain to a safe base name
+		fileName = filepath.Base(strings.TrimSpace(fileName))
+		if fileName == "." || fileName == "" {
+			fileName = uuid.New().String() + ".tex"
+		}
+		if !strings.HasSuffix(strings.ToLower(fileName), ".tex") {
+			fileName += ".tex"
+		}
 	}
 	objectKey := fmt.Sprintf("exports/%s/%s", resumeID, fileName)
 

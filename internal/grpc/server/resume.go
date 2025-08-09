@@ -2,15 +2,17 @@ package server
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	letrazv1 "letraz-utils/api/proto/letraz/v1"
-	"letraz-utils/internal/latex"
+	"letraz-utils/internal/exporter"
 	"letraz-utils/pkg/models"
 	"letraz-utils/pkg/utils"
+	"strings"
 )
 
 // TailorResume implements the TailorResume gRPC method (async processing)
@@ -112,33 +114,36 @@ func convertGRPCBaseResumeToModel(grpcResume *letrazv1.BaseResume) *models.BaseR
 		return nil
 	}
 
-	// Convert User
-	user := models.User{
-		ID:          grpcResume.GetUser().GetId(),
-		Title:       getStringPointer(grpcResume.GetUser().GetTitle()),
-		FirstName:   grpcResume.GetUser().GetFirstName(),
-		LastName:    grpcResume.GetUser().GetLastName(),
-		Email:       grpcResume.GetUser().GetEmail(),
-		Phone:       grpcResume.GetUser().GetPhone(),
-		DOB:         getStringPointer(grpcResume.GetUser().GetDob()),
-		Nationality: getStringPointer(grpcResume.GetUser().GetNationality()),
-		Address:     grpcResume.GetUser().GetAddress(),
-		City:        grpcResume.GetUser().GetCity(),
-		Postal:      grpcResume.GetUser().GetPostal(),
-		Country:     getStringPointer(grpcResume.GetUser().GetCountry()),
-		Website:     grpcResume.GetUser().GetWebsite(),
-		ProfileText: grpcResume.GetUser().GetProfileText(),
-	}
-
-	// Parse timestamps if provided
-	if grpcResume.GetUser().GetCreatedAt() != "" {
-		if createdAt, err := time.Parse(time.RFC3339Nano, grpcResume.GetUser().GetCreatedAt()); err == nil {
-			user.CreatedAt = createdAt
+	// Convert User (guard nil)
+	var user models.User
+	if grpcUser := grpcResume.GetUser(); grpcUser != nil {
+		user = models.User{
+			ID:          grpcUser.GetId(),
+			Title:       getStringPointer(grpcUser.GetTitle()),
+			FirstName:   grpcUser.GetFirstName(),
+			LastName:    grpcUser.GetLastName(),
+			Email:       grpcUser.GetEmail(),
+			Phone:       grpcUser.GetPhone(),
+			DOB:         getStringPointer(grpcUser.GetDob()),
+			Nationality: getStringPointer(grpcUser.GetNationality()),
+			Address:     grpcUser.GetAddress(),
+			City:        grpcUser.GetCity(),
+			Postal:      grpcUser.GetPostal(),
+			Country:     getStringPointer(grpcUser.GetCountry()),
+			Website:     grpcUser.GetWebsite(),
+			ProfileText: grpcUser.GetProfileText(),
 		}
-	}
-	if grpcResume.GetUser().GetUpdatedAt() != "" {
-		if updatedAt, err := time.Parse(time.RFC3339Nano, grpcResume.GetUser().GetUpdatedAt()); err == nil {
-			user.UpdatedAt = updatedAt
+
+		// Parse timestamps if provided
+		if grpcUser.GetCreatedAt() != "" {
+			if createdAt, err := time.Parse(time.RFC3339Nano, grpcUser.GetCreatedAt()); err == nil {
+				user.CreatedAt = createdAt
+			}
+		}
+		if grpcUser.GetUpdatedAt() != "" {
+			if updatedAt, err := time.Parse(time.RFC3339Nano, grpcUser.GetUpdatedAt()); err == nil {
+				user.UpdatedAt = updatedAt
+			}
 		}
 	}
 
@@ -302,39 +307,47 @@ func (s *Server) ExportResume(ctx context.Context, req *letrazv1.ExportResumeReq
 		}, nil
 	}
 
+	if req.GetResume().GetId() == "" {
+		return &letrazv1.ExportResumeResponse{
+			Status:    "FAILURE",
+			Message:   "Resume ID is required",
+			Timestamp: time.Now().Format(time.RFC3339Nano),
+			Error:     "INVALID_ARGUMENT",
+		}, nil
+	}
+
+	if strings.TrimSpace(req.GetTheme()) == "" {
+		return &letrazv1.ExportResumeResponse{
+			Status:    "FAILURE",
+			Message:   "Theme is required",
+			Timestamp: time.Now().Format(time.RFC3339Nano),
+			Error:     "INVALID_ARGUMENT",
+		}, nil
+	}
+
 	// Convert to internal model
 	resume := convertGRPCBaseResumeToModel(req.GetResume())
 
-	// Render LaTeX
-	engine := latex.NewEngine()
-	latexStr, err := engine.Render(*resume, req.GetTheme())
+	// Render and upload via shared exporter
+	url, err := exporter.ExportResume(ctx, s.cfg, *resume, req.GetTheme())
 	if err != nil {
-		s.logger.Error("LaTeX render failed", map[string]interface{}{"error": err.Error()})
+		statusCode := "INTERNAL"
+		message := err.Error()
+		if errors.Is(err, exporter.ErrRender) {
+			statusCode = "RENDER_ERROR"
+			message = "Failed to render LaTeX"
+		} else if errors.Is(err, exporter.ErrStorageConfig) {
+			statusCode = "STORAGE_CONFIGURATION"
+			message = "Storage not configured"
+		} else if errors.Is(err, exporter.ErrUpload) {
+			statusCode = "UPLOAD_FAILED"
+			message = "Failed to upload export"
+		}
 		return &letrazv1.ExportResumeResponse{
 			Status:    "FAILURE",
-			Message:   "Failed to render LaTeX",
+			Message:   message,
 			Timestamp: time.Now().Format(time.RFC3339Nano),
-			Error:     "RENDER_ERROR",
-		}, nil
-	}
-
-	// Upload to Spaces
-	spaces, err := utils.NewSpacesClient(s.cfg)
-	if err != nil {
-		return &letrazv1.ExportResumeResponse{
-			Status:    "FAILURE",
-			Message:   "Storage not configured: " + err.Error(),
-			Timestamp: time.Now().Format(time.RFC3339Nano),
-			Error:     "STORAGE_CONFIGURATION",
-		}, nil
-	}
-	url, err := spaces.UploadLatexExport(resume.ID, "", []byte(latexStr))
-	if err != nil {
-		return &letrazv1.ExportResumeResponse{
-			Status:    "FAILURE",
-			Message:   "Failed to upload export: " + err.Error(),
-			Timestamp: time.Now().Format(time.RFC3339Nano),
-			Error:     "UPLOAD_FAILED",
+			Error:     statusCode,
 		}, nil
 	}
 

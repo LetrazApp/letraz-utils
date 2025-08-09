@@ -28,8 +28,9 @@ func (e *Engine) Render(resume models.BaseResume, theme string) (string, error) 
 
 	// Parse and render template
 	funcMap := template.FuncMap{
-		"escape": escapeLaTeX,
-		"join":   strings.Join,
+		"escape":  escapeLaTeX,
+		"join":    strings.Join,
+		"escJoin": escJoin,
 	}
 	tmpl, err := template.New("resume").Funcs(funcMap).Parse(tstr)
 	if err != nil {
@@ -286,6 +287,18 @@ var latexReplacer = strings.NewReplacer(
 
 func escapeLaTeX(s string) string { return latexReplacer.Replace(s) }
 
+// escJoin escapes each element then joins with sep, to avoid LaTeX injection via special chars
+func escJoin(slice []string, sep string) string {
+	if len(slice) == 0 {
+		return ""
+	}
+	out := make([]string, len(slice))
+	for i, s := range slice {
+		out[i] = escapeLaTeX(s)
+	}
+	return strings.Join(out, sep)
+}
+
 // Simple HTML-to-items conversion for known patterns in sample
 func htmlListToItems(html string) []string {
 	if strings.TrimSpace(html) == "" {
@@ -352,6 +365,9 @@ func toIntPtr(v interface{}) *int {
 		return nil
 	}
 	i := toInt(v)
+	if i == 0 {
+		return nil
+	}
 	return &i
 }
 
@@ -523,8 +539,8 @@ const defaultThemeTemplate = `\documentclass[10pt, letterpaper]{article}
 
         {{- if eq .Kind "Skills" }}
             {{- if .ShowHeader }}\section{Skills}{{ end }}
-            {{- if .Skills.Languages }}\begin{onecolentry}\textbf{Languages:} {{ join .Skills.Languages ", " }}\end{onecolentry}{{ end }}
-            {{- if .Skills.Technologies }}\vspace{0.2 cm}\begin{onecolentry}\textbf{Technologies:} {{ join .Skills.Technologies ", " }}\end{onecolentry}{{ end }}
+            {{- if .Skills.Languages }}\begin{onecolentry}\textbf{Languages:} {{ escJoin .Skills.Languages ", " }}\end{onecolentry}{{ end }}
+            {{- if .Skills.Technologies }}\vspace{0.2 cm}\begin{onecolentry}\textbf{Technologies:} {{ escJoin .Skills.Technologies ", " }}\end{onecolentry}{{ end }}
         {{- end }}
 
         {{- if eq .Kind "Projects" }}
@@ -541,7 +557,7 @@ const defaultThemeTemplate = `\documentclass[10pt, letterpaper]{article}
                 {{- if and .Project.Github .Project.Live }} $|$ {{ end }}
                 {{- if .Project.Live }}\href{ {{ .Project.Live }} }{Live Demo}{{ end }}
             \end{onecolentry}
-            {{- if .Project.Skills }}\vspace{0.10 cm}\begin{onecolentry}\textbf{Skills used:} {{ join .Project.Skills ", " }}\end{onecolentry}{{ end }}
+            {{- if .Project.Skills }}\vspace{0.10 cm}\begin{onecolentry}\textbf{Skills used:} {{ escJoin .Project.Skills ", " }}\end{onecolentry}{{ end }}
             {{- if .Project.Highlights }}\vspace{0.10 cm}\begin{onecolentry}\begin{highlights}{{ range .Project.Highlights }}\item {{ escape . }}{{ end }}\end{highlights}\end{onecolentry}{{ end }}
             \vspace{0.2 cm}
         {{- end }}
