@@ -190,9 +190,13 @@ func buildViewModel(resume models.BaseResume) ViewModel {
 				fm := toIntPtr(m["finished_at_month"])
 				fy := toIntPtr(m["finished_at_year"])
 				cur := toBool(m["current"])
-				period := formatPeriod(sm, sy, fm, fy)
+				var period string
 				if cur {
-					period = period + " – Present"
+					base := formatPeriod(sm, sy, nil, nil)
+					base = strings.TrimSuffix(base, " –")
+					period = base + " – Present"
+				} else {
+					period = formatPeriod(sm, sy, fm, fy)
 				}
 				highlights := htmlListToItems(toString(m["description"]))
 				ex := ExperienceVM{Period: period, Title: title, Company: company, City: city, Highlights: highlights}
@@ -212,9 +216,13 @@ func buildViewModel(resume models.BaseResume) ViewModel {
 				fm := toIntPtr(m["finished_at_month"])
 				fy := toIntPtr(m["finished_at_year"])
 				cur := toBool(m["current"])
-				period := formatPeriod(sm, sy, fm, fy)
+				var period string
 				if cur {
-					period = period + " – Present"
+					base := formatPeriod(sm, sy, nil, nil)
+					base = strings.TrimSuffix(base, " –")
+					period = base + " – Present"
+				} else {
+					period = formatPeriod(sm, sy, fm, fy)
 				}
 				highlights := htmlListToItems(toString(m["description"]))
 				// skills_used as [] of maps with name
