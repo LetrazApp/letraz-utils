@@ -18,4 +18,5 @@ func ValidateResumeID(fl validator.FieldLevel) bool {
 // RegisterResumeValidators registers all resume-related custom validators
 func RegisterResumeValidators(v *validator.Validate) {
 	v.RegisterValidation("resume_id", ValidateResumeID)
+	// Placeholder: add theme validator when themes expand
 }

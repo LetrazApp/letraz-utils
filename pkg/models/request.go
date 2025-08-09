@@ -22,3 +22,9 @@ type ScrapeOptions struct {
 type ResumeScreenshotRequest struct {
 	ResumeID string `json:"resume_id" validate:"required,resume_id"`
 }
+
+// ExportResumeRequest represents a REST request to export a resume to LaTeX
+type ExportResumeRequest struct {
+	Resume BaseResume `json:"resume" validate:"required"`
+	Theme  string     `json:"theme" validate:"required"`
+}

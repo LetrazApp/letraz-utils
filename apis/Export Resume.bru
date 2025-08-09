@@ -1,0 +1,532 @@
+meta {
+  name: Export Resume
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{host}}/api/v1/resume/export
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  Accept: application/json
+}
+
+body:json {
+  {
+    "resume": {
+      "id": "rsm_PAdsv_x8BI873sdNujNAE",
+      "base": false,
+      "user": {
+          "id": "user_2m4Ks3YryVkHEqVvk6LcdvZuA8x",
+          "title": null,
+          "first_name": "Subhajit",
+          "last_name": "Kundu",
+          "email": "subha61kundu@gmail.com",
+          "phone": "7981115886",
+          "dob": null,
+          "nationality": null,
+          "address": "West Bengal, India",
+          "city": "",
+          "postal": "",
+          "country": null,
+          "website": "https://subhajit.lol",
+          "profile_text": "<p class=\"text-node\">Experienced Software Engineer with 5+ years in data migration, automation, web application development, and system integration using Python, django, Django REST Framework. Skilled in delivering scalable solutions, automating workflows, and collaborating with stakeholders to meet business goals.</p>",
+          "created_at": "2025-02-11T06:40:47.639781+05:30",
+          "updated_at": "2025-07-31T18:08:18.893464+05:30"
+      },
+      "job": {
+          "id": "job_dHZD8GBDfQClJX0ySB8v4",
+          "job_url": null,
+          "title": "Software Developer",
+          "company_name": "Godrej Infotech Limited",
+          "location": "Mumbai, India",
+          "salary": {
+              "max": null,
+              "min": null,
+              "currency": null
+          },
+          "requirements": [
+              "B.Sc in IT",
+              "Fresher (recent graduate)",
+              "Educational details (10th, 12th, and B.Sc percentages)"
+          ],
+          "description": "Godrej Infotech Limited is seeking a Software Developer for their Mumbai location. The company is a leading Technology Service Provider with expertise in Cloud, Analytics, Automation & Transformation solutions, working with technology partners like Microsoft, Infor, Oracle, and others.",
+          "responsibilities": [
+              "Software development",
+              "Working with various technology stacks including .Net, SharePoint, Office 365, Database (SQL & Oracle), Power Platform"
+          ],
+          "benefits": null,
+          "status": "Success"
+      },
+      "status": "Success",
+      "sections": [
+          {
+              "id": "d3f8b4a4-eafd-4075-a92e-b930605a68d1",
+              "resume": "rsm_PAdsv_x8BI873sdNujNAE",
+              "index": 0,
+              "type": "Skill",
+              "data": {
+                  "skills": [
+                      {
+                          "id": "83c79859-b0cd-49ab-b467-7a9c62fcde00",
+                          "skill": {
+                              "id": "2dedb6e6-28d6-4148-909f-4cab2ac787ae",
+                              "category": "Programming Languages",
+                              "name": "Python",
+                              "preferred": false,
+                              "alias": [],
+                              "updated_at": "2025-07-16T20:19:14.467739+05:30",
+                              "created_at": "2025-07-16T20:19:14.467690+05:30"
+                          },
+                          "resume_section": "83c79859-b0cd-49ab-b467-7a9c62fcde00",
+                          "level": "INT"
+                      },
+                      {
+                          "id": "8543ab0f-626e-4c7e-bc87-77930f5dc990",
+                          "skill": {
+                              "id": "14af393a-495a-48d7-b3f9-0e3fc104727b",
+                              "category": "Programming Languages",
+                              "name": "JavaScript",
+                              "preferred": false,
+                              "alias": [],
+                              "updated_at": "2025-07-16T20:19:14.742992+05:30",
+                              "created_at": "2025-07-16T20:19:14.742966+05:30"
+                          },
+                          "resume_section": "8543ab0f-626e-4c7e-bc87-77930f5dc990",
+                          "level": "EXP"
+                      },
+                      {
+                          "id": "8c269d76-42b1-4de9-be79-11090e697e29",
+                          "skill": {
+                              "id": "eee897b4-b960-4f51-b4f2-adff853918c9",
+                              "category": "Technologies",
+                              "name": "Django",
+                              "preferred": false,
+                              "alias": [],
+                              "updated_at": "2025-07-23T10:28:23.969120+05:30",
+                              "created_at": "2025-07-23T10:28:23.969075+05:30"
+                          },
+                          "resume_section": "8c269d76-42b1-4de9-be79-11090e697e29",
+                          "level": "INT"
+                      },
+                      {
+                          "id": "573cdced-6e3a-4bb8-9781-5f6f659f8451",
+                          "skill": {
+                              "id": "4a18b78a-9912-4c56-bcf4-b482af7ed5ac",
+                              "category": "Technologies",
+                              "name": "Django REST Framework",
+                              "preferred": false,
+                              "alias": [],
+                              "updated_at": "2025-07-23T10:28:40.496794+05:30",
+                              "created_at": "2025-07-23T10:28:40.496766+05:30"
+                          },
+                          "resume_section": "573cdced-6e3a-4bb8-9781-5f6f659f8451",
+                          "level": "INT"
+                      },
+                      {
+                          "id": "c005ec15-5d8a-401f-912d-8fcc55764f43",
+                          "skill": {
+                              "id": "216981e7-51aa-493d-8a61-3dbc5f33866c",
+                              "category": "Technologies",
+                              "name": "RDBMS",
+                              "preferred": false,
+                              "alias": [],
+                              "updated_at": "2025-07-23T10:29:33.264565+05:30",
+                              "created_at": "2025-07-23T10:29:33.264545+05:30"
+                          },
+                          "resume_section": "c005ec15-5d8a-401f-912d-8fcc55764f43",
+                          "level": "INT"
+                      },
+                      {
+                          "id": "21763bed-7adb-452b-8841-5f103b402aa1",
+                          "skill": {
+                              "id": "d530ca70-3a0a-4d8d-a4ed-8792b5e12f52",
+                              "category": "Technologies",
+                              "name": "PostgreSQL",
+                              "preferred": false,
+                              "alias": [],
+                              "updated_at": "2025-07-23T10:30:16.812005+05:30",
+                              "created_at": "2025-07-23T10:30:16.811971+05:30"
+                          },
+                          "resume_section": "21763bed-7adb-452b-8841-5f103b402aa1",
+                          "level": "ADV"
+                      },
+                      {
+                          "id": "73132906-9d22-47f9-b526-5e937eee7793",
+                          "skill": {
+                              "id": "dfccaf14-ea70-4a1d-83ae-96499c074031",
+                              "category": "Technologies",
+                              "name": "MySQL",
+                              "preferred": false,
+                              "alias": [],
+                              "updated_at": "2025-07-23T10:30:37.601441+05:30",
+                              "created_at": "2025-07-23T10:30:37.601402+05:30"
+                          },
+                          "resume_section": "73132906-9d22-47f9-b526-5e937eee7793",
+                          "level": "INT"
+                      },
+                      {
+                          "id": "22680723-e08e-4161-b336-391ac503568f",
+                          "skill": {
+                              "id": "b180e592-0f78-4b91-a87b-6014219dca97",
+                              "category": "Technologies",
+                              "name": "Azure",
+                              "preferred": false,
+                              "alias": [],
+                              "updated_at": "2025-07-23T10:31:18.801770+05:30",
+                              "created_at": "2025-07-23T10:31:18.801747+05:30"
+                          },
+                          "resume_section": "22680723-e08e-4161-b336-391ac503568f",
+                          "level": "INT"
+                      },
+                      {
+                          "id": "bf762575-2a3e-4e79-86ec-030cbbe1e003",
+                          "skill": {
+                              "id": "043c6bfb-bfe1-43ac-8a71-554cade44cc7",
+                              "category": "Technologies",
+                              "name": "Next JS",
+                              "preferred": false,
+                              "alias": [],
+                              "updated_at": "2025-07-23T10:29:07.599079+05:30",
+                              "created_at": "2025-07-23T10:29:07.599057+05:30"
+                          },
+                          "resume_section": "bf762575-2a3e-4e79-86ec-030cbbe1e003",
+                          "level": "EXP"
+                      },
+                      {
+                          "id": "0580dc2f-11cc-4011-a5b4-6f2a8c64a5d7",
+                          "skill": {
+                              "id": "00358344-341c-4862-8f59-4e1239534c1e",
+                              "category": "Technologies",
+                              "name": "React.js",
+                              "preferred": false,
+                              "alias": [],
+                              "updated_at": "2025-07-23T10:29:21.931049+05:30",
+                              "created_at": "2025-07-23T10:29:21.931020+05:30"
+                          },
+                          "resume_section": "0580dc2f-11cc-4011-a5b4-6f2a8c64a5d7",
+                          "level": "EXP"
+                      },
+                      {
+                          "id": "aa25c218-b938-467b-b337-80cdfdbc8647",
+                          "skill": {
+                              "id": "12f79e4a-1314-499e-9358-dac9ee1f281e",
+                              "category": "Management",
+                              "name": "Project Management",
+                              "preferred": false,
+                              "alias": [],
+                              "updated_at": "2025-07-12T08:59:12.479959+05:30",
+                              "created_at": "2025-07-12T08:59:12.479942+05:30"
+                          },
+                          "resume_section": "aa25c218-b938-467b-b337-80cdfdbc8647",
+                          "level": null
+                      },
+                      {
+                          "id": "ed20a196-8b99-4461-8027-1020e0a58e53",
+                          "skill": {
+                              "id": "adcb2b69-60ac-450f-9081-dad3c2e876c1",
+                              "category": "Programming Languages",
+                              "name": "Go",
+                              "preferred": false,
+                              "alias": [],
+                              "updated_at": "2025-07-16T20:19:16.126974+05:30",
+                              "created_at": "2025-07-16T20:19:16.126956+05:30"
+                          },
+                          "resume_section": "ed20a196-8b99-4461-8027-1020e0a58e53",
+                          "level": "BEG"
+                      }
+                  ]
+              }
+          },
+          {
+              "id": "4c5503ff-9c10-4c1f-bc2f-c5ef368aa827",
+              "resume": "rsm_PAdsv_x8BI873sdNujNAE",
+              "index": 1,
+              "type": "Education",
+              "data": {
+                  "id": "b435e243-9475-4600-a64e-a8db388c9c60",
+                  "user": "user_2m4Ks3YryVkHEqVvk6LcdvZuA8x",
+                  "resume_section": "b435e243-9475-4600-a64e-a8db388c9c60",
+                  "institution_name": "JIS College of Engineering",
+                  "field_of_study": "Computer Science and Engineering",
+                  "degree": "B.Tech",
+                  "country": {
+                      "code": "IND",
+                      "name": "India"
+                  },
+                  "started_from_month": null,
+                  "started_from_year": 2015,
+                  "finished_at_month": null,
+                  "finished_at_year": 2019,
+                  "current": false,
+                  "description": "<ul class=\"list-node\"><li><p class=\"text-node\">CGPA: 8.42/10.0 (Equivalent to 84.2%)</p></li></ul>",
+                  "created_at": "2025-08-08T21:14:11.140990+05:30",
+                  "updated_at": "2025-08-08T21:14:11.307576+05:30"
+              }
+          },
+          {
+              "id": "0ade5790-b997-44a9-b04b-4f8943370e0e",
+              "resume": "rsm_PAdsv_x8BI873sdNujNAE",
+              "index": 2,
+              "type": "Experience",
+              "data": {
+                  "id": "efce04a9-ceb6-47b2-804b-ea28fd5fc325",
+                  "user": "user_2m4Ks3YryVkHEqVvk6LcdvZuA8x",
+                  "resume_section": "efce04a9-ceb6-47b2-804b-ea28fd5fc325",
+                  "company_name": "Infosys",
+                  "job_title": "Sr. Associate Consultant",
+                  "employment_type": "Full Time",
+                  "city": "Hyedrabad",
+                  "country": {
+                      "code": "IND",
+                      "name": "India"
+                  },
+                  "started_from_month": 7,
+                  "started_from_year": 2024,
+                  "finished_at_month": null,
+                  "finished_at_year": null,
+                  "current": true,
+                  "description": "<ul class=\"list-node\"><li><p class=\"text-node\">Developing software solutions for a US-based client in the beverage industry</p></li><li><p class=\"text-node\">Designed and implemented efficient data migration architecture from legacy systems to modern platforms</p></li><li><p class=\"text-node\">Automated data transformation, cleansing, and sanitization processes using Python and Django REST Framework for seamless integration with multiple target systems including Salesforce</p></li><li><p class=\"text-node\">Developed and deployed database-driven applications using Django REST Framework with SQLite and Azure PostgreSQL on Azure web app</p></li></ul>",
+                  "created_at": "2025-08-08T21:14:11.478376+05:30",
+                  "updated_at": "2025-08-08T21:14:11.646945+05:30"
+              }
+          },
+          {
+              "id": "c2959f37-708e-4cd9-93be-8d70aa3d8a3c",
+              "resume": "rsm_PAdsv_x8BI873sdNujNAE",
+              "index": 3,
+              "type": "Experience",
+              "data": {
+                  "id": "15184ea5-b173-473a-af02-715ed827b28f",
+                  "user": "user_2m4Ks3YryVkHEqVvk6LcdvZuA8x",
+                  "resume_section": "15184ea5-b173-473a-af02-715ed827b28f",
+                  "company_name": "Infosys",
+                  "job_title": "Sr. Associate Consultant",
+                  "employment_type": "Full Time",
+                  "city": "Hyderabad",
+                  "country": {
+                      "code": "IND",
+                      "name": "India"
+                  },
+                  "started_from_month": 4,
+                  "started_from_year": 2023,
+                  "finished_at_month": 5,
+                  "finished_at_year": 2024,
+                  "current": false,
+                  "description": "<ul class=\"list-node\"><li><p class=\"text-node\">Developed software solutions for a NZ-based client in the consumer furniture industry</p></li><li><p class=\"text-node\">Designed and implemented efficient data migration architecture from legacy systems to modern platforms</p></li><li><p class=\"text-node\">Automated data transformation and cleansing processes using Python, enabling seamless integration with Salsify PIM via Django REST Framework</p></li><li><p class=\"text-node\">Built integrations between multiple interdependent systems using Django REST Framework with SQLite and PostgreSQL databases</p></li><li><p class=\"text-node\">Implemented streamlined data modeling solutions using Salsify PIM</p></li></ul>",
+                  "created_at": "2025-08-08T21:14:11.819187+05:30",
+                  "updated_at": "2025-08-08T21:14:11.984580+05:30"
+              }
+          },
+          {
+              "id": "1a859c50-234b-4769-9597-194d0b456434",
+              "resume": "rsm_PAdsv_x8BI873sdNujNAE",
+              "index": 4,
+              "type": "Experience",
+              "data": {
+                  "id": "70bf8935-fd47-4064-948c-61581b4b817b",
+                  "user": "user_2m4Ks3YryVkHEqVvk6LcdvZuA8x",
+                  "resume_section": "70bf8935-fd47-4064-948c-61581b4b817b",
+                  "company_name": "Infosys",
+                  "job_title": "Associate Consultant",
+                  "employment_type": "Full Time",
+                  "city": "Hyderabad",
+                  "country": {
+                      "code": "IND",
+                      "name": "India"
+                  },
+                  "started_from_month": 11,
+                  "started_from_year": 2022,
+                  "finished_at_month": 4,
+                  "finished_at_year": 2023,
+                  "current": false,
+                  "description": "<ul class=\"list-node\"><li><p class=\"text-node\">Developed software solutions for a US-based client in the electronics & electrical components industry</p></li><li><p class=\"text-node\">Designed and implemented robust data migration architecture from legacy systems to modern platforms</p></li><li><p class=\"text-node\">Automated data transformation and cleansing processes for large datasets using Python, ensuring smooth integration with inriver PIM via Django REST Framework<br>Utilized inriver PIM to develop efficient data modeling solutions</p></li></ul>",
+                  "created_at": "2025-08-08T21:14:12.155233+05:30",
+                  "updated_at": "2025-08-08T21:14:12.321510+05:30"
+              }
+          },
+          {
+              "id": "7f9b8426-371d-4756-9c8f-2b8c0e5d73c5",
+              "resume": "rsm_PAdsv_x8BI873sdNujNAE",
+              "index": 5,
+              "type": "Experience",
+              "data": {
+                  "id": "082c2af3-2cdf-45d6-b4e1-8fb09b7f8627",
+                  "user": "user_2m4Ks3YryVkHEqVvk6LcdvZuA8x",
+                  "resume_section": "082c2af3-2cdf-45d6-b4e1-8fb09b7f8627",
+                  "company_name": "Infosys",
+                  "job_title": "Associate Consultant",
+                  "employment_type": "Full Time",
+                  "city": "Hyderabad",
+                  "country": {
+                      "code": "IND",
+                      "name": "India"
+                  },
+                  "started_from_month": 12,
+                  "started_from_year": 2021,
+                  "finished_at_month": 11,
+                  "finished_at_year": 2022,
+                  "current": false,
+                  "description": "<ul class=\"list-node\"><li><p class=\"text-node\">Developed software solutions for a US-based client in the electronics & home appliances industry</p></li><li><p class=\"text-node\">Implemented optimal data migration architecture from legacy systems to modern platforms</p></li><li><p class=\"text-node\">Automated data transformation and cleansing processes for large datasets using Python, with seamless integration into Akeneo PIM via Django REST Framework</p></li><li><p class=\"text-node\">Developed integrations between multiple dependent systems using Django REST Framework with MySQL database</p></li><li><p class=\"text-node\">Implemented efficient data modeling solutions using Akeneo PIM</p></li></ul>",
+                  "created_at": "2025-08-08T21:14:12.493701+05:30",
+                  "updated_at": "2025-08-08T21:14:12.666208+05:30"
+              }
+          },
+          {
+              "id": "2157e7e4-f0eb-403f-b809-d7942004b15f",
+              "resume": "rsm_PAdsv_x8BI873sdNujNAE",
+              "index": 6,
+              "type": "Project",
+              "data": {
+                  "id": "e7699c86-0e14-4f1f-a274-20d3ddfc3790",
+                  "skills_used": [
+                      {
+                          "id": "12f79e4a-1314-499e-9358-dac9ee1f281e",
+                          "category": "Management",
+                          "name": "Project Management",
+                          "preferred": false,
+                          "alias": [],
+                          "updated_at": "2025-07-12T08:59:12.479959+05:30",
+                          "created_at": "2025-07-12T08:59:12.479942+05:30"
+                      }
+                  ],
+                  "resume_section": {
+                      "id": "2157e7e4-f0eb-403f-b809-d7942004b15f",
+                      "resume": "rsm_PAdsv_x8BI873sdNujNAE",
+                      "index": 6,
+                      "type": "Project"
+                  },
+                  "category": "Software Product",
+                  "name": "Letraz - Automatically Craft Tailored Resume",
+                  "description": "<ul class=\"list-node\"><li><p class=\"text-node\">﻿﻿Led a team of 5 as founding engineer and project manager, overseeing product development from inception through production</p></li><li><p class=\"text-node\">﻿﻿Architected database schema, infrastructure, and system integration for a resume optimization application</p></li><li><p class=\"text-node\">﻿﻿Developed a dedicated scraper and AI LLM wrapper service using GoLang with gRPC for internal server-to-server communication</p></li><li><p class=\"text-node\">﻿﻿Designed and implemented frontend onboarding flow and community theme functionality with abstracted rendering logic</p></li></ul>",
+                  "role": "Founding Engineer and Project Manager",
+                  "github_url": "https://github.com/pingSubhajit/letraz",
+                  "live_url": "https://letraz.app",
+                  "started_from_month": 10,
+                  "started_from_year": 2024,
+                  "finished_at_month": null,
+                  "finished_at_year": null,
+                  "current": true,
+                  "created_at": "2025-08-08T21:14:12.833898+05:30",
+                  "updated_at": "2025-08-08T21:14:13.339719+05:30",
+                  "user": "user_2m4Ks3YryVkHEqVvk6LcdvZuA8x"
+              }
+          },
+          {
+              "id": "227542d7-f619-441f-ba02-9df8a926d7ab",
+              "resume": "rsm_PAdsv_x8BI873sdNujNAE",
+              "index": 7,
+              "type": "Certification",
+              "data": {
+                  "id": "45e354cd-7345-42df-8233-3f36334d91f3",
+                  "resume_section": "45e354cd-7345-42df-8233-3f36334d91f3",
+                  "name": "Meta Front-End Developer",
+                  "issuing_organization": "Meta Platforms, Inc.",
+                  "issue_date": "2023-09-14",
+                  "credential_url": "https://coursera.org/verify/professional-cert/Z8JD3V59YGQL",
+                  "created_at": "2025-08-08T21:14:13.511334+05:30",
+                  "updated_at": "2025-08-08T21:14:13.602345+05:30",
+                  "user": "user_2m4Ks3YryVkHEqVvk6LcdvZuA8x"
+              }
+          }
+      ],
+      "thumbnail": "https://letraz-all-purpose.blr1.cdn.digitaloceanspaces.com/resumes/thumbnails/rsm_PAdsv_x8BI873sdNujNAE.jpg"
+  },
+    "theme": "DEFAULT_THEME"
+  }
+}
+
+tests {
+  test("Response status is 202 (Accepted)", function() {
+    expect(res.getStatus()).to.equal(202);
+  });
+  
+  test("Response has status field", function() {
+    expect(res.getBody()).to.have.property('status');
+  });
+  
+  test("Response status is ACCEPTED", function() {
+    const body = res.getBody();
+    expect(body.status).to.equal('ACCEPTED');
+  });
+  
+  test("Response has processId", function() {
+    const body = res.getBody();
+    expect(body).to.have.property('processId');
+    expect(body.processId).to.be.a('string');
+    expect(body.processId).to.include('screenshot_');
+  });
+  
+  test("Response has timestamp", function() {
+    const body = res.getBody();
+    expect(body).to.have.property('timestamp');
+  });
+  
+  test("Response has background processing message", function() {
+    const body = res.getBody();
+    expect(body).to.have.property('message');
+    expect(body.message).to.include('background processing');
+  });
+}
+
+docs {
+  # Resume Screenshot API (Async)
+  
+  This endpoint **asynchronously** generates a screenshot of a resume by:
+  1. Accepting the request and returning immediately with a process ID
+  2. Processing in background: connecting to letraz-client, capturing screenshot, uploading to DigitalOcean Spaces
+  3. Logging the final result to console when complete
+  
+  **⚡ Fast Response**: Returns in ~1ms with process ID for tracking.
+  
+  ## Request Body
+  ```json
+  {
+    "resume_id": "rsm_pCOywDN3MwEyJPjfLt-bn"
+  }
+  ```
+  
+  ## Immediate Response (202 Accepted)
+  ```json
+  {
+    "processId": "screenshot_20250719_cfebe539-4bef-4107-ac30-fdec5598d331",
+    "status": "ACCEPTED",
+    "message": "Resume screenshot request accepted for background processing",
+    "timestamp": "2025-07-19T12:24:03.230158+05:30"
+  }
+  ```
+  
+  ## Background Processing
+  The actual screenshot generation happens in the background (~15 seconds).
+  Monitor the console logs to see completion status and final screenshot URL.
+  
+  ## Error Response (400/500)
+  ```json
+  {
+    "error": "validation_failed",
+    "message": "Resume ID is required",
+    "timestamp": "2025-07-19T12:24:03.230158+05:30"
+  }
+  ```
+  
+  ## Error Codes
+  - `invalid_request`: Invalid request body
+  - `validation_failed`: Resume ID validation failed
+  - `configuration_error`: Service not properly configured
+  - `task_submission_failed`: Failed to submit to background queue
+  
+  ## Environment Variables Required
+  - `RESUME_PREVIEW_URL`: Full URL for resume preview endpoint (e.g., "https://letraz.app/admin/resumes")
+  - `RESUME_PREVIEW_TOKEN`: Token for accessing letraz-client preview
+  - `BUCKET_URL`: DigitalOcean Spaces bucket URL
+  - `BUCKET_CDN_ENDPOINT`: CDN endpoint for public access
+  - `BUCKET_ACCESS_KEY_ID`: Spaces access key ID
+  - `BUCKET_ACCESS_KEY_SECRET`: Spaces access key secret
+  
+  ## Process ID Format
+  `screenshot_YYYYMMDD_uuid` - Use this to track the background task progress.
+}

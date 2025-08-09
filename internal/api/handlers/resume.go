@@ -10,6 +10,7 @@ import (
 	"letraz-utils/internal/api/validation"
 	"letraz-utils/internal/background"
 	"letraz-utils/internal/config"
+	"letraz-utils/internal/latex"
 	"letraz-utils/internal/llm"
 	"letraz-utils/internal/logging"
 	"letraz-utils/pkg/models"
@@ -129,5 +130,81 @@ func TailorResumeHandler(cfg *config.Config, llmManager *llm.Manager, taskManage
 		})
 
 		return c.JSON(http.StatusAccepted, response)
+	}
+}
+
+// ExportResumeHandler handles POST /api/v1/resume/export to render LaTeX and upload to Spaces
+func ExportResumeHandler(cfg *config.Config) echo.HandlerFunc {
+	type ExportRequest struct {
+		Resume models.BaseResume `json:"resume" validate:"required"`
+		Theme  string            `json:"theme" validate:"required"`
+	}
+
+	return func(c echo.Context) error {
+		requestID := utils.GenerateRequestID()
+		logger := logging.GetGlobalLogger()
+		c.Set("request_id", requestID)
+
+		logger.Info("Processing resume export request", map[string]interface{}{
+			"request_id": requestID,
+			"endpoint":   "/api/v1/resume/export",
+			"method":     "POST",
+		})
+
+		var req ExportRequest
+		if err := c.Bind(&req); err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"status":  "FAILURE",
+				"message": "Invalid request body: " + err.Error(),
+				"error":   "INVALID_REQUEST",
+			})
+		}
+
+		if req.Resume.ID == "" {
+			return c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"status":  "FAILURE",
+				"message": "Resume ID is required",
+				"error":   "VALIDATION_FAILED",
+			})
+		}
+
+		// Render latex
+		engine := latex.NewEngine()
+		latexStr, err := engine.Render(req.Resume, req.Theme)
+		if err != nil {
+			logger.Error("Failed to render LaTeX", map[string]interface{}{
+				"request_id": requestID,
+				"error":      err.Error(),
+			})
+			return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+				"status":  "FAILURE",
+				"message": "Failed to render LaTeX",
+				"error":   "RENDER_ERROR",
+			})
+		}
+
+		// Upload to Spaces
+		spaces, err := utils.NewSpacesClient(cfg)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+				"status":  "FAILURE",
+				"message": "Storage not configured: " + err.Error(),
+				"error":   "STORAGE_CONFIGURATION",
+			})
+		}
+		url, err := spaces.UploadLatexExport(req.Resume.ID, "", []byte(latexStr))
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+				"status":  "FAILURE",
+				"message": "Failed to upload export: " + err.Error(),
+				"error":   "UPLOAD_FAILED",
+			})
+		}
+
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"status":     "SUCCESS",
+			"message":    "Exported successfully",
+			"export_url": url,
+		})
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	letrazv1 "letraz-utils/api/proto/letraz/v1"
+	"letraz-utils/internal/latex"
 	"letraz-utils/pkg/models"
 	"letraz-utils/pkg/utils"
 )
@@ -282,3 +283,65 @@ func (s *Server) GenerateScreenshot(ctx context.Context, req *letrazv1.ResumeScr
 }
 
 // All conversion functions updated to match new proto structure
+
+// ExportResume implements synchronous export of LaTeX and upload
+func (s *Server) ExportResume(ctx context.Context, req *letrazv1.ExportResumeRequest) (*letrazv1.ExportResumeResponse, error) {
+	requestID := utils.GenerateRequestID()
+
+	s.logger.Info("gRPC export resume request received", map[string]interface{}{
+		"request_id": requestID,
+		"method":     "ExportResume",
+	})
+
+	if req.GetResume() == nil {
+		return &letrazv1.ExportResumeResponse{
+			Status:    "FAILURE",
+			Message:   "Resume is required",
+			Timestamp: time.Now().Format(time.RFC3339Nano),
+			Error:     "INVALID_ARGUMENT",
+		}, nil
+	}
+
+	// Convert to internal model
+	resume := convertGRPCBaseResumeToModel(req.GetResume())
+
+	// Render LaTeX
+	engine := latex.NewEngine()
+	latexStr, err := engine.Render(*resume, req.GetTheme())
+	if err != nil {
+		s.logger.Error("LaTeX render failed", map[string]interface{}{"error": err.Error()})
+		return &letrazv1.ExportResumeResponse{
+			Status:    "FAILURE",
+			Message:   "Failed to render LaTeX",
+			Timestamp: time.Now().Format(time.RFC3339Nano),
+			Error:     "RENDER_ERROR",
+		}, nil
+	}
+
+	// Upload to Spaces
+	spaces, err := utils.NewSpacesClient(s.cfg)
+	if err != nil {
+		return &letrazv1.ExportResumeResponse{
+			Status:    "FAILURE",
+			Message:   "Storage not configured: " + err.Error(),
+			Timestamp: time.Now().Format(time.RFC3339Nano),
+			Error:     "STORAGE_CONFIGURATION",
+		}, nil
+	}
+	url, err := spaces.UploadLatexExport(resume.ID, "", []byte(latexStr))
+	if err != nil {
+		return &letrazv1.ExportResumeResponse{
+			Status:    "FAILURE",
+			Message:   "Failed to upload export: " + err.Error(),
+			Timestamp: time.Now().Format(time.RFC3339Nano),
+			Error:     "UPLOAD_FAILED",
+		}, nil
+	}
+
+	return &letrazv1.ExportResumeResponse{
+		Status:    "SUCCESS",
+		Message:   "Exported successfully",
+		Timestamp: time.Now().Format(time.RFC3339Nano),
+		ExportUrl: url,
+	}, nil
+}

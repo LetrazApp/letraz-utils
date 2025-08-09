@@ -19,6 +19,9 @@ service ResumeService {
   
   // Generate a screenshot of a resume
   rpc GenerateScreenshot(ResumeScreenshotRequest) returns (ResumeScreenshotResponse);
+
+  // Export a resume to LaTeX and upload to object storage
+  rpc ExportResume(ExportResumeRequest) returns (ExportResumeResponse);
 }
 
 service HealthService {
@@ -109,6 +112,21 @@ message ResumeScreenshotResponse {
   
   // Optional error fields (only for failures)
   string error = 6;           // Error code/type
+}
+
+// ===== EXPORT MESSAGES =====
+
+message ExportResumeRequest {
+  BaseResume resume = 1;   // Complete resume object to export
+  string theme = 2;        // e.g., "DEFAULT_THEME"
+}
+
+message ExportResumeResponse {
+  string status = 1;         // SUCCESS, FAILURE
+  string message = 2;        // Status message
+  string timestamp = 3;      // ISO timestamp string
+  string export_url = 4;     // CDN URL of the uploaded .tex file
+  string error = 5;          // Error code/type (only for failures)
 }
 
 // ===== HEALTH MESSAGES =====
