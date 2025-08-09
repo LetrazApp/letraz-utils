@@ -3,12 +3,14 @@ package utils
 import (
 	"bytes"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/google/uuid"
 	"letraz-utils/internal/config"
 	"letraz-utils/internal/logging"
 	"letraz-utils/internal/logging/types"
@@ -205,4 +207,74 @@ func (sc *SpacesClient) IsHealthy() bool {
 	}
 
 	return healthy
+}
+
+// UploadLatexExport uploads a LaTeX export to DigitalOcean Spaces under exports/<resumeId>/<random>.tex
+func (sc *SpacesClient) UploadLatexExport(resumeID string, fileName string, latexData []byte) (string, error) {
+	if resumeID == "" {
+		return "", fmt.Errorf("resumeID is required")
+	}
+	if len(latexData) == 0 {
+		return "", fmt.Errorf("latexData is empty")
+	}
+	if fileName == "" {
+		fileName = uuid.New().String() + ".tex"
+	} else {
+		// Normalize and constrain to a safe base name
+		fileName = filepath.Base(strings.TrimSpace(fileName))
+		if fileName == "." || fileName == "" {
+			fileName = uuid.New().String() + ".tex"
+		}
+		if !strings.HasSuffix(strings.ToLower(fileName), ".tex") {
+			fileName += ".tex"
+		}
+	}
+	objectKey := fmt.Sprintf("exports/%s/%s", resumeID, fileName)
+
+	sc.logger.Info("Uploading LaTeX export to DigitalOcean Spaces", map[string]interface{}{
+		"resume_id":  resumeID,
+		"object_key": objectKey,
+		"size_bytes": len(latexData),
+	})
+
+	_, err := sc.client.PutObject(&s3.PutObjectInput{
+		Bucket:      aws.String(sc.bucketName),
+		Key:         aws.String(objectKey),
+		Body:        bytes.NewReader(latexData),
+		ContentType: aws.String("application/x-tex"),
+		ACL:         aws.String("public-read"),
+	})
+	if err != nil {
+		sc.logger.Error("Failed to upload LaTeX export to DigitalOcean Spaces", map[string]interface{}{
+			"resume_id":  resumeID,
+			"object_key": objectKey,
+			"error":      err.Error(),
+		})
+		return "", fmt.Errorf("failed to upload LaTeX export: %w", err)
+	}
+
+	var fileURL string
+	if sc.cdnURL != "" {
+		fileURL = fmt.Sprintf("%s/%s", strings.TrimRight(sc.cdnURL, "/"), objectKey)
+	} else if sc.bucketURL != "" {
+		bucketBaseURL := strings.TrimRight(sc.bucketURL, "/")
+		if !strings.HasPrefix(bucketBaseURL, "https://") {
+			bucketBaseURL = "https://" + bucketBaseURL
+		}
+		fileURL = fmt.Sprintf("%s/%s", bucketBaseURL, objectKey)
+	} else {
+		region := ""
+		if sc.client.Config.Region != nil {
+			region = *sc.client.Config.Region
+		}
+		fileURL = fmt.Sprintf("https://%s.%s.digitaloceanspaces.com/%s", sc.bucketName, region, objectKey)
+	}
+
+	sc.logger.Info("LaTeX export uploaded successfully", map[string]interface{}{
+		"resume_id":  resumeID,
+		"object_key": objectKey,
+		"url":        fileURL,
+	})
+
+	return fileURL, nil
 }

@@ -125,6 +125,7 @@ var ScraperService_ServiceDesc = grpc.ServiceDesc{
 const (
 	ResumeService_TailorResume_FullMethodName       = "/letraz.v1.ResumeService/TailorResume"
 	ResumeService_GenerateScreenshot_FullMethodName = "/letraz.v1.ResumeService/GenerateScreenshot"
+	ResumeService_ExportResume_FullMethodName       = "/letraz.v1.ResumeService/ExportResume"
 )
 
 // ResumeServiceClient is the client API for ResumeService service.
@@ -135,6 +136,8 @@ type ResumeServiceClient interface {
 	TailorResume(ctx context.Context, in *TailorResumeRequest, opts ...grpc.CallOption) (*TailorResumeResponse, error)
 	// Generate a screenshot of a resume
 	GenerateScreenshot(ctx context.Context, in *ResumeScreenshotRequest, opts ...grpc.CallOption) (*ResumeScreenshotResponse, error)
+	// Export a resume to LaTeX and upload to object storage
+	ExportResume(ctx context.Context, in *ExportResumeRequest, opts ...grpc.CallOption) (*ExportResumeResponse, error)
 }
 
 type resumeServiceClient struct {
@@ -165,6 +168,16 @@ func (c *resumeServiceClient) GenerateScreenshot(ctx context.Context, in *Resume
 	return out, nil
 }
 
+func (c *resumeServiceClient) ExportResume(ctx context.Context, in *ExportResumeRequest, opts ...grpc.CallOption) (*ExportResumeResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ExportResumeResponse)
+	err := c.cc.Invoke(ctx, ResumeService_ExportResume_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ResumeServiceServer is the server API for ResumeService service.
 // All implementations must embed UnimplementedResumeServiceServer
 // for forward compatibility.
@@ -173,6 +186,8 @@ type ResumeServiceServer interface {
 	TailorResume(context.Context, *TailorResumeRequest) (*TailorResumeResponse, error)
 	// Generate a screenshot of a resume
 	GenerateScreenshot(context.Context, *ResumeScreenshotRequest) (*ResumeScreenshotResponse, error)
+	// Export a resume to LaTeX and upload to object storage
+	ExportResume(context.Context, *ExportResumeRequest) (*ExportResumeResponse, error)
 	mustEmbedUnimplementedResumeServiceServer()
 }
 
@@ -188,6 +203,9 @@ func (UnimplementedResumeServiceServer) TailorResume(context.Context, *TailorRes
 }
 func (UnimplementedResumeServiceServer) GenerateScreenshot(context.Context, *ResumeScreenshotRequest) (*ResumeScreenshotResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GenerateScreenshot not implemented")
+}
+func (UnimplementedResumeServiceServer) ExportResume(context.Context, *ExportResumeRequest) (*ExportResumeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ExportResume not implemented")
 }
 func (UnimplementedResumeServiceServer) mustEmbedUnimplementedResumeServiceServer() {}
 func (UnimplementedResumeServiceServer) testEmbeddedByValue()                       {}
@@ -246,6 +264,24 @@ func _ResumeService_GenerateScreenshot_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ResumeService_ExportResume_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ExportResumeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ResumeServiceServer).ExportResume(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ResumeService_ExportResume_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ResumeServiceServer).ExportResume(ctx, req.(*ExportResumeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ResumeService_ServiceDesc is the grpc.ServiceDesc for ResumeService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -260,6 +296,10 @@ var ResumeService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GenerateScreenshot",
 			Handler:    _ResumeService_GenerateScreenshot_Handler,
+		},
+		{
+			MethodName: "ExportResume",
+			Handler:    _ResumeService_ExportResume_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

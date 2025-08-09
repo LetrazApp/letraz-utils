@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -10,6 +11,7 @@ import (
 	"letraz-utils/internal/api/validation"
 	"letraz-utils/internal/background"
 	"letraz-utils/internal/config"
+	"letraz-utils/internal/exporter"
 	"letraz-utils/internal/llm"
 	"letraz-utils/internal/logging"
 	"letraz-utils/pkg/models"
@@ -129,5 +131,78 @@ func TailorResumeHandler(cfg *config.Config, llmManager *llm.Manager, taskManage
 		})
 
 		return c.JSON(http.StatusAccepted, response)
+	}
+}
+
+// ExportResumeHandler handles POST /api/v1/resume/export to render LaTeX and upload to Spaces
+func ExportResumeHandler(cfg *config.Config) echo.HandlerFunc {
+	// Use shared request model to avoid duplication
+	type ExportRequest = models.ExportResumeRequest
+
+	return func(c echo.Context) error {
+		requestID := utils.GenerateRequestID()
+		logger := logging.GetGlobalLogger()
+		c.Set("request_id", requestID)
+
+		logger.Info("Processing resume export request", map[string]interface{}{
+			"request_id": requestID,
+			"endpoint":   "/api/v1/resume/export",
+			"method":     "POST",
+		})
+
+		var req ExportRequest
+		if err := c.Bind(&req); err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"status":  "FAILURE",
+				"message": "Invalid request body: " + err.Error(),
+				"error":   "INVALID_REQUEST",
+			})
+		}
+
+		// Structural validation (required fields)
+		if err := resumeValidator.Struct(&req); err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"status":  "FAILURE",
+				"message": "Request validation failed: " + err.Error(),
+				"error":   "VALIDATION_FAILED",
+			})
+		}
+
+		if req.Resume == nil || req.Resume.ID == "" {
+			return c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"status":  "FAILURE",
+				"message": "Resume and Resume ID are required",
+				"error":   "VALIDATION_FAILED",
+			})
+		}
+
+		// Render and upload via shared exporter
+		url, err := exporter.ExportResume(c.Request().Context(), cfg, *req.Resume, req.Theme)
+		if err != nil {
+			// Map well-known sentinel errors to stable codes
+			code := "INTERNAL"
+			msg := err.Error()
+			if errors.Is(err, exporter.ErrRender) {
+				code = "RENDER_ERROR"
+				msg = "Failed to render LaTeX"
+			} else if errors.Is(err, exporter.ErrStorageConfig) {
+				code = "STORAGE_CONFIGURATION"
+				msg = "Storage not configured"
+			} else if errors.Is(err, exporter.ErrUpload) {
+				code = "UPLOAD_FAILED"
+				msg = "Failed to upload export"
+			}
+			return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+				"status":  "FAILURE",
+				"message": msg,
+				"error":   code,
+			})
+		}
+
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"status":     "SUCCESS",
+			"message":    "Exported successfully",
+			"export_url": url,
+		})
 	}
 }
