@@ -131,6 +131,11 @@ type Config struct {
 		MaxRetries    int           `yaml:"max_retries" default:"3"`
 		Enabled       bool          `yaml:"enabled" default:"true"`
 	} `yaml:"callback"`
+
+	PDFRenderer struct {
+		URL     string        `yaml:"url"` // e.g., http://pdf-renderer:8999
+		Timeout time.Duration `yaml:"timeout" default:"30s"`
+	} `yaml:"pdf_renderer"`
 }
 
 // expandEnvVars expands environment variables in a string using ${VAR} or $VAR syntax
@@ -220,6 +225,9 @@ func LoadConfig(configPath string) (*Config, error) {
 	config.Callback.Timeout = 30 * time.Second
 	config.Callback.MaxRetries = 3
 	config.Callback.Enabled = true
+
+	// PDF renderer defaults
+	config.PDFRenderer.Timeout = 30 * time.Second
 
 	// Load from YAML file if it exists
 	if configPath != "" {
@@ -437,6 +445,18 @@ func (c *Config) loadFromEnv() {
 
 	// Handle additional logging adapter options via environment variables
 	c.loadLoggingAdapterEnvVars()
+
+	// PDF renderer URL
+	if pdfURL := os.Getenv("PDF_RENDERER_URL"); pdfURL != "" {
+		c.PDFRenderer.URL = pdfURL
+	}
+
+	// PDF renderer timeout
+	if pdfTimeout := os.Getenv("PDF_RENDERER_TIMEOUT"); pdfTimeout != "" {
+		if timeout, err := time.ParseDuration(pdfTimeout); err == nil {
+			c.PDFRenderer.Timeout = timeout
+		}
+	}
 }
 
 // loadLoggingAdapterEnvVars loads environment variables for logging adapters

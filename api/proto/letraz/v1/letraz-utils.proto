@@ -122,11 +122,16 @@ message ExportResumeRequest {
 }
 
 message ExportResumeResponse {
+  // Reserve removed field to avoid accidental reuse
+  reserved 4;
+  reserved "export_url";
+
   string status = 1;         // SUCCESS, FAILURE
   string message = 2;        // Status message
   string timestamp = 3;      // ISO timestamp string
-  string export_url = 4;     // CDN URL of the uploaded .tex file
-  string error = 5;          // Error code/type (only for failures)
+  string latex_url = 5;      // CDN URL of the uploaded .tex file
+  string pdf_url = 6;        // CDN URL of the uploaded .pdf file
+  string error = 7;          // Error code/type (only for failures)
 }
 
 // ===== HEALTH MESSAGES =====

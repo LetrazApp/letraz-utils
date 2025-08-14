@@ -787,11 +787,12 @@ func (x *ExportResumeRequest) GetTheme() string {
 
 type ExportResumeResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Status        string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`                        // SUCCESS, FAILURE
-	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`                      // Status message
-	Timestamp     string                 `protobuf:"bytes,3,opt,name=timestamp,proto3" json:"timestamp,omitempty"`                  // ISO timestamp string
-	ExportUrl     string                 `protobuf:"bytes,4,opt,name=export_url,json=exportUrl,proto3" json:"export_url,omitempty"` // CDN URL of the uploaded .tex file
-	Error         string                 `protobuf:"bytes,5,opt,name=error,proto3" json:"error,omitempty"`                          // Error code/type (only for failures)
+	Status        string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`                     // SUCCESS, FAILURE
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`                   // Status message
+	Timestamp     string                 `protobuf:"bytes,3,opt,name=timestamp,proto3" json:"timestamp,omitempty"`               // ISO timestamp string
+	LatexUrl      string                 `protobuf:"bytes,5,opt,name=latex_url,json=latexUrl,proto3" json:"latex_url,omitempty"` // CDN URL of the uploaded .tex file
+	PdfUrl        string                 `protobuf:"bytes,6,opt,name=pdf_url,json=pdfUrl,proto3" json:"pdf_url,omitempty"`       // CDN URL of the uploaded .pdf file
+	Error         string                 `protobuf:"bytes,7,opt,name=error,proto3" json:"error,omitempty"`                       // Error code/type (only for failures)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -847,9 +848,16 @@ func (x *ExportResumeResponse) GetTimestamp() string {
 	return ""
 }
 
-func (x *ExportResumeResponse) GetExportUrl() string {
+func (x *ExportResumeResponse) GetLatexUrl() string {
 	if x != nil {
-		return x.ExportUrl
+		return x.LatexUrl
+	}
+	return ""
+}
+
+func (x *ExportResumeResponse) GetPdfUrl() string {
+	if x != nil {
+		return x.PdfUrl
 	}
 	return ""
 }
@@ -1298,14 +1306,15 @@ const file_api_proto_letraz_v1_letraz_utils_proto_rawDesc = "" +
 	"\x05error\x18\x06 \x01(\tR\x05error\"Z\n" +
 	"\x13ExportResumeRequest\x12-\n" +
 	"\x06resume\x18\x01 \x01(\v2\x15.letraz.v1.BaseResumeR\x06resume\x12\x14\n" +
-	"\x05theme\x18\x02 \x01(\tR\x05theme\"\x9b\x01\n" +
+	"\x05theme\x18\x02 \x01(\tR\x05theme\"\xc4\x01\n" +
 	"\x14ExportResumeResponse\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x1c\n" +
-	"\ttimestamp\x18\x03 \x01(\tR\ttimestamp\x12\x1d\n" +
-	"\n" +
-	"export_url\x18\x04 \x01(\tR\texportUrl\x12\x14\n" +
-	"\x05error\x18\x05 \x01(\tR\x05error\"\x14\n" +
+	"\ttimestamp\x18\x03 \x01(\tR\ttimestamp\x12\x1b\n" +
+	"\tlatex_url\x18\x05 \x01(\tR\blatexUrl\x12\x17\n" +
+	"\apdf_url\x18\x06 \x01(\tR\x06pdfUrl\x12\x14\n" +
+	"\x05error\x18\a \x01(\tR\x05errorJ\x04\b\x04\x10\x05R\n" +
+	"export_url\"\x14\n" +
 	"\x12HealthCheckRequest\"\x8b\x02\n" +
 	"\x13HealthCheckResponse\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12\x1c\n" +

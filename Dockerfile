@@ -53,6 +53,7 @@ USER utilsuser
 # Set environment variables for Chrome
 ENV CHROME_BIN=/usr/bin/chromium-browser
 ENV CHROME_PATH=/usr/bin/chromium-browser
+ENV PATH="/usr/bin:$PATH"
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

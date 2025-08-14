@@ -1,0 +1,24 @@
+# Build the small Go server inside the image using distro's Go if available? We'll use a multi-stage with Go.
+FROM golang:1.23-bullseye AS builder
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY cmd/pdf-renderer/ cmd/pdf-renderer/
+RUN CGO_ENABLED=0 GOOS=linux go build -o /out/pdf-renderer ./cmd/pdf-renderer
+
+FROM debian:stable-slim
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       ca-certificates tzdata curl texlive-full ghostscript \
+    && rm -rf /var/lib/apt/lists/*
+RUN useradd -u 1001 -m renderer
+WORKDIR /srv
+COPY --from=builder /out/pdf-renderer /usr/local/bin/pdf-renderer
+USER renderer
+EXPOSE 8999
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD curl -fsS http://localhost:8999/health || exit 1
+ENV TEXMFVAR=/tmp/texmf-var
+CMD ["/usr/local/bin/pdf-renderer"]
+
+

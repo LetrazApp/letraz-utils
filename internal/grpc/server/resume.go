@@ -329,7 +329,7 @@ func (s *Server) ExportResume(ctx context.Context, req *letrazv1.ExportResumeReq
 	resume := convertGRPCBaseResumeToModel(req.GetResume())
 
 	// Render and upload via shared exporter
-	url, err := exporter.ExportResume(ctx, s.cfg, *resume, req.GetTheme())
+	latexURL, pdfURL, err := exporter.ExportResume(ctx, s.cfg, *resume, req.GetTheme())
 	if err != nil {
 		statusCode := "INTERNAL"
 		message := err.Error()
@@ -355,6 +355,7 @@ func (s *Server) ExportResume(ctx context.Context, req *letrazv1.ExportResumeReq
 		Status:    "SUCCESS",
 		Message:   "Exported successfully",
 		Timestamp: time.Now().Format(time.RFC3339Nano),
-		ExportUrl: url,
+		LatexUrl:  latexURL,
+		PdfUrl:    pdfURL,
 	}, nil
 }

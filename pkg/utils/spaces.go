@@ -209,50 +209,61 @@ func (sc *SpacesClient) IsHealthy() bool {
 	return healthy
 }
 
-// UploadLatexExport uploads a LaTeX export to DigitalOcean Spaces under exports/<resumeId>/<random>.tex
-func (sc *SpacesClient) UploadLatexExport(resumeID string, fileName string, latexData []byte) (string, error) {
+// uploadExport centralizes the logic for uploading export artifacts to Spaces
+func (sc *SpacesClient) uploadExport(resumeID string, fileName string, data []byte, contentType string, ext string) (string, error) {
 	if resumeID == "" {
 		return "", fmt.Errorf("resumeID is required")
 	}
-	if len(latexData) == 0 {
-		return "", fmt.Errorf("latexData is empty")
+	if len(data) == 0 {
+		return "", fmt.Errorf("data is empty")
 	}
+	if ext == "" {
+		return "", fmt.Errorf("ext is required")
+	}
+	if !strings.HasPrefix(ext, ".") {
+		ext = "." + ext
+	}
+
 	if fileName == "" {
-		fileName = uuid.New().String() + ".tex"
+		fileName = uuid.New().String() + ext
 	} else {
 		// Normalize and constrain to a safe base name
 		fileName = filepath.Base(strings.TrimSpace(fileName))
 		if fileName == "." || fileName == "" {
-			fileName = uuid.New().String() + ".tex"
+			fileName = uuid.New().String() + ext
 		}
-		if !strings.HasSuffix(strings.ToLower(fileName), ".tex") {
-			fileName += ".tex"
+		if !strings.HasSuffix(strings.ToLower(fileName), strings.ToLower(ext)) {
+			fileName += ext
 		}
 	}
+
 	objectKey := fmt.Sprintf("exports/%s/%s", resumeID, fileName)
 
-	sc.logger.Info("Uploading LaTeX export to DigitalOcean Spaces", map[string]interface{}{
-		"resume_id":  resumeID,
-		"object_key": objectKey,
-		"size_bytes": len(latexData),
+	sc.logger.Info("Uploading export to DigitalOcean Spaces", map[string]interface{}{
+		"resume_id":    resumeID,
+		"object_key":   objectKey,
+		"size_bytes":   len(data),
+		"content_type": contentType,
 	})
 
 	_, err := sc.client.PutObject(&s3.PutObjectInput{
 		Bucket:      aws.String(sc.bucketName),
 		Key:         aws.String(objectKey),
-		Body:        bytes.NewReader(latexData),
-		ContentType: aws.String("application/x-tex"),
+		Body:        bytes.NewReader(data),
+		ContentType: aws.String(contentType),
 		ACL:         aws.String("public-read"),
 	})
 	if err != nil {
-		sc.logger.Error("Failed to upload LaTeX export to DigitalOcean Spaces", map[string]interface{}{
-			"resume_id":  resumeID,
-			"object_key": objectKey,
-			"error":      err.Error(),
+		sc.logger.Error("Failed to upload export to DigitalOcean Spaces", map[string]interface{}{
+			"resume_id":    resumeID,
+			"object_key":   objectKey,
+			"error":        err.Error(),
+			"content_type": contentType,
 		})
-		return "", fmt.Errorf("failed to upload LaTeX export: %w", err)
+		return "", fmt.Errorf("failed to upload export: %w", err)
 	}
 
+	// Construct the URL (prefer CDN, then bucket URL, then region-based URL)
 	var fileURL string
 	if sc.cdnURL != "" {
 		fileURL = fmt.Sprintf("%s/%s", strings.TrimRight(sc.cdnURL, "/"), objectKey)
@@ -270,11 +281,60 @@ func (sc *SpacesClient) UploadLatexExport(resumeID string, fileName string, late
 		fileURL = fmt.Sprintf("https://%s.%s.digitaloceanspaces.com/%s", sc.bucketName, region, objectKey)
 	}
 
-	sc.logger.Info("LaTeX export uploaded successfully", map[string]interface{}{
+	sc.logger.Info("Export uploaded successfully", map[string]interface{}{
 		"resume_id":  resumeID,
 		"object_key": objectKey,
 		"url":        fileURL,
 	})
 
 	return fileURL, nil
+}
+
+// UploadLatexExport uploads a LaTeX export to DigitalOcean Spaces under exports/<resumeId>/<random>.tex
+func (sc *SpacesClient) UploadLatexExport(resumeID string, fileName string, latexData []byte) (string, error) {
+	return sc.uploadExport(resumeID, fileName, latexData, "application/x-tex", ".tex")
+}
+
+// UploadPDFExport uploads a compiled PDF export to DigitalOcean Spaces under exports/<resumeId>/<fileName>.pdf
+func (sc *SpacesClient) UploadPDFExport(resumeID string, fileName string, pdfData []byte) (string, error) {
+	return sc.uploadExport(resumeID, fileName, pdfData, "application/pdf", ".pdf")
+}
+
+// DeleteExportObject deletes an export artifact under exports/<resumeId>/<fileName>.
+// This is a best-effort helper that can be used to clean up partial exports.
+func (sc *SpacesClient) DeleteExportObject(resumeID string, fileName string) error {
+	if resumeID == "" {
+		return fmt.Errorf("resumeID is required")
+	}
+	if strings.TrimSpace(fileName) == "" {
+		return fmt.Errorf("fileName is required")
+	}
+
+	safeFileName := filepath.Base(strings.TrimSpace(fileName))
+	objectKey := fmt.Sprintf("exports/%s/%s", resumeID, safeFileName)
+
+	sc.logger.Info("Deleting export object from DigitalOcean Spaces", map[string]interface{}{
+		"resume_id":  resumeID,
+		"object_key": objectKey,
+	})
+
+	_, err := sc.client.DeleteObject(&s3.DeleteObjectInput{
+		Bucket: aws.String(sc.bucketName),
+		Key:    aws.String(objectKey),
+	})
+	if err != nil {
+		sc.logger.Warn("Failed to delete export object from DigitalOcean Spaces", map[string]interface{}{
+			"resume_id":  resumeID,
+			"object_key": objectKey,
+			"error":      err.Error(),
+		})
+		return fmt.Errorf("failed to delete export object: %w", err)
+	}
+
+	sc.logger.Info("Export object deleted successfully", map[string]interface{}{
+		"resume_id":  resumeID,
+		"object_key": objectKey,
+	})
+
+	return nil
 }
