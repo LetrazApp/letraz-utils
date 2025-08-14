@@ -16,6 +16,16 @@ HEALTH_CHECK_URL="http://localhost:8080/health"
 HEALTH_CHECK_TIMEOUT=60
 HEALTH_CHECK_INTERVAL=5
 
+# PDF renderer settings
+RENDERER_IMAGE_NAME="pdf-renderer"
+RENDERER_FULL_IMAGE_NAME="${REGISTRY}/${RENDERER_IMAGE_NAME}:latest"
+RENDERER_CONTAINER_NAME="letraz-pdf-renderer"
+RENDERER_PORT=8999
+RENDERER_HEALTH_URL="http://127.0.0.1:${RENDERER_PORT}/health"
+
+# Shared Docker network
+NETWORK_NAME="letraz-net"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -67,6 +77,62 @@ wait_for_health() {
     done
     
     error "Health check failed after ${timeout}s"
+    return 1
+}
+
+# Ensure a docker network exists
+ensure_network() {
+    if ! docker network ls --format '{{.Name}}' | grep -q "^${NETWORK_NAME}$"; then
+        log "Creating docker network ${NETWORK_NAME}..."
+        docker network create ${NETWORK_NAME}
+    else
+        log "Docker network ${NETWORK_NAME} already exists"
+    fi
+}
+
+# Ensure the pdf renderer is running and healthy
+ensure_renderer() {
+    log "Ensuring PDF renderer container is running..."
+    if docker ps --format '{{.Names}}' | grep -q "^${RENDERER_CONTAINER_NAME}$"; then
+        log "Renderer is already running"
+        return 0
+    fi
+
+    # If container exists but stopped, remove it
+    if docker ps -a --format '{{.Names}}' | grep -q "^${RENDERER_CONTAINER_NAME}$"; then
+        warn "Removing stopped renderer container"
+        docker rm -f "${RENDERER_CONTAINER_NAME}" || true
+    fi
+
+    # Ensure image exists (pull if needed)
+    if ! docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -q "^${RENDERER_FULL_IMAGE_NAME}$"; then
+        log "Pulling renderer image: ${RENDERER_FULL_IMAGE_NAME}"
+        docker pull "${RENDERER_FULL_IMAGE_NAME}"
+    fi
+
+    # Start renderer (bind to 127.0.0.1 only)
+    log "Starting renderer container..."
+    docker run -d \
+        --name "${RENDERER_CONTAINER_NAME}" \
+        --restart unless-stopped \
+        --network "${NETWORK_NAME}" \
+        -p 127.0.0.1:${RENDERER_PORT}:${RENDERER_PORT} \
+        "${RENDERER_FULL_IMAGE_NAME}"
+
+    # Simple health wait
+    local timeout=60
+    local interval=3
+    local elapsed=0
+    while [ $elapsed -lt $timeout ]; do
+        if curl -fsS "${RENDERER_HEALTH_URL}" >/dev/null 2>&1; then
+            log "Renderer health check passed!"
+            return 0
+        fi
+        sleep $interval
+        elapsed=$((elapsed + interval))
+        echo -n "."
+    done
+    error "Renderer failed health check after ${timeout}s"
     return 1
 }
 
@@ -149,17 +215,23 @@ deploy() {
     # Create necessary directories
     mkdir -p data logs tmp
     
+    # Ensure shared network and renderer
+    ensure_network
+    ensure_renderer
+
     # Start new container
     log "Starting new container with image: ${FULL_IMAGE_NAME}..."
     docker run -d \
         --name "$CONTAINER_NAME" \
         --env-file .env \
         -p 8080:8080 \
+        --network "${NETWORK_NAME}" \
         --restart unless-stopped \
         --memory=2g \
         --log-driver json-file \
         --log-opt max-size=10m \
         --log-opt max-file=3 \
+        -e PDF_RENDERER_URL=http://${RENDERER_CONTAINER_NAME}:${RENDERER_PORT} \
         -v $(pwd)/data:/app/data \
         -v $(pwd)/logs:/app/logs \
         -v $(pwd)/tmp:/app/tmp \

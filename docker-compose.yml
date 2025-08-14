@@ -23,11 +23,9 @@ services:
     # restart: unless-stopped
 
   pdf-renderer:
-    build:
-      context: .
-      dockerfile: Dockerfile.pdf-renderer
-    image: letraz-pdf-renderer:latest
+    image: ghcr.io/letrazapp/pdf-renderer:latest
     container_name: letraz-pdf-renderer
+    pull_policy: always
     expose:
       - "8999"
     healthcheck:

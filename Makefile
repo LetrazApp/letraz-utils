@@ -5,6 +5,12 @@ BINARY_NAME=letraz-utils
 MAIN_PATH=cmd/server/main.go
 BUILD_DIR=bin
 
+# Renderer image settings
+RENDERER_IMAGE_NAME=pdf-renderer
+RENDERER_REGISTRY=ghcr.io/letrazapp
+# Override on invocation: make docker-push-renderer RENDERER_TAG=v1.2.3
+RENDERER_TAG?=latest
+
 # Colors for output
 RED=\033[0;31m
 GREEN=\033[0;32m
@@ -227,3 +233,24 @@ docker-run-registry: ## Run Docker container from registry image
 		-v $(PWD)/logs:/app/logs \
 		-v $(PWD)/tmp:/app/tmp \
 		ghcr.io/letrazapp/$(BINARY_NAME):latest
+
+# ---------------- PDF Renderer convenience targets ----------------
+
+docker-build-renderer: ## Build the pdf-renderer image locally
+	@echo "$(YELLOW)🐳 Building pdf-renderer image...$(NC)"
+	@docker build -f Dockerfile.pdf-renderer -t $(RENDERER_IMAGE_NAME):$(RENDERER_TAG) .
+	@echo "$(GREEN)✅ Built $(RENDERER_IMAGE_NAME):$(RENDERER_TAG)$(NC)"
+
+docker-push-renderer: docker-setup-buildx ## Build and push pdf-renderer image to GHCR (multi-platform)
+	@echo "$(YELLOW)📤 Building and pushing pdf-renderer ($(RENDERER_TAG)) to $(RENDERER_REGISTRY)...$(NC)"
+	@docker buildx build \
+		--platform linux/amd64,linux/arm64 \
+		-f Dockerfile.pdf-renderer \
+		-t $(RENDERER_REGISTRY)/$(RENDERER_IMAGE_NAME):$(RENDERER_TAG) \
+		--push .
+	@echo "$(GREEN)✅ Pushed $(RENDERER_REGISTRY)/$(RENDERER_IMAGE_NAME):$(RENDERER_TAG)$(NC)"
+
+docker-run-renderer: ## Run the pdf-renderer locally on port 8999
+	@echo "$(YELLOW)🏃 Running pdf-renderer...$(NC)"
+	@docker run -d --rm --name letraz-pdf-renderer -p 8999:8999 $(RENDERER_REGISTRY)/$(RENDERER_IMAGE_NAME):$(RENDERER_TAG)
+	@echo "$(GREEN)✅ pdf-renderer running at http://localhost:8999$(NC)"
