@@ -1,26 +1,3 @@
-# Dedicated PDF renderer image with TeX Live
-FROM debian:stable-slim
-
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-       ca-certificates \
-       tzdata \
-       curl \
-       gosu \
-       texlive-full \
-       ghostscript \
-    && rm -rf /var/lib/apt/lists/*
-
-# Create non-root user
-RUN useradd -u 1001 -m renderer
-
-WORKDIR /srv
-
-# Copy only the renderer service
-COPY cmd/pdf-renderer/ cmd/pdf-renderer/
-
 # Build the small Go server inside the image using distro's Go if available? We'll use a multi-stage with Go.
 FROM golang:1.23-bullseye AS builder
 WORKDIR /src
