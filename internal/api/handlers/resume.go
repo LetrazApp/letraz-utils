@@ -177,7 +177,7 @@ func ExportResumeHandler(cfg *config.Config) echo.HandlerFunc {
 		}
 
 		// Render and upload via shared exporter
-		url, err := exporter.ExportResume(c.Request().Context(), cfg, *req.Resume, req.Theme)
+		latexURL, pdfURL, err := exporter.ExportResume(c.Request().Context(), cfg, *req.Resume, req.Theme)
 		if err != nil {
 			// Map well-known sentinel errors to stable codes
 			code := "INTERNAL"
@@ -200,9 +200,10 @@ func ExportResumeHandler(cfg *config.Config) echo.HandlerFunc {
 		}
 
 		return c.JSON(http.StatusOK, map[string]interface{}{
-			"status":     "SUCCESS",
-			"message":    "Exported successfully",
-			"export_url": url,
+			"status":    "SUCCESS",
+			"message":   "Exported successfully",
+			"latex_url": latexURL,
+			"pdf_url":   pdfURL,
 		})
 	}
 }

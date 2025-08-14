@@ -1,0 +1,22 @@
+version: "3.9"
+
+services:
+  letraz-utils:
+    image: letraz-utils:latest
+    container_name: letraz-utils
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./tmp:/app/tmp
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # Uncomment if you want it to always restart unless stopped manually
+    # restart: unless-stopped
+

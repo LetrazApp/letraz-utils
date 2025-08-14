@@ -278,3 +278,72 @@ func (sc *SpacesClient) UploadLatexExport(resumeID string, fileName string, late
 
 	return fileURL, nil
 }
+
+// UploadPDFExport uploads a compiled PDF export to DigitalOcean Spaces under exports/<resumeId>/<fileName>.pdf
+func (sc *SpacesClient) UploadPDFExport(resumeID string, fileName string, pdfData []byte) (string, error) {
+	if resumeID == "" {
+		return "", fmt.Errorf("resumeID is required")
+	}
+	if len(pdfData) == 0 {
+		return "", fmt.Errorf("pdfData is empty")
+	}
+	if fileName == "" {
+		fileName = uuid.New().String() + ".pdf"
+	} else {
+		fileName = filepath.Base(strings.TrimSpace(fileName))
+		if fileName == "." || fileName == "" {
+			fileName = uuid.New().String() + ".pdf"
+		}
+		if !strings.HasSuffix(strings.ToLower(fileName), ".pdf") {
+			fileName += ".pdf"
+		}
+	}
+	objectKey := fmt.Sprintf("exports/%s/%s", resumeID, fileName)
+
+	sc.logger.Info("Uploading PDF export to DigitalOcean Spaces", map[string]interface{}{
+		"resume_id":  resumeID,
+		"object_key": objectKey,
+		"size_bytes": len(pdfData),
+	})
+
+	_, err := sc.client.PutObject(&s3.PutObjectInput{
+		Bucket:      aws.String(sc.bucketName),
+		Key:         aws.String(objectKey),
+		Body:        bytes.NewReader(pdfData),
+		ContentType: aws.String("application/pdf"),
+		ACL:         aws.String("public-read"),
+	})
+	if err != nil {
+		sc.logger.Error("Failed to upload PDF export to DigitalOcean Spaces", map[string]interface{}{
+			"resume_id":  resumeID,
+			"object_key": objectKey,
+			"error":      err.Error(),
+		})
+		return "", fmt.Errorf("failed to upload PDF export: %w", err)
+	}
+
+	var fileURL string
+	if sc.cdnURL != "" {
+		fileURL = fmt.Sprintf("%s/%s", strings.TrimRight(sc.cdnURL, "/"), objectKey)
+	} else if sc.bucketURL != "" {
+		bucketBaseURL := strings.TrimRight(sc.bucketURL, "/")
+		if !strings.HasPrefix(bucketBaseURL, "https://") {
+			bucketBaseURL = "https://" + bucketBaseURL
+		}
+		fileURL = fmt.Sprintf("%s/%s", bucketBaseURL, objectKey)
+	} else {
+		region := ""
+		if sc.client.Config.Region != nil {
+			region = *sc.client.Config.Region
+		}
+		fileURL = fmt.Sprintf("https://%s.%s.digitaloceanspaces.com/%s", sc.bucketName, region, objectKey)
+	}
+
+	sc.logger.Info("PDF export uploaded successfully", map[string]interface{}{
+		"resume_id":  resumeID,
+		"object_key": objectKey,
+		"url":        fileURL,
+	})
+
+	return fileURL, nil
+}
