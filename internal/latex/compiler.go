@@ -3,7 +3,6 @@ package latex
 import (
 	"bytes"
 	"context"
-	"enc
 	"encoding/json"
 	"fmt"
 	"io"
