@@ -2,7 +2,10 @@ package latex
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,6 +17,33 @@ import (
 func Compile(latexSource string) ([]byte, error) {
 	if strings.TrimSpace(latexSource) == "" {
 		return nil, fmt.Errorf("empty LaTeX source")
+	}
+
+	// If a remote PDF renderer is configured via env, use it
+	if rendererURL := strings.TrimSpace(os.Getenv("PDF_RENDERER_URL")); rendererURL != "" {
+		body, _ := json.Marshal(map[string]string{"latex": latexSource})
+		req, err := http.NewRequest(http.MethodPost, strings.TrimRight(rendererURL, "/")+"/compile", bytes.NewReader(body))
+		if err != nil {
+			return nil, fmt.Errorf("create request: %w", err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("renderer request failed: %w", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			b, _ := io.ReadAll(resp.Body)
+			return nil, fmt.Errorf("renderer error: status=%d body=%s", resp.StatusCode, string(b))
+		}
+		pdf, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("read renderer response: %w", err)
+		}
+		if len(pdf) == 0 {
+			return nil, fmt.Errorf("renderer returned empty pdf")
+		}
+		return pdf, nil
 	}
 
 	// Create isolated working directory under tmp

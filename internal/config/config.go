@@ -131,6 +131,10 @@ type Config struct {
 		MaxRetries    int           `yaml:"max_retries" default:"3"`
 		Enabled       bool          `yaml:"enabled" default:"true"`
 	} `yaml:"callback"`
+
+	PDFRenderer struct {
+		URL string `yaml:"url"` // e.g., http://pdf-renderer:8999
+	} `yaml:"pdf_renderer"`
 }
 
 // expandEnvVars expands environment variables in a string using ${VAR} or $VAR syntax
@@ -437,6 +441,11 @@ func (c *Config) loadFromEnv() {
 
 	// Handle additional logging adapter options via environment variables
 	c.loadLoggingAdapterEnvVars()
+
+	// PDF renderer URL
+	if pdfURL := os.Getenv("PDF_RENDERER_URL"); pdfURL != "" {
+		c.PDFRenderer.URL = pdfURL
+	}
 }
 
 // loadLoggingAdapterEnvVars loads environment variables for logging adapters

@@ -22,14 +22,12 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o bin/letraz-utils 
 # Production stage
 FROM alpine:latest
 
-# Install runtime dependencies including Chrome for headed scraping and TeX Live for LaTeX compilation
+# Install runtime dependencies including Chrome for headed scraping
 RUN apk add --no-cache \
     ca-certificates \
     tzdata \
     chromium \
     chromium-chromedriver \
-    texlive-full \
-    ghostscript \
     && rm -rf /var/cache/apk/*
 
 # Create non-root user
@@ -56,7 +54,6 @@ USER utilsuser
 ENV CHROME_BIN=/usr/bin/chromium-browser
 ENV CHROME_PATH=/usr/bin/chromium-browser
 ENV PATH="/usr/bin:$PATH"
-ENV TEXMFVAR=/app/tmp/texmf-var
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

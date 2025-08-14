@@ -1,9 +1,9 @@
-version: "3.9"
-
 services:
   letraz-utils:
     image: letraz-utils:latest
     container_name: letraz-utils
+    depends_on:
+      - pdf-renderer
     env_file:
       - .env
     ports:
@@ -17,6 +17,21 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    environment:
+      - PDF_RENDERER_URL=http://pdf-renderer:8999
     # Uncomment if you want it to always restart unless stopped manually
     # restart: unless-stopped
+
+  pdf-renderer:
+    build:
+      context: .
+      dockerfile: Dockerfile.pdf-renderer
+    image: letraz-pdf-renderer:latest
+    container_name: letraz-pdf-renderer
+    expose:
+      - "8999"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8999/health"]
+      interval: 30s
+    restart: unless-stopped
 
