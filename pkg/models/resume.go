@@ -1,6 +1,9 @@
 package models
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // Suggestion represents a structured suggestion with metadata for resume improvement
 type Suggestion struct {
@@ -32,6 +35,77 @@ type User struct {
 	ProfileText string    `json:"profile_text"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+// UnmarshalJSON implements custom JSON unmarshaling to support both camelCase and snake_case field names
+func (u *User) UnmarshalJSON(data []byte) error {
+	// Detect key style by inspecting raw keys
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	hasSnake := raw["first_name"] != nil || raw["last_name"] != nil || raw["profile_text"] != nil || raw["created_at"] != nil || raw["updated_at"] != nil
+	hasCamel := raw["firstName"] != nil || raw["lastName"] != nil || raw["profileText"] != nil || raw["createdAt"] != nil || raw["updatedAt"] != nil
+
+	// Prefer snake_case if present (backwards compatibility). If neither is detectable, default to snake_case tags.
+	type userAlias User // avoid recursion
+	if hasSnake || (!hasSnake && !hasCamel) {
+		var su userAlias
+		if err := json.Unmarshal(data, &su); err != nil {
+			return err
+		}
+		*u = User(su)
+		return nil
+	}
+
+	// CamelCase path
+	var cc struct {
+		ID          string  `json:"id"`
+		Title       *string `json:"title"`
+		FirstName   string  `json:"firstName"`
+		LastName    string  `json:"lastName"`
+		Email       string  `json:"email"`
+		Phone       string  `json:"phone"`
+		DOB         *string `json:"dob"`
+		Nationality *string `json:"nationality"`
+		Address     string  `json:"address"`
+		City        string  `json:"city"`
+		Postal      string  `json:"postal"`
+		Country     *string `json:"country"`
+		Website     string  `json:"website"`
+		ProfileText string  `json:"profileText"`
+		CreatedAt   string  `json:"createdAt"`
+		UpdatedAt   string  `json:"updatedAt"`
+	}
+	if err := json.Unmarshal(data, &cc); err != nil {
+		return err
+	}
+	u.ID = cc.ID
+	u.Title = cc.Title
+	u.FirstName = cc.FirstName
+	u.LastName = cc.LastName
+	u.Email = cc.Email
+	u.Phone = cc.Phone
+	u.DOB = cc.DOB
+	u.Nationality = cc.Nationality
+	u.Address = cc.Address
+	u.City = cc.City
+	u.Postal = cc.Postal
+	u.Country = cc.Country
+	u.Website = cc.Website
+	u.ProfileText = cc.ProfileText
+	if cc.CreatedAt != "" {
+		// Accept both RFC3339 and RFC3339Nano
+		if t, err := time.Parse(time.RFC3339Nano, cc.CreatedAt); err == nil {
+			u.CreatedAt = t
+		}
+	}
+	if cc.UpdatedAt != "" {
+		if t, err := time.Parse(time.RFC3339Nano, cc.UpdatedAt); err == nil {
+			u.UpdatedAt = t
+		}
+	}
+	return nil
 }
 
 // Country represents country information
