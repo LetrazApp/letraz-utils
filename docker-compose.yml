@@ -1,6 +1,8 @@
 services:
   letraz-utils:
-    image: letraz-utils:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: letraz-utils
     depends_on:
       - pdf-renderer

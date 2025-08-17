@@ -1,0 +1,155 @@
+\documentclass[10pt, letterpaper]{article}
+
+% Packages:
+\usepackage[
+    ignoreheadfoot,
+    top=2 cm,
+    bottom=2 cm,
+    left=2 cm,
+    right=2 cm,
+    footskip=1.0 cm,
+]{geometry}
+\usepackage{titlesec}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage[dvipsnames]{xcolor}
+\definecolor{primaryColor}{RGB}{0, 0, 0}
+\usepackage{enumitem}
+\usepackage{fontawesome5}
+\usepackage{amsmath}
+\usepackage[
+    pdftitle={{ printf "{%s's CV}" (escape .Name) }},
+    pdfauthor={{ printf "{%s}" (escape .Name) }},
+    pdfcreator={Letraz Utils},
+    colorlinks=true,
+    urlcolor=primaryColor
+]{hyperref}
+\usepackage[pscoord]{eso-pic}
+\usepackage{calc}
+\usepackage{bookmark}
+\usepackage{lastpage}
+\usepackage{changepage}
+\usepackage{paracol}
+\usepackage{ifthen}
+\usepackage{needspace}
+\usepackage{iftex}
+
+\ifPDFTeX
+    \pdfgentounicode=1
+    \usepackage[T1]{fontenc}
+    \usepackage[utf8]{inputenc}
+    \usepackage{lmodern}
+\fi
+
+\usepackage{charter}
+
+% Settings
+\raggedright
+\AtBeginEnvironment{adjustwidth}{\partopsep0pt}
+\pagestyle{empty}
+\setcounter{secnumdepth}{0}
+\setlength{\parindent}{0pt}
+\setlength{\topskip}{0pt}
+\setlength{\columnsep}{0.15cm}
+\pagenumbering{gobble}
+
+\titleformat{\section}{\needspace{4\baselineskip}\bfseries\large}{}{0pt}{}[\vspace{1pt}\titlerule]
+\titlespacing{\section}{-1pt}{0.3 cm}{0.2 cm}
+
+\renewcommand\labelitemi{$\vcenter{\hbox{\small$\bullet$}}$}
+\newenvironment{highlights}{\begin{itemize}[topsep=0.10 cm,parsep=0.10 cm,partopsep=0pt,itemsep=0pt,leftmargin=0 cm + 10pt]}{\end{itemize}}
+\newenvironment{highlightsforbulletentries}{\begin{itemize}[topsep=0.10 cm,parsep=0.10 cm,partopsep=0pt,itemsep=0pt,leftmargin=10pt]}{\end{itemize}}
+\newenvironment{onecolentry}{\begin{adjustwidth}{0 cm + 0.00001 cm}{0 cm + 0.00001 cm}}{\end{adjustwidth}}
+\newenvironment{twocolentry}[2][]{\onecolentry\def\secondColumn{#2}\setcolumnwidth{\fill, 4.5 cm}\begin{paracol}{2}}{\switchcolumn \raggedleft \secondColumn\end{paracol}\endonecolentry}
+\newenvironment{threecolentry}[3][]{\onecolentry\def\thirdColumn{#3}\setcolumnwidth{, \fill, 4.5 cm}\begin{paracol}{3}{\raggedright #2} \switchcolumn}{\switchcolumn \raggedleft \thirdColumn\end{paracol}\endonecolentry}
+\newenvironment{header}{\setlength{\topsep}{0pt}\par\kern\topsep\centering\linespread{1.5}}{\par\kern\topsep}
+
+\begin{document}
+    \newcommand{\AND}{\unskip\cleaders\copy\ANDbox\hskip\wd\ANDbox\ignorespaces}
+    \newsavebox\ANDbox\sbox\ANDbox{$|$}
+
+    \begin{header}
+        \fontsize{25 pt}{25 pt}\selectfont {{ escape .Name }}
+
+        \vspace{5 pt}
+
+        \normalsize
+        {{- if .Address }}\mbox{\faGlobe}\ {{ escape .Address }}{{ end }}
+        {{- if .Email }}\kern 5.0 pt\mbox{\faEnvelope}\ {\href{mailto:{{ .Email }}}{ {{ escape .Email }} }}{{ end }}
+        {{- if .Phone }}\kern 5.0 pt\mbox{\faPhone}\ {\href{tel:{{ .Phone }}}{ {{ escape .Phone }} }}{{ end }}
+        {{- if .LinkedIn }}\kern 5.0 pt\mbox{\faLinkedin}\ {\href{ {{ .LinkedIn }} }{LinkedIn}}{{ end }}
+        {{- if .Github }}\kern 5.0 pt\mbox{\faGithub}\ {\href{ {{ .Github }} }{GitHub}}{{ end }}
+        {{- if .Website }}\kern 5.0 pt\mbox{\faGlobe}\ {\href{ {{ .Website }} }{ {{ escape .Website }} }}{{ end }}
+    \end{header}
+
+    \vspace{5 pt - 0.3 cm}
+
+    \section{Profile}
+        \begin{onecolentry}
+            {{ escape .Profile }}
+        \end{onecolentry}
+
+    {{- range .Sections }}
+        {{- if eq .Kind "Education" }}
+            {{- if .ShowHeader }}\section{Education}{{ end }}
+            \begin{twocolentry}{
+                {{ escape .Education.Period }}
+            }
+                \textbf{ {{- escape .Education.Institution -}} }, {{- escape .Education.Degree -}}\end{twocolentry}
+            \vspace{0.10 cm}
+            {{- if .Education.Highlights }}\begin{onecolentry}\begin{highlights}{{ range .Education.Highlights }}\item {{ escape . }}{{ end }}\end{highlights}\end{onecolentry}{{ end }}
+        {{- end }}
+
+        {{- if eq .Kind "Experience" }}
+            {{- if .ShowHeader }}\section{Experience}{{ end }}
+            \begin{twocolentry}{
+                {{ escape .Experience.Period }}
+            }
+                \textbf{ {{- escape .Experience.Title -}} }, {{- escape .Experience.Company -}} -- {{- escape .Experience.City -}}\end{twocolentry}
+            \vspace{0.10 cm}
+            {{- if .Experience.Highlights }}\begin{onecolentry}\begin{highlights}{{ range .Experience.Highlights }}\item {{ escape . }}{{ end }}\end{highlights}\end{onecolentry}{{ end }}
+            \vspace{0.2 cm}
+        {{- end }}
+
+        {{- if eq .Kind "Skills" }}
+            {{- if .ShowHeader }}\section{Skills}{{ end }}
+            {{- range $category, $skills := .Skills.Categories }}
+                \begin{onecolentry}\textbf{ {{- escape $category -}} :} {{ escJoin $skills ", " }}\end{onecolentry}
+                \vspace{0.2 cm}
+            {{- end }}
+            {{- if .Skills.Uncategorized }}
+                \begin{onecolentry}{{ escJoin .Skills.Uncategorized ", " }}\end{onecolentry}
+            {{- end }}
+        {{- end }}
+
+        {{- if eq .Kind "Projects" }}
+            {{- if .ShowHeader }}\section{Projects}{{ end }}
+            \begin{twocolentry}{
+                {{ escape .Project.Period }}
+            }
+                \textbf{ {{- escape .Project.Name -}} } -- \textit{ {{- escape .Project.Category -}} }\end{twocolentry}
+            \vspace{0.10 cm}
+            \begin{onecolentry}
+                {{- if .Project.Role }}{{ escape .Project.Role }}{{ end }}
+                {{- if or .Project.Github .Project.Live }} $|$ {{ end }}
+                {{- if .Project.Github }}\href{ {{ .Project.Github }} }{\faGithub\ GitHub}{{ end }}
+                {{- if and .Project.Github .Project.Live }} $|$ {{ end }}
+                {{- if .Project.Live }}\href{ {{ .Project.Live }} }{Live Demo}{{ end }}
+            \end{onecolentry}
+            {{- if .Project.Skills }}\vspace{0.10 cm}\begin{onecolentry}\textbf{Skills used:} {{ escJoin .Project.Skills ", " }}\end{onecolentry}{{ end }}
+            {{- if .Project.Highlights }}\vspace{0.10 cm}\begin{onecolentry}\begin{highlights}{{ range .Project.Highlights }}\item {{ escape . }}{{ end }}\end{highlights}\end{onecolentry}{{ end }}
+            \vspace{0.2 cm}
+        {{- end }}
+
+        {{- if eq .Kind "Certifications" }}
+            {{- if .ShowHeader }}\section{Certifications}{{ end }}
+            \begin{twocolentry}{
+                {{ escape .Certification.Period }}
+            }
+                \textbf{ {{- escape .Certification.Name -}} }\end{twocolentry}
+            {{- if or .Certification.Issuer .Certification.URL }}\vspace{0.10 cm}\begin{onecolentry}{{ if .Certification.Issuer }}{{ escape .Certification.Issuer }}{{ end }} {{ if and .Certification.Issuer .Certification.URL }} $|$ {{ end }} {{ if .Certification.URL }}\href{ {{ .Certification.URL }} }{View Certificate}{{ end }}\end{onecolentry}{{ end }}
+            \vspace{0.2 cm}
+        {{- end }}
+    {{- end }}
+
+\end{document}

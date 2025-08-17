@@ -1,6 +1,9 @@
 package models
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // Suggestion represents a structured suggestion with metadata for resume improvement
 type Suggestion struct {
@@ -32,6 +35,74 @@ type User struct {
 	ProfileText string    `json:"profile_text"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+// UnmarshalJSON implements custom JSON unmarshaling to support both camelCase and snake_case field names
+func (u *User) UnmarshalJSON(data []byte) error {
+	// First try the standard snake_case format
+	type userAlias User
+	var standardUser userAlias
+	if err := json.Unmarshal(data, &standardUser); err == nil {
+		// Check if we got meaningful data (at least one non-empty field)
+		if standardUser.FirstName != "" || standardUser.LastName != "" || standardUser.ProfileText != "" {
+			*u = User(standardUser)
+			return nil
+		}
+	}
+
+	// If that didn't work or gave empty results, try camelCase format
+	var camelCaseData struct {
+		ID          string  `json:"id"`
+		Title       *string `json:"title"`
+		FirstName   string  `json:"firstName"`
+		LastName    string  `json:"lastName"`
+		Email       string  `json:"email"`
+		Phone       string  `json:"phone"`
+		DOB         *string `json:"dob"`
+		Nationality *string `json:"nationality"`
+		Address     string  `json:"address"`
+		City        string  `json:"city"`
+		Postal      string  `json:"postal"`
+		Country     *string `json:"country"`
+		Website     string  `json:"website"`
+		ProfileText string  `json:"profileText"`
+		CreatedAt   string  `json:"createdAt"` // Parse as string first
+		UpdatedAt   string  `json:"updatedAt"` // Parse as string first
+	}
+
+	if err := json.Unmarshal(data, &camelCaseData); err != nil {
+		return err
+	}
+
+	// Map the fields
+	u.ID = camelCaseData.ID
+	u.Title = camelCaseData.Title
+	u.FirstName = camelCaseData.FirstName
+	u.LastName = camelCaseData.LastName
+	u.Email = camelCaseData.Email
+	u.Phone = camelCaseData.Phone
+	u.DOB = camelCaseData.DOB
+	u.Nationality = camelCaseData.Nationality
+	u.Address = camelCaseData.Address
+	u.City = camelCaseData.City
+	u.Postal = camelCaseData.Postal
+	u.Country = camelCaseData.Country
+	u.Website = camelCaseData.Website
+	u.ProfileText = camelCaseData.ProfileText
+
+	// Parse timestamps
+	if camelCaseData.CreatedAt != "" {
+		if createdAt, err := time.Parse(time.RFC3339Nano, camelCaseData.CreatedAt); err == nil {
+			u.CreatedAt = createdAt
+		}
+	}
+	if camelCaseData.UpdatedAt != "" {
+		if updatedAt, err := time.Parse(time.RFC3339Nano, camelCaseData.UpdatedAt); err == nil {
+			u.UpdatedAt = updatedAt
+		}
+	}
+
+	return nil
 }
 
 // Country represents country information
