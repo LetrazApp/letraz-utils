@@ -39,19 +39,27 @@ type User struct {
 
 // UnmarshalJSON implements custom JSON unmarshaling to support both camelCase and snake_case field names
 func (u *User) UnmarshalJSON(data []byte) error {
-	// First try the standard snake_case format
-	type userAlias User
-	var standardUser userAlias
-	if err := json.Unmarshal(data, &standardUser); err == nil {
-		// Check if we got meaningful data (at least one non-empty field)
-		if standardUser.FirstName != "" || standardUser.LastName != "" || standardUser.ProfileText != "" {
-			*u = User(standardUser)
-			return nil
+	// Detect key style by inspecting raw keys
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	hasSnake := raw["first_name"] != nil || raw["last_name"] != nil || raw["profile_text"] != nil || raw["created_at"] != nil || raw["updated_at"] != nil
+	hasCamel := raw["firstName"] != nil || raw["lastName"] != nil || raw["profileText"] != nil || raw["createdAt"] != nil || raw["updatedAt"] != nil
+
+	// Prefer snake_case if present (backwards compatibility). If neither is detectable, default to snake_case tags.
+	type userAlias User // avoid recursion
+	if hasSnake || (!hasSnake && !hasCamel) {
+		var su userAlias
+		if err := json.Unmarshal(data, &su); err != nil {
+			return err
 		}
+		*u = User(su)
+		return nil
 	}
 
-	// If that didn't work or gave empty results, try camelCase format
-	var camelCaseData struct {
+	// CamelCase path
+	var cc struct {
 		ID          string  `json:"id"`
 		Title       *string `json:"title"`
 		FirstName   string  `json:"firstName"`
@@ -66,42 +74,37 @@ func (u *User) UnmarshalJSON(data []byte) error {
 		Country     *string `json:"country"`
 		Website     string  `json:"website"`
 		ProfileText string  `json:"profileText"`
-		CreatedAt   string  `json:"createdAt"` // Parse as string first
-		UpdatedAt   string  `json:"updatedAt"` // Parse as string first
+		CreatedAt   string  `json:"createdAt"`
+		UpdatedAt   string  `json:"updatedAt"`
 	}
-
-	if err := json.Unmarshal(data, &camelCaseData); err != nil {
+	if err := json.Unmarshal(data, &cc); err != nil {
 		return err
 	}
-
-	// Map the fields
-	u.ID = camelCaseData.ID
-	u.Title = camelCaseData.Title
-	u.FirstName = camelCaseData.FirstName
-	u.LastName = camelCaseData.LastName
-	u.Email = camelCaseData.Email
-	u.Phone = camelCaseData.Phone
-	u.DOB = camelCaseData.DOB
-	u.Nationality = camelCaseData.Nationality
-	u.Address = camelCaseData.Address
-	u.City = camelCaseData.City
-	u.Postal = camelCaseData.Postal
-	u.Country = camelCaseData.Country
-	u.Website = camelCaseData.Website
-	u.ProfileText = camelCaseData.ProfileText
-
-	// Parse timestamps
-	if camelCaseData.CreatedAt != "" {
-		if createdAt, err := time.Parse(time.RFC3339Nano, camelCaseData.CreatedAt); err == nil {
-			u.CreatedAt = createdAt
+	u.ID = cc.ID
+	u.Title = cc.Title
+	u.FirstName = cc.FirstName
+	u.LastName = cc.LastName
+	u.Email = cc.Email
+	u.Phone = cc.Phone
+	u.DOB = cc.DOB
+	u.Nationality = cc.Nationality
+	u.Address = cc.Address
+	u.City = cc.City
+	u.Postal = cc.Postal
+	u.Country = cc.Country
+	u.Website = cc.Website
+	u.ProfileText = cc.ProfileText
+	if cc.CreatedAt != "" {
+		// Accept both RFC3339 and RFC3339Nano
+		if t, err := time.Parse(time.RFC3339Nano, cc.CreatedAt); err == nil {
+			u.CreatedAt = t
 		}
 	}
-	if camelCaseData.UpdatedAt != "" {
-		if updatedAt, err := time.Parse(time.RFC3339Nano, camelCaseData.UpdatedAt); err == nil {
-			u.UpdatedAt = updatedAt
+	if cc.UpdatedAt != "" {
+		if t, err := time.Parse(time.RFC3339Nano, cc.UpdatedAt); err == nil {
+			u.UpdatedAt = t
 		}
 	}
-
 	return nil
 }
 
