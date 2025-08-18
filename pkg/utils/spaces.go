@@ -39,7 +39,6 @@ func NewSpacesClient(cfg *config.Config) (*SpacesClient, error) {
 	}
 
 	// Extract the region-based endpoint from bucket URL
-	// Convert https://letraz-all-purpose.blr1.digitaloceanspaces.com to https://blr1.digitaloceanspaces.com
 	endpoint := fmt.Sprintf("https://%s.digitaloceanspaces.com", cfg.DigitalOcean.Spaces.Region)
 
 	logger.Info("Configuring DigitalOcean Spaces with endpoint", map[string]interface{}{

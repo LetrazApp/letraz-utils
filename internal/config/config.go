@@ -113,7 +113,7 @@ type Config struct {
 			AccessKeyID     string `yaml:"access_key_id"`
 			AccessKeySecret string `yaml:"access_key_secret"`
 			Region          string `yaml:"region" default:"blr1"`
-			BucketName      string `yaml:"bucket_name" default:"letraz-all-purpose"`
+			BucketName      string `yaml:"bucket_name"`
 		} `yaml:"spaces"`
 	} `yaml:"digitalocean"`
 
