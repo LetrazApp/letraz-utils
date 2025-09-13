@@ -75,6 +75,7 @@ type Config struct {
 		Timeout    time.Duration `yaml:"timeout" default:"60s"`
 		MaxRetries int           `yaml:"max_retries" default:"3"`
 		Formats    []string      `yaml:"formats" default:"markdown"`
+		UseExtract bool          `yaml:"use_extract" default:"false"`
 	} `yaml:"firecrawl"`
 
 	BrightData struct {
@@ -213,6 +214,7 @@ func LoadConfig(configPath string) (*Config, error) {
 	config.Firecrawl.MaxRetries = 3
 	config.Firecrawl.Timeout = 60 * time.Second
 	config.Firecrawl.Formats = []string{"markdown"}
+	config.Firecrawl.UseExtract = false
 
 	config.Logging.Level = "warn"
 	config.Logging.Format = "json"
@@ -312,6 +314,13 @@ func (c *Config) loadFromEnv() {
 
 	if firecrawlVersion := os.Getenv("FIRECRAWL_VERSION"); firecrawlVersion != "" {
 		c.Firecrawl.Version = firecrawlVersion
+	}
+
+	// Enable Firecrawl extract flow via env flag
+	if v := os.Getenv("FIRECRAWL_USE_EXTRACT"); v != "" {
+		if b, err := strconv.ParseBool(v); err == nil {
+			c.Firecrawl.UseExtract = b
+		}
 	}
 
 	if redisURL := os.Getenv("REDIS_URL"); redisURL != "" {
