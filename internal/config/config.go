@@ -317,8 +317,10 @@ func (c *Config) loadFromEnv() {
 	}
 
 	// Enable Firecrawl extract flow via env flag
-	if useExtract := os.Getenv("FIRECRAWL_USE_EXTRACT"); useExtract != "" {
-		c.Firecrawl.UseExtract = useExtract == "true" || useExtract == "1"
+	if v := os.Getenv("FIRECRAWL_USE_EXTRACT"); v != "" {
+		if b, err := strconv.ParseBool(v); err == nil {
+			c.Firecrawl.UseExtract = b
+		}
 	}
 
 	if redisURL := os.Getenv("REDIS_URL"); redisURL != "" {

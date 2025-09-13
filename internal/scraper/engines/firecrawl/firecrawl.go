@@ -308,7 +308,10 @@ func (f *FirecrawlScraper) extractJobWithFirecrawl(ctx context.Context, url stri
 	}
 	defer resp.Body.Close()
 
-	respBody, _ := io.ReadAll(resp.Body)
+	respBody, readErr := io.ReadAll(resp.Body)
+	if readErr != nil {
+		return nil, fmt.Errorf("failed to read extract response body: %w", readErr)
+	}
 
 	f.logger.Debug("Received Firecrawl response", map[string]interface{}{
 		"status_code":   resp.StatusCode,
