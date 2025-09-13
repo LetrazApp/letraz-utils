@@ -275,8 +275,14 @@ func convertToCallbackRequest(data *CallbackData) *letrazv1.ScrapeJobCallbackReq
 		ProcessingTime: data.ProcessingTime.String(),
 	}
 
-	// Convert job data if available
-	if data.Data != nil {
+	// Convert job data based on status
+	// For failure callbacks, explicitly set data to null for clear semantics
+	// For success callbacks, populate with actual job data if available
+	if isFailureStatus(data.Status) {
+		// Explicitly set data to nil for failures - this serializes as null in JSON
+		req.Data = nil
+	} else if data.Data != nil && hasValidJobData(data.Data) {
+		// Only include data for successful operations with meaningful content
 		req.Data = &letrazv1.ScrapeJobDataRequest{
 			Engine:  &data.Data.Engine,
 			UsedLlm: &data.Data.UsedLLM,
@@ -305,6 +311,9 @@ func convertToCallbackRequest(data *CallbackData) *letrazv1.ScrapeJobCallbackReq
 				}
 			}
 		}
+	} else {
+		// For edge cases (no data available even on success), set to nil
+		req.Data = nil
 	}
 
 	// Convert metadata if available
@@ -525,4 +534,34 @@ func ensurePort(addr, defaultPort string) string {
 
 	// Add default port
 	return fmt.Sprintf("%s:%s", addr, defaultPort)
+}
+
+// isFailureStatus checks if the callback status indicates a failure
+// For failures, we explicitly set the data field to null for clear semantics
+func isFailureStatus(status string) bool {
+	return strings.EqualFold(status, "failure") ||
+		strings.EqualFold(status, "failed") ||
+		strings.EqualFold(status, "error")
+}
+
+// hasValidJobData checks if the job data contains meaningful content worth sending
+// This helps distinguish between successful operations with data vs. those without meaningful content
+func hasValidJobData(data *CallbackJobData) bool {
+	if data == nil {
+		return false
+	}
+
+	// If there's no job, but we have engine/LLM info, still consider it valid
+	// as this metadata might be useful for debugging
+	if data.Job == nil {
+		return data.Engine != ""
+	}
+
+	// Check if the job has meaningful content
+	job := data.Job
+	return job.Title != "" ||
+		job.CompanyName != "" ||
+		job.Description != "" ||
+		len(job.Requirements) > 0 ||
+		len(job.Responsibilities) > 0
 }

@@ -1,8 +1,12 @@
 package firecrawl
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"strings"
 	"time"
 
@@ -58,6 +62,37 @@ func (f *FirecrawlScraper) ScrapeJob(ctx context.Context, url string, options *m
 	f.logger.Info("Starting Firecrawl job scraping", map[string]interface{}{
 		"url": url,
 	})
+
+	// Try Firecrawl extract first if enabled
+	f.logger.Info("Checking Firecrawl extract configuration", map[string]interface{}{
+		"use_extract": f.config.Firecrawl.UseExtract,
+	})
+
+	if f.config.Firecrawl.UseExtract {
+		f.logger.Info("Attempting Firecrawl extract with schema", map[string]interface{}{
+			"url": url,
+		})
+		job, err := f.extractJobWithFirecrawl(ctx, url)
+		if err == nil && job != nil {
+			f.logger.Info("Firecrawl extract succeeded", map[string]interface{}{
+				"url":       url,
+				"job_title": job.Title,
+				"company":   job.CompanyName,
+				"path":      "extract",
+			})
+			return job, nil
+		}
+		if err != nil {
+			f.logger.Warn("Firecrawl extract failed; falling back to scrape + LLM", map[string]interface{}{
+				"url":   url,
+				"error": err.Error(),
+			})
+		} else {
+			f.logger.Warn("Firecrawl extract returned empty result; falling back to scrape + LLM", map[string]interface{}{
+				"url": url,
+			})
+		}
+	}
 
 	// Scrape the URL using Firecrawl
 	content, err := f.scrapeContent(ctx, url, options)
@@ -229,3 +264,201 @@ func extractSimpleTitle(content string) string {
 	}
 	return ""
 }
+
+// extractJobWithFirecrawl calls Firecrawl's extract API with a JSON schema and maps the response to models.Job
+func (f *FirecrawlScraper) extractJobWithFirecrawl(ctx context.Context, url string) (*models.Job, error) {
+	// Build endpoint: always use v2 for schema-based extraction
+	base := strings.TrimRight(f.config.Firecrawl.APIURL, "/")
+	endpoint := base + "/v2/scrape"
+
+	payload := map[string]interface{}{
+		"url":             url,
+		"onlyMainContent": true,
+		"maxAge":          172800000,       // Match the working cURL
+		"parsers":         []string{"pdf"}, // Match the working cURL
+		"formats": []map[string]interface{}{
+			{
+				"type":   "json",
+				"schema": f.getJobExtractionSchema(),
+			},
+		},
+	}
+
+	bodyBytes, _ := json.Marshal(payload)
+
+	f.logger.Info("Sending Firecrawl v2/scrape request", map[string]interface{}{
+		"endpoint":     endpoint,
+		"url":          url,
+		"payload_size": len(bodyBytes),
+	})
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(bodyBytes))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create extract request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if f.config.Firecrawl.APIKey != "" {
+		req.Header.Set("Authorization", "Bearer "+f.config.Firecrawl.APIKey)
+	}
+
+	httpClient := &http.Client{Timeout: f.config.Firecrawl.Timeout}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("extract request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+
+	f.logger.Debug("Received Firecrawl response", map[string]interface{}{
+		"status_code":   resp.StatusCode,
+		"response_size": len(respBody),
+		"content_type":  resp.Header.Get("Content-Type"),
+	})
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		f.logger.Warn("Firecrawl extract failed", map[string]interface{}{
+			"status_code": resp.StatusCode,
+			"endpoint":    endpoint,
+		})
+		f.logger.Debug("Firecrawl extract error details", map[string]interface{}{
+			"response_body": truncateForLog(string(respBody), 1000),
+		})
+		return nil, fmt.Errorf("extract request returned status %d", resp.StatusCode)
+	}
+
+	// Parse response and attempt to locate the job object
+	var root interface{}
+	if err := json.Unmarshal(respBody, &root); err != nil {
+		return nil, fmt.Errorf("failed to parse extract response: %w", err)
+	}
+
+	f.logger.Debug("Parsed Firecrawl response, looking for job object", map[string]interface{}{
+		"response_type": fmt.Sprintf("%T", root),
+	})
+
+	match := findJobObjectRecursive(root)
+	if match == nil {
+		// Try common wrappers as a fallback
+		if m, ok := root.(map[string]interface{}); ok {
+			if v, ok := m["data"]; ok {
+				match = findJobObjectRecursive(v)
+			} else if v, ok := m["result"]; ok {
+				match = findJobObjectRecursive(v)
+			}
+		}
+	}
+
+	if match == nil {
+		f.logger.Warn("Could not find job object in response", map[string]interface{}{
+			"response_type": fmt.Sprintf("%T", root),
+		})
+		f.logger.Debug("Response details for missing job object", map[string]interface{}{
+			"response_sample": truncateForLog(string(respBody), 500),
+		})
+		return nil, fmt.Errorf("extract response did not contain a matching job object")
+	}
+
+	f.logger.Debug("Found job object in response", map[string]interface{}{
+		"job_keys": getMapKeys(match),
+	})
+
+	objBytes, _ := json.Marshal(match)
+	var job models.Job
+	if err := json.Unmarshal(objBytes, &job); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal extracted job: %w", err)
+	}
+
+	if job.JobURL == "" {
+		job.JobURL = url
+	}
+
+	if err := f.validateExtractedJob(job); err != nil {
+		return nil, err
+	}
+
+	return &job, nil
+}
+
+// findJobObjectRecursive walks arbitrary JSON and returns the first map with keys matching our job schema
+func findJobObjectRecursive(v interface{}) map[string]interface{} {
+	switch t := v.(type) {
+	case map[string]interface{}:
+		// Heuristic: require at least title and company_name
+		if _, hasTitle := t["title"]; hasTitle {
+			if _, hasCompany := t["company_name"]; hasCompany {
+				return t
+			}
+		}
+		for _, child := range t {
+			if m := findJobObjectRecursive(child); m != nil {
+				return m
+			}
+		}
+	case []interface{}:
+		for _, item := range t {
+			if m := findJobObjectRecursive(item); m != nil {
+				return m
+			}
+		}
+	}
+	return nil
+}
+
+func (f *FirecrawlScraper) validateExtractedJob(job models.Job) error {
+	if strings.TrimSpace(job.Title) == "" {
+		return utils.NewNotJobPostingError("extracted job missing title")
+	}
+	if strings.TrimSpace(job.CompanyName) == "" {
+		return utils.NewNotJobPostingError("extracted job missing company_name")
+	}
+	return nil
+}
+
+func (f *FirecrawlScraper) getJobExtractionSchema() map[string]interface{} {
+	var schema map[string]interface{}
+	_ = json.Unmarshal([]byte(jobExtractionSchema), &schema)
+	return schema
+}
+
+// truncateForLog safely truncates long payloads for logging
+func truncateForLog(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	return s[:max] + "..."
+}
+
+// getMapKeys returns the keys of a map for debugging
+func getMapKeys(m map[string]interface{}) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
+const jobExtractionSchema = `{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["title", "company_name"],
+  "properties": {
+    "title": { "type": "string" },
+    "job_url": { "type": "string", "format": "uri" },
+    "company_name": { "type": "string" },
+    "location": { "type": "string" },
+    "salary": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "currency": { "type": "string" },
+        "min": { "type": "number" },
+        "max": { "type": "number" }
+      }
+    },
+    "requirements": { "type": "array", "items": { "type": "string" } },
+    "description": { "type": "string" },
+    "responsibilities": { "type": "array", "items": { "type": "string" } },
+    "benefits": { "type": "array", "items": { "type": "string" } }
+  }
+}`
