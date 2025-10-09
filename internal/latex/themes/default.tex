@@ -71,7 +71,7 @@
     \begin{header}
         \fontsize{25 pt}{25 pt}\selectfont {{ escape .Name }}
 
-        \vspace{5 pt}
+        \vspace{2 pt}
 
         \normalsize
         {{- if .Address }}\mbox{\faGlobe}\ {{ escape .Address }}{{ end }}
@@ -81,7 +81,7 @@
         {{- if .Github }}\kern 5.0 pt\mbox{\faGithub}\ {\href{ {{ .Github }} }{GitHub}}{{ end }}
         {{- if .Website }}
 
-        \vspace{2 pt}
+        \vspace{1 pt}
         \mbox{\faGlobe}\ {\href{ {{ .Website }} }{ {{ escape .Website }} }}{{ end }}
     \end{header}
 

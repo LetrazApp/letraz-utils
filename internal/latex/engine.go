@@ -196,11 +196,18 @@ func buildViewModel(resume models.BaseResume) ViewModel {
 				title := toString(m["job_title"])
 				company := toString(m["company_name"])
 				city := toString(m["city"])
+				country := ""
 				if ctry, ok := m["country"].(map[string]interface{}); ok {
-					vmct := toString(ctry["name"])
-					if vmct != "" {
-						city = city + ", " + vmct
-					}
+					country = toString(ctry["name"])
+				}
+				// Build location string properly
+				location := ""
+				if city != "" && country != "" {
+					location = city + ", " + country
+				} else if city != "" {
+					location = city
+				} else if country != "" {
+					location = country
 				}
 				sm := toIntPtr(m["started_from_month"])
 				sy := toIntPtr(m["started_from_year"])
@@ -216,7 +223,7 @@ func buildViewModel(resume models.BaseResume) ViewModel {
 					period = formatPeriod(sm, sy, fm, fy)
 				}
 				highlights := htmlListToItems(toString(m["description"]))
-				ex := ExperienceVM{Period: period, Title: title, Company: company, City: city, Highlights: highlights}
+				ex := ExperienceVM{Period: period, Title: title, Company: company, City: location, Highlights: highlights}
 				kind := "Experience"
 				vm.Sections = append(vm.Sections, SectionItemVM{Kind: kind, Experience: &ex, ShowHeader: kind != prevKind})
 				prevKind = kind
