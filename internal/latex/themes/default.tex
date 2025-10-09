@@ -79,7 +79,10 @@
         {{- if .Phone }}\kern 5.0 pt\mbox{\faPhone}\ {\href{tel:{{ .Phone }}}{ {{ escape .Phone }} }}{{ end }}
         {{- if .LinkedIn }}\kern 5.0 pt\mbox{\faLinkedin}\ {\href{ {{ .LinkedIn }} }{LinkedIn}}{{ end }}
         {{- if .Github }}\kern 5.0 pt\mbox{\faGithub}\ {\href{ {{ .Github }} }{GitHub}}{{ end }}
-        {{- if .Website }}\kern 5.0 pt\mbox{\faGlobe}\ {\href{ {{ .Website }} }{ {{ escape .Website }} }}{{ end }}
+        {{- if .Website }}
+
+        \vspace{2 pt}
+        \mbox{\faGlobe}\ {\href{ {{ .Website }} }{ {{ escape .Website }} }}{{ end }}
     \end{header}
 
     \vspace{5 pt - 0.3 cm}
@@ -95,7 +98,7 @@
             \begin{twocolentry}{
                 {{ escape .Education.Period }}
             }
-                \textbf{ {{- escape .Education.Institution -}} }, {{- escape .Education.Degree -}}\end{twocolentry}
+                \textbf{ {{- escape .Education.Institution -}} }, {{ escape .Education.Degree -}}\end{twocolentry}
             \vspace{0.10 cm}
             {{- if .Education.Highlights }}\begin{onecolentry}\begin{highlights}{{ range .Education.Highlights }}\item {{ escape . }}{{ end }}\end{highlights}\end{onecolentry}{{ end }}
         {{- end }}
@@ -105,7 +108,7 @@
             \begin{twocolentry}{
                 {{ escape .Experience.Period }}
             }
-                \textbf{ {{- escape .Experience.Title -}} }, {{- escape .Experience.Company -}} -- {{- escape .Experience.City -}}\end{twocolentry}
+                \textbf{ {{- escape .Experience.Title -}} }, {{ escape .Experience.Company -}}{{- if .Experience.City }}, {{ escape .Experience.City -}}{{ end }}\end{twocolentry}
             \vspace{0.10 cm}
             {{- if .Experience.Highlights }}\begin{onecolentry}\begin{highlights}{{ range .Experience.Highlights }}\item {{ escape . }}{{ end }}\end{highlights}\end{onecolentry}{{ end }}
             \vspace{0.2 cm}
@@ -128,14 +131,14 @@
                 {{ escape .Project.Period }}
             }
                 \textbf{ {{- escape .Project.Name -}} } -- \textit{ {{- escape .Project.Category -}} }\end{twocolentry}
-            \vspace{0.10 cm}
+            {{- if or .Project.Role .Project.Github .Project.Live }}\vspace{0.10 cm}
             \begin{onecolentry}
                 {{- if .Project.Role }}{{ escape .Project.Role }}{{ end }}
-                {{- if or .Project.Github .Project.Live }} $|$ {{ end }}
+                {{- if and .Project.Role (or .Project.Github .Project.Live) }} $|$ {{ end }}
                 {{- if .Project.Github }}\href{ {{ .Project.Github }} }{\faGithub\ GitHub}{{ end }}
                 {{- if and .Project.Github .Project.Live }} $|$ {{ end }}
                 {{- if .Project.Live }}\href{ {{ .Project.Live }} }{Live Demo}{{ end }}
-            \end{onecolentry}
+            \end{onecolentry}{{ end }}
             {{- if .Project.Skills }}\vspace{0.10 cm}\begin{onecolentry}\textbf{Skills used:} {{ escJoin .Project.Skills ", " }}\end{onecolentry}{{ end }}
             {{- if .Project.Highlights }}\vspace{0.10 cm}\begin{onecolentry}\begin{highlights}{{ range .Project.Highlights }}\item {{ escape . }}{{ end }}\end{highlights}\end{onecolentry}{{ end }}
             \vspace{0.2 cm}
