@@ -108,7 +108,7 @@
             \begin{twocolentry}{
                 {{ escape .Experience.Period }}
             }
-                \textbf{ {{- escape .Experience.Title -}} }, {{ escape .Experience.Company -}}{{- if .Experience.City }}, {{ escape .Experience.City -}}{{ end }}\end{twocolentry}
+                \textbf{ {{- escape .Experience.Title -}} }{{- if .Experience.EmploymentType }} ({{ escape .Experience.EmploymentType }}){{ end }}, {{ escape .Experience.Company -}}{{- if .Experience.City }}, {{ escape .Experience.City -}}{{ end }}\end{twocolentry}
             \vspace{0.10 cm}
             {{- if .Experience.Highlights }}\begin{onecolentry}\begin{highlights}{{ range .Experience.Highlights }}\item {{ escape . }}{{ end }}\end{highlights}\end{onecolentry}{{ end }}
             \vspace{0.2 cm}

@@ -68,12 +68,13 @@ func getThemeTemplate(theme string) (string, error) {
 // ===== View model and helpers =====
 
 type ExperienceVM struct {
-	Period     string
-	Title      string
-	Company    string
-	City       string
-	Country    string
-	Highlights []string
+	Period         string
+	Title          string
+	EmploymentType string
+	Company        string
+	City           string
+	Country        string
+	Highlights     []string
 }
 
 type EducationVM struct {
@@ -194,6 +195,7 @@ func buildViewModel(resume models.BaseResume) ViewModel {
 		case "experience":
 			if m, ok := s.Data.(map[string]interface{}); ok {
 				title := toString(m["job_title"])
+				employmentType := toString(m["employment_type"])
 				company := toString(m["company_name"])
 				city := toString(m["city"])
 				country := ""
@@ -223,7 +225,7 @@ func buildViewModel(resume models.BaseResume) ViewModel {
 					period = formatPeriod(sm, sy, fm, fy)
 				}
 				highlights := htmlListToItems(toString(m["description"]))
-				ex := ExperienceVM{Period: period, Title: title, Company: company, City: location, Highlights: highlights}
+				ex := ExperienceVM{Period: period, Title: title, EmploymentType: employmentType, Company: company, City: location, Highlights: highlights}
 				kind := "Experience"
 				vm.Sections = append(vm.Sections, SectionItemVM{Kind: kind, Experience: &ex, ShowHeader: kind != prevKind})
 				prevKind = kind
