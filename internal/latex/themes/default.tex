@@ -87,10 +87,12 @@
 
     \vspace{5 pt - 0.3 cm}
 
+    {{- if .Profile }}
     \section{Profile}
         \begin{onecolentry}
             {{ escape .Profile }}
         \end{onecolentry}
+    {{- end }}
 
     {{- range .Sections }}
         {{- if eq .Kind "Education" }}
